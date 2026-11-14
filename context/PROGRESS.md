@@ -13,8 +13,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 1   | Scaffold                      | ☑      | `milestone/01-scaffold`       | [#1](https://github.com/abdullahasghar966/shatter-router/pull/1) | `18f25c1` | `m01-scaffold` |
 | 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
 | 3   | Fracture + crack propagation  | ☑      | `milestone/03-fracture-crack` | [#3](https://github.com/abdullahasghar966/shatter-router/pull/3) | `5523bfc` | `m03-fracture-crack` |
-| 4   | `shatter` effect (procedural) | ◐      | `milestone/04-shatter-effect` |     |           |             |
-| 5   | React + React Router adapter  | ☐      | `milestone/05-react-router`   |     |           |             |
+| 4   | `shatter` effect (procedural) | ☑      | `milestone/04-shatter-effect` | [#4](https://github.com/abdullahasghar966/shatter-router/pull/4) | `17b79cc` | `m04-shatter-effect` |
+| 5   | React + React Router adapter  | ◐      | `milestone/05-react-router`   |     |           |             |
 | 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
 | 7   | Remaining effects             | ☐      | `milestone/07-effects`        |     |           |             |
 | 8   | Rapier mode                   | ☐      | `milestone/08-rapier`         |     |           |             |
@@ -48,6 +48,9 @@ Recorded 2026-11-14 (session 1). Node v24.21.0, pnpm 12.8.1.
 | happy-dom | 21.0.4 | packages/shatter-router |
 | size-limit, @size-limit/preset-small-lib | 14.3.0 | packages/shatter-router |
 | vite | 8.3.8 | examples/vanilla |
+| react / react-dom | 19.3.1 | packages/shatter-router (dev; optional peer `>=19.0.0`), recorded 2026-11-15 |
+| react-router | 8.5.1 | packages/shatter-router (dev; optional peer `>=8.0.0`) |
+| @types/react / @types/react-dom | 19.3.0 | packages/shatter-router (dev) |
 
 GitHub Actions: actions/checkout v7, actions/setup-node v7, pnpm/action-setup v6, actions/cache v6, actions/upload-artifact v7.
 
@@ -74,6 +77,8 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | runtime `dist/runtime.js` (lazy) | 6.56 kB | 8 KB (own) | Milestone 4: state machine, fallbacks, a11y, scroll lock, pre-capture |
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 16.82 kB | 22 KB | Milestone 4: + effect programs, shard data texture, frame loop, `shatter` effect |
 | 2026-11-15 | capture `dist/capture.js` (lazy) | 11.94 kB | 16 KB | Milestone 4: + substitutes for iframe/video/ignored, CORS image rule |
+| 2026-11-15 | `shatter-router/react` (`dist/react.js`, incl. core) | 2.46 kB | 6 KB (ADR-027) | Milestone 5; react, react-dom excluded (peers) |
+| 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
 
@@ -112,6 +117,25 @@ Milestone 3, **PR #3 CI (GitHub Actions ubuntu-latest)**, diff / worst block:
 | 2026-11-14 | WebKit (all at 2x) | 0.1495 % (raw 0.3157) / 0.0 % | 0.0023 % / 0.0 % | 0.1495 % / 0.0 % | 0.1495 % / 0.0 % | 0.1495 % / 0.0 % |
 
 History of the same cases while fixing them (so the causes are on record): Chromium DPR 1 with an alpha canvas 0.54 % / 0.70 % (ClearType lost, ADR-009); WebKit scrolled with a `viewBox` offset 65.4 % (ADR-008); WebKit without `zoom` 0.55 % / 0.68 % (ADR-010); Chromium DPR 2 with `zoom` 0.59 % (ADR-010).
+
+Milestone 5, React Router example (`e2e/react-router/transitions.spec.ts`), local Windows 11, 2026-11-15:
+
+| Browser | Case | DPR | Diff | Worst block |
+|---|---|---|---|---|
+| Chromium 1255 headless | first frame, top of `/` (data mode) | 1 | 0.1131 % | 4.0 % |
+| Chromium 1255 headless | back: overlay at `covered` vs the outgoing page | 1 | 0.1026 % | |
+| WebKit 2388 | first frame, top of `/` | 2 | 0.0021 % (raw 0.1095 %) | 0.0 % |
+| WebKit 2388 | back: overlay at `covered` vs the outgoing page | 2 | 0.2822 % (raw 0.6291 %) | |
+
+Milestone 5, **PR #5 CI (GitHub Actions ubuntu-latest)**, React Router example, 2026-11-15:
+
+| Browser | First frame, top of `/` | Back: overlay vs outgoing page | Committing with a 400 ms loader |
+|---|---|---|---|
+| Chromium headless (1x) | 0.1566 % / worst block 4.0 % | 0.1347 % | 407 ms |
+| Firefox headed (xvfb, Mesa) | 0.0000 % / 0.0 % | 0.0000 % | 407 ms |
+| WebKit (2x) | 0.1335 % (raw 0.3096 %) / 2.4 % | 0.0345 % (raw 0.1834 %) | 416 ms |
+
+Before ADR-033 the WebKit first frame had a worst block of 15.3 % (button drawn serif in the copy).
 
 ### Capture time (viewport capture of the vanilla example, capturer warm)
 
@@ -156,14 +180,28 @@ Decision: below the 4 ms Worker threshold, stays on the main thread. Re-measure 
 | 2026-11-15 | Headless Chromium, single run, same laptop | 1280x720 | 56 frames / 1004 ms | 54.8 | 37.6 ms | software GL; one draw call per frame |
 | 2026-11-15 | Headless Chromium, 4 parallel workers | 1280x720 | 12 / 1042 ms | 10.6 | 258 ms | CPU contention, not representative |
 | 2026-11-15 | Playwright WebKit, single run | 1280x720 | 17 / 1053 ms | 15.2 | 70 ms | software GL |
+| 2026-11-15 | PR #4 CI ubuntu-latest, headless Chromium | 1280x720 | 21 / 1009 ms | 19.8 | 142 ms | parallel workers, software GL; capture 76 ms |
+| 2026-11-15 | PR #4 CI, Firefox headed (xvfb, Mesa) | 1280x720 | 26 / 1020 ms | 24.5 | 214 ms | capture 173 ms |
+| 2026-11-15 | PR #4 CI, WebKit | 1280x720 | 10 / 1104 ms | 8.2 | 256 ms | capture 214 ms |
 
 Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
+
+### React Router adapter (Milestone 5)
+
+| Date | Runtime | Measurement |
+|---|---|---|
+| 2026-11-15 | Headless Chromium 1255, local, 2 workers | `/slow` (400 ms loader): committing phase 410–413 ms; overlay stays up until the loaded page rendered |
+| 2026-11-15 | Playwright WebKit 2388, local | same: committing 449–450 ms |
+| 2026-11-15 | Headless Chromium, local | capture on the React Router home page: 51–124 ms (1x, parallel workers) |
+
+Visual check (headless Chromium screenshots, 1280x720, motion frozen at 450 ms): forward Home → Work shatters the Home page from the click point over the live Work page; back Work → Home shatters the Work page from the viewport centre over the live Home page. No console errors or warnings.
 
 ### Memory (section 9: 100 consecutive transitions)
 
 | Date | Runtime | Result |
 |---|---|---|
 | 2026-11-15 | Headless Chromium (CDP heap after forced GC), 40 shards, 60 ms motion | heap 3.02 MB → 3.14 MB (+119 kB) after 100 transitions (10 warm-up first); live GPU textures after every transition: 0 |
+| 2026-11-15 | PR #4 CI (ubuntu-latest), same test | heap 3.02 MB → 3.13 MB (+117 kB); textures 0 |
 
 ### Not measured yet
 
@@ -176,4 +214,5 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 1 | 39 tests in 4 files | 6 tests per engine (vanilla navigation). PR #1 CI: Chromium, Firefox, WebKit all green (Linux). Local Windows 11: Chromium + WebKit green, Firefox cannot launch (see LEARNINGS) |
 | 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4. PR #2 CI: all three engines green |
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
-| 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 72 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit |
+| 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |
+| 5 | 257 tests in 16 files (+ `react.test.tsx` 24, `react-router.test.tsx` 13, `standard-font.test.ts` 2) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped. PR #5 CI: Chromium 57 passed, Firefox 49 passed, WebKit 49 passed (engine-specific skips) |

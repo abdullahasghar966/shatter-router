@@ -6,6 +6,6 @@ export default defineConfig({
     environmentOptions: {
       happyDOM: { url: 'https://app.example/work?tab=1' },
     },
-    include: ['test/**/*.test.ts'],
+    include: ['test/**/*.test.{ts,tsx}'],
   },
 });

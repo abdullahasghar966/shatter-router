@@ -5,6 +5,7 @@ const isCI = Boolean(process.env.CI);
 /** Ports of the example apps the e2e suite runs against. */
 export const APPS = {
   vanilla: 'http://localhost:4173',
+  reactRouter: 'http://localhost:4174',
 } as const;
 
 export default defineConfig({
@@ -39,6 +40,12 @@ export default defineConfig({
       // Serves the already-built example (`pnpm build` then `pnpm build:examples`).
       command: 'pnpm --filter @shatter-router/example-vanilla preview',
       url: APPS.vanilla,
+      reuseExistingServer: !isCI,
+      timeout: 60_000,
+    },
+    {
+      command: 'pnpm --filter @shatter-router/example-react-router preview',
+      url: APPS.reactRouter,
       reuseExistingServer: !isCI,
       timeout: 60_000,
     },

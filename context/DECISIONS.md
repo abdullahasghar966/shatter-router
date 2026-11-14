@@ -233,3 +233,84 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Context:** Section 10's debug panel and section 6's `backForward: 'reverse'` are not tied to a milestone. `'reverse'` maps `shatter` back to `assemble`, which arrives in Milestone 7; the panel's FPS/seam-check tools belong with the performance pass.
 - **Decision:** `backForward` is implemented in Milestone 7 with `assemble`; until then `direction: 'back'` plays the same effect (the uniform `uDirection` is already passed). The debug panel (shadow DOM, timings, FPS, wireframe toggle, seam-check heatmap) is built in Milestone 10. The data it needs is already exposed on the debug hook (`state`, `timings`, `lastAnimation`, `lastFracture`, `wireframe`, `setMotionTime`).
 - **Consequences:** Listed in `HANDOFF.md` so it is not forgotten.
+
+## ADR-026 — Back/forward in React Router: hold the router's popstate, not the Navigation API
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 7 says to capture the outgoing page before React Router re-renders on POP, using the Navigation API's `navigate` event where available and playing no effect elsewhere. A capture takes 30–250 ms and is asynchronous, while React Router 8.5.1 handles `popstate` immediately (`window.addEventListener('popstate', handlePop)` in `lib/router/history.js`, both declarative and data mode). Starting the capture in the `navigate` event, a few microseconds before `popstate`, cannot finish before the router renders the new route, so the overlay would show the *new* page shattering.
+- **Decision:** `<ShatterProvider>` (react-router) adds a **capture-phase `popstate` listener on `window`**. When the route (`pathname + search`) differs from the one last rendered, it calls `stopImmediatePropagation()` and starts a `direction: 'back'` transition; the commit dispatches a new `PopStateEvent` with `history.state`, which the router handles as usual, and resolves when `<ShatterRouteSignal>` reports the new location. The browser history (URL, entry, `history.state`) moves at once and is never blocked; only the router's reaction is postponed until the overlay covers the page (≤ capture budget + 2 frames). A held popstate is always released: by the next commit, when the last in-flight transition settles (`RouteBridge.run`), or when the provider unmounts. Fragment-only moves are not held. Works in every engine; the Navigation API is not needed.
+- **Alternatives considered:** Navigation API `navigate` event only (cannot capture in time, see above); `navigate` event + `intercept()` (does not stop the router's popstate listener; Firefox/Safari support is recent); no effect on POP (loses a spec'd feature that is achievable).
+- **Consequences:** Other `popstate` listeners on the page also receive the event late, and as a synthetic (`isTrusted: false`) event. A capture listener is relied on to run before React Router's bubble listener at the window target (DOM spec: capture listeners at the target run first, implemented in Chromium, Firefox, WebKit); verified in all three engines by e2e.
+
+## ADR-027 — React adapter shape
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 6 names `ShatterProvider`, `ShatterLink`, `useShatter`, `useShatterNavigate` for `shatter-router/react`, but plain React has no router, and section 7 needs the React Router adapter to know when a route has rendered.
+- **Decision:**
+  1. `shatter-router/react` is router-agnostic: `<ShatterProvider navigate={(href, { replace, state }) => …}>` connects any router; a synchronous state update inside it is flushed with `flushSync`, and a returned promise is awaited. Without `navigate`, `<ShatterLink>` is a plain `<a>` and `useShatterNavigate()` uses `location.assign`.
+  2. `shatter-router/react-router` exports its own `ShatterProvider` (rendered **inside** the router; in data mode in the root route element), `ShatterLink` (wraps `<Link>`), `ShatterNavLink` (wraps `<NavLink>`), `useShatterNavigate` (takes `To` + `NavigateOptions`), `useShatter`, `ShatterRouteSignal`. Both providers share one context, so the generic hooks also work under the React Router provider.
+  3. The instance is created in an effect after mount (SSR and the first render never touch the DOM), destroyed on unmount, re-created on a StrictMode remount. `options` are read once. `instance` lets the app pass its own (never destroyed by the provider). `useShatter()` returns `Shatter | null`.
+  4. Every router commit is bounded by `readyTimeout` (default 1500 ms), since the runtime awaits `commit()` without a timeout and a blocked or slow navigation must not keep the overlay up.
+  5. Data-mode idleness is read from `UNSAFE_DataRouterNavigationContext` (the context `useNavigation()` reads; `useNavigation()` itself throws outside a data router). It is null in declarative mode.
+  6. Links: the app's `onClick` runs first; `classifyLinkClick` decides; `reloadDocument` links are never intercepted; a link to the current location replaces the entry (same rule as `<Link>`). `viewTransition` is omitted from the props (the overlay is the transition).
+  7. Size budgets: each adapter entry including the core ≤ 6 KB gzip (the core's own budget); react, react-dom and react-router are peers and excluded.
+- **Alternatives considered:** `useNavigation()` behind a mode prop (users must say which mode they use); creating the instance during render (StrictMode double render leaks listeners of the discarded instance); a separate React Router provider outside the router (cannot call router hooks).
+- **Consequences:** `UNSAFE_DataRouterNavigationContext` is a React Router export marked unsafe; an upgrade must be checked against the unit tests (`test/react-router.test.tsx` covers data mode).
+
+## ADR-028 — The popstate gate must be registered before the router (supersedes the listener-order assumption in ADR-026)
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-026; its decision to hold the router's popstate stands)
+- **Context:** ADR-026 relied on "capture listeners at the `window` target run before bubble listeners". Measured in Playwright: **WebKit** runs the capture listener first, **Chromium** runs listeners at the target in registration order, capture or not. In data mode `createBrowserRouter()` calls `router.initialize()` immediately, which adds React Router's `popstate` listener before any component mounts. React 19 renders a transition started inside a `popstate` event synchronously (`shouldAttemptEagerTransition` in react-dom 19.3.1), so the new route was in the DOM before our listener ran: in Chromium back/forward silently played no effect (the e2e caught it once it checked the lifecycle events of the back navigation itself, not the hook's last values).
+- **Decision:** One page-lifetime gate listener (`src/react-router/pop-gate.ts`, capture phase on `window`, added once) asks the mounted provider whether to hold each popstate and calls `stopImmediatePropagation()` when it does. It is installed:
+  1. by `<ShatterProvider>` in a layout effect with no dependencies: a child's layout effect runs before `<BrowserRouter>`'s own `useLayoutEffect(() => history.listen(...))`, so declarative mode is covered;
+  2. by the new export **`createShatterBrowserRouter(routes, opts)`** (calls `installPopGate()` then React Router's `createBrowserRouter`), the documented way to create a data router. With the plain `createBrowserRouter`, back/forward still complete; the gate runs after the router, sees the route already rendered (`pathname + search` equals the rendered one) and lets the move play without an effect (Chromium), or holds it (WebKit, Firefox).
+- **Alternatives considered:** Navigation API `navigate` event (fires before `popstate` but a capture cannot finish in that tick; React Router does not use it); reordering the router's listener with `router.dispose()` + `initialize()` (aborts navigations, re-runs initialisation); a `window` Proxy passed as `createBrowserRouter`'s `window` option (fragile: bound functions, `instanceof`); registering at import time (rule 6, and `sideEffects: false` would let bundlers drop it).
+- **Consequences:** Data-mode apps should use `createShatterBrowserRouter`; documented in the README in M12. One extra export (+0.1 kB). e2e covers all three modes: data with the gate (effect on back and forward), declarative (effect), data with the plain router (lands on the right route).
+
+## ADR-029 — Form controls keep their live font in the copy
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** PR #5 CI, WebKit on Linux: the React Router home page's first-frame seam had a worst block of 15.3 % (limit 8 %). The diff showed a `<button>` (no `font-family` in the app CSS) drawn in a serif font in the overlay and a sans font live. A form control's font comes from the platform (Chromium computes `Arial`, Windows WebKit `MS Shell Dlg`); modern-screenshot inlines only computed styles that differ from its sandbox's defaults, so the font is never inlined, and inside an SVG image Linux WebKit resolves the control default differently (serif). Windows WebKit measured 0.0 %, so only CI showed it.
+- **Decision:** The clone session copies the computed `font-family`, `font-size`, `font-weight`, `font-style`, `font-stretch`, `line-height` and `letter-spacing` onto every cloned `button`, `input`, `select`, `textarea`, `option` and `optgroup`.
+- **Alternatives considered:** `font: inherit` on buttons in the example's CSS (hides a defect apps would hit); inlining fonts on every element (larger SVG, slower capture for no gain).
+- **Consequences:** Seven extra inline properties per form control in the copy. Verified by the React Router first-frame seam test on CI WebKit.
+
+## ADR-030 — The React Router adapter takes over scroll restoration for back/forward
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** PR #5 CI, Firefox: after back then forward, `/about` ended at `scrollY` 243.9 instead of 0. The scroll log printed by the test showed Firefox applying the target entry's saved position (Work's 300) to the still-displayed About page **before** `popstate`, because that entry's `history.scrollRestoration` was `auto` (Firefox reported `auto` on the first entry even though React Router's `<ScrollRestoration>` had set `manual` at mount). While the popstate is held (ADR-026/028) the old page therefore jumps (clamped to its own height, 243.9) before it is captured, and React Router then saves that wrong value as the outgoing entry's position.
+- **Decision:** `RouteBridge.attach()` (provider mount) sets `history.scrollRestoration = 'manual'` and sets it again on every entry `<ShatterRouteSignal>` reports; the previous value is put back on unmount. The bridge records each entry's scroll position by React Router location key (on scroll, before a forward commit, and when a popstate is held). After a back/forward render it restores the incoming entry's recorded position (looked up by `history.state.key`, `'default'` for the first entry), **only if nothing scrolled during the render**, so React Router's `<ScrollRestoration>` or the app's own handling wins when present.
+- **Alternatives considered:** undoing the browser's scroll on the held page (the browser's value is already clamped to the wrong page); not holding popstate in Firefox (loses the effect); leaving declarative apps without restoration (the browser's automatic restoration no longer applies once `manual` is set, so the adapter must do it).
+- **Consequences:** Back/forward restores scroll positions in declarative mode too (previously left to the browser). Relies on React Router keeping the location key in `history.state.key` (8.5.1, `lib/router/history.js` `getHistoryState`); listed in LEARNINGS.
+
+## ADR-031 — Keep the held page still; start back/forward captures one frame late
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-030)
+- **Context:** With ADR-030 in place, PR #5 CI Firefox still ended forward navigation at 243.9 px. The scroll log showed the test's own `popstate` listeners only ever see the *released* (synthetic) event; the real one is stopped by the gate. Firefox applies its scroll restoration to the page a few ms **after** the real `popstate` (still reporting `scrollRestoration === 'auto'` for the first entry, whatever was set on it), i.e. while the popstate is held. React Router then saved that position for the outgoing entry.
+- **Decision:** While a popstate is held, the bridge's scroll listener scrolls the page back to the position it had when the popstate arrived (scroll events run before the next paint, so the jump is not painted). Back/forward transitions start one frame after the popstate (`nextFrame`, rAF raced with a 120 ms timer), so the capture never reads a page the browser has just scrolled.
+- **Alternatives considered:** Navigation API `navigate` + `intercept({ scroll: 'manual' })` (changes focus and popstate semantics, availability differs per engine); not holding popstate in Firefox (no effect on back/forward).
+- **Consequences:** Back/forward capture starts ≈ 16 ms later. User scrolling (already blocked by the scroll lock for wheel, touch and keys) is also held still during that time.
+
+## ADR-032 — Resolve WebKit's `-webkit-standard` font in the copy
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-029)
+- **Context:** ADR-029 pinned the computed font of form controls, but CI WebKit (Linux) still drew the button serif. The diagnostic log showed the computed font: `600 16px -webkit-standard`. It is WebKit's "standard font" setting keyword (also the `<html>` default): the live page resolves it from browser settings (sans on the Linux runner), an SVG image document from default settings (serif). Pinning the keyword itself changes nothing.
+- **Decision:** The clone session measures, once per capture, which generic family (`sans-serif`, `serif`, `monospace`) has exactly the width of `-webkit-standard` for a probe string, with a detached 2D canvas (a canvas accepts the keyword and resolves it with the live settings; no DOM mutation). Every `-webkit-standard` entry in the `font-family` of the cloned root and of form controls is replaced with that generic. If no single generic matches, nothing changes.
+- **Alternatives considered:** a hidden measuring element (a DOM mutation that dirties pre-captures); hard-coding `sans-serif` on Linux (wrong where the setting differs).
+- **Consequences:** Pages without an author font, and unstyled form controls, keep their face in the WebKit copy. Capture chunk 11.96 → 12.31 kB. Measured on Windows WebKit: `-webkit-standard` = `serif` (646.3 px for the probe at 72 px), so nothing changes there.
+
+## ADR-033 — Form controls: copy the font their text is painted in
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-029 and ADR-032)
+- **Context:** CI measurements (canvas and layout agree): on Linux WebKit `-webkit-standard` = `serif` (763.8 px for the probe at 72 px), `sans-serif` = `system-ui` = 743.9 px. The button's computed font is `600 16px -webkit-standard`, yet it is painted sans: WebKit's control theme draws the text in the system font without changing the computed style. ADR-032 therefore correctly replaced the keyword with `serif`, and the copy stayed serif.
+- **Decision:** For a form control with a single line of text and `letter-spacing: normal`, the clone session measures the live text run (`Range.getBoundingClientRect()` over its contents) and compares it with the same text drawn on a detached 2D canvas in the control's style, weight and size: first in the computed family (match → keep it), then `sans-serif`, `serif`, `monospace`, `system-ui`. The first family within max(0.5 px, 1 %) becomes the clone's `font-family`. No match → keep the computed family (ADR-029/032 still apply).
+- **Alternatives considered:** trusting `getComputedStyle` (it does not describe what is painted here); forcing `system-ui` on controls (inside an SVG image it may not resolve either, and it is wrong where the theme uses the author font).
+- **Consequences:** One `Range` and up to five `measureText` calls per text-bearing form control per capture. Capture chunk 12.31 → 12.53 kB. Inputs (value text is not in the DOM) are not measured.

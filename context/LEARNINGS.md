@@ -24,6 +24,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **tsup 9.0.0:** an entry that another entry loads with dynamic `import()` is emitted under its entry name (`dist/engine.js`) and referenced as `import('./engine.js')`. `dts: { entry: { index: 'src/index.ts' } }` limits declaration output to the public entry.
 - **Vitest 5.1.0 + happy-dom 21.0.4:** the document URL defaults to `about:blank`; set `environmentOptions.happyDOM.url` so relative `href`s resolve to an http(s) origin. happy-dom has no WebGL2, so `createShatter` tests exercise the fallback path.
 - **Shell quoting:** heredocs and `node -e "…"` strings that contain apostrophes, backticks or nested quotes have failed several times in this harness (`unexpected EOF while looking for matching`). Write files with the file tool; keep inline scripts free of apostrophes.
+- **React `act()` + a commit that waits for a render deadlocks in tests:** inside `act(async () => { await navigate() })` React holds the render until the callback returns, while the commit waits for that render (it resolved only at the 1500 ms timeout). Start the navigation inside `act` and await it after `act`.
+- **happy-dom 21.0.4** `history.back()` fires `popstate` (through its browser frame); unit tests can exercise back/forward.
+- `@types/react 19.3.0`: `ref` is a plain prop for function components (React 19), no `forwardRef` needed.
 - **Prettier** rewrites Markdown tables with padding; `context/` is in `.prettierignore` so the context files stay easy to edit.
 
 ## API facts (verified from installed type definitions and source)
@@ -43,6 +46,14 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - `cellPolygon(i)` returns a **closed** ring (first vertex repeated) and **`null`** for coincident points or cells clipped away, although the type says `Polygon`. `renderCell(i, context)` (public) draws nothing in those cases and avoids the allocation; it calls `moveTo` once, `lineTo` per vertex, `closePath` at the end.
   - Rings are counter-clockwise in y-up maths, so **clockwise on a y-down screen** (positive shoelace sum). We reverse them.
   - A single seed yields the whole bounds rectangle.
+- **react-router 8.5.1** (read from `dist/development/lib/*.js` and `dist/production/lib/*.d.ts`):
+  - `<Link>` calls the app's `onClick` first and its own handler only `if (!event.defaultPrevented)`; with `reloadDocument` the app's `onClick` is passed straight to the `<a>`.
+  - Router state updates (declarative `BrowserRouter`/`MemoryRouter` and data `RouterProvider`) are wrapped in `React.startTransition` unless `useTransitions === false` or the navigation passes `flushSync: true`, so `flushSync(() => navigate(to))` does **not** render synchronously. Detect "rendered" with a layout effect on `useLocation().key`.
+  - `useNavigation()` throws outside a data router (`useDataRouterNavigation` invariant). It reads `UNSAFE_DataRouterNavigationContext` (`{ navigation, revalidation }`), which is `null` in declarative mode.
+  - Declarative `useNavigate()` returns `void`; data-mode `useNavigate()` returns a promise that resolves when the router's navigation completes (before React has rendered it). The navigate function is a no-op until its component's layout effect ran.
+  - The browser history listens with `window.addEventListener('popstate', handlePop)` (bubbling); `handlePop` reads the index from `window.history.state.idx`, so a later, re-dispatched popstate is handled correctly.
+  - The location key lives in `history.state.key` (`getHistoryState` in `lib/router/history.js`: `{ usr, key, idx }`); the first entry has no key and its location key is `'default'`.
+  - Peer dependencies: `react >=19.2.7`, `react-dom >=19.2.7`.
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found
@@ -69,6 +80,14 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Firefox: setting an <img> clone's `src` does not update `currentSrc` synchronously.** modern-screenshot reads `currentSrc || src`, so it fetched the original cross-origin URL (and it succeeded only because Vite preview sends CORS headers by default; the fixture now sets `preview.cors: false`). Unfetchable images are now fresh substitute elements (ADR-023).
 - **Playwright WebKit on Linux has `captureStream` but the canvas-stream video never reaches readyState 2**; the lab test accepts the background colour when no frame arrives within 5 s.
 
+- **React Router back/forward played no effect in Chromium** (data mode). Symptom: `page.goBack()` with `pauseAt('covered')` never paused; an earlier back test passed only because it read the hook's last values, which came from the forward transition. Root cause: listener order (see Browser quirks) plus React's synchronous popstate render. Fix: popstate gate installed before the router, `createShatterBrowserRouter` (ADR-028). Lesson: assert on the lifecycle events of the navigation under test, not on "last" values.
+- **Playwright WebKit on Windows follows a Ctrl-click on a link in the same tab** (no new tab). Tests of "modifier clicks are not intercepted" check `event.defaultPrevented` at the document instead of the resulting URL.
+
+- **A `<button>` without an app `font-family` was serif in the copy on Linux WebKit** (PR #5 CI, worst block 15.3 %). Root cause: the platform font of form controls is not inlined by modern-screenshot (equal to its sandbox default), and an SVG image resolves the control default differently. Fix: pin the computed font longhands on form controls (ADR-029). Windows WebKit did not show it: check CI diff images, not only local numbers.
+- **Firefox warns "Loading failed for the module with source …"** when a document unload (a second `page.goto`) aborts the idle prefetch of the lazy chunks. Tests that navigate away wait for `waitForShatterReady` first.
+
+- **Firefox scrolled the held old page on back** (PR #5 CI): with the entry's `history.scrollRestoration` = `auto`, Firefox applies the target entry's scroll position before `popstate`, onto whatever page is shown. Firefox reported `auto` on the first entry although React Router's `<ScrollRestoration>` had set `manual` at mount. Fix: the bridge keeps every entry `manual` and restores positions itself (ADR-030). Diagnosed with a scroll log printed from the CI test, since Firefox cannot run locally.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
@@ -77,6 +96,10 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **CSS `zoom` (device layout grid) for Linux Chromium:** 0.97 % at 2x vs 0.82 % without; Linux Chromium needs the css grid too.
 - **A local seam check on colour differences:** Windows Chromium's ClearType-vs-grayscale header text scored 15 %, the wrapped-word bug 18 %: no margin. Luminance-based structural pixels separate them (4 % vs 16.5 %).
 - **SVG `viewBox` offset to emulate scroll:** fine in Chromium, wrong in WebKit as soon as a clone is layered (see Bugs).
+
+- **Capture-phase `popstate` listener on `window` to run before React Router's** (ADR-026 as first written): works in WebKit/Firefox, not in Chromium (registration order wins at the target).
+
+- **Pinning or resolving the computed font of form controls** (ADR-029, ADR-032) did not fix the serif button on Linux WebKit: the computed family is not what is painted.
 
 ## Browser / OS quirks
 
@@ -93,4 +116,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Playwright WebKit on Windows crashes the page** when a View Transition starts right after a CSP-blocked data: image (strict-CSP fallback). Plain View Transitions, and the same fallback without CSP, do not crash. Test marked `fixme` on win32 WebKit; check CI (Linux).
 - **Playwright `test.use({ option: [a, b] })`** treats an array as a fixture tuple `[value, options]`; pass a single value (we use one RegExp).
 - **Software-GL parallel runs are slow**: with 4 workers on this laptop, headless Chromium animated at ~11 fps and WebKit ~15 fps; a single worker gives ~55 fps. Functional tests must not gate on frame rate.
+- **Listener order at the `window` target differs by engine** (Playwright 1.65.1, measured with a bubble listener added before a capture listener, then a synthetic `popstate`): Chromium runs them in **registration order** (bubble first); WebKit runs the **capture listener first**. Do not rely on `capture: true` to get ahead of a listener on `window` (ADR-028).
+- **React 19.3.1 renders a transition update made during a `popstate` event synchronously** (`shouldAttemptEagerTransition` in `react-dom-client`): React Router's route is committed inside its own `popstate` listener, before later listeners run.
+- **WebKit's computed font of a `<button>` on Linux is `600 16px -webkit-standard`** (PR #5 CI); on Windows WebKit `13px MS Shell Dlg`, Chromium `13.3333px Arial`, Firefox (Linux) `13.3333px Sans`. `-webkit-standard` is also WebKit's `<html>` default. A 2D canvas accepts it (`ctx.font` reads back `72px standard`) and measures it with the live settings (ADR-032).
+- **`getComputedStyle` does not tell which font a WebKit form control is painted in** (Linux CI): computed `600 16px -webkit-standard` (which is serif there: 763.8 px probe width, same as `serif`), painted in the system sans (743.9 px, same as `sans-serif`/`system-ui`). Measure the rendered text run instead (ADR-033). Chromium on Linux: `-webkit-standard` = serif (646.3 px), `system-ui` 743.9 px; Firefox: button computed `Sans`.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.
