@@ -11,8 +11,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | --- | ----------------------------- | ------ | ----------------------------- | --- | --------- | ----------- |
 | 0   | Git, GitHub and context setup | ☑      | `main`                        | — (initial commit, no PR) | `81d68e1` | `m00-setup` |
 | 1   | Scaffold                      | ☑      | `milestone/01-scaffold`       | [#1](https://github.com/abdullahasghar966/shatter-router/pull/1) | `18f25c1` | `m01-scaffold` |
-| 2   | Renderer + seam               | ◐      | `milestone/02-renderer-seam`  |     |           |             |
-| 3   | Fracture + crack propagation  | ☐      | `milestone/03-fracture-crack` |     |           |             |
+| 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
+| 3   | Fracture + crack propagation  | ◐      | `milestone/03-fracture-crack` |     |           |             |
 | 4   | `shatter` effect (procedural) | ☐      | `milestone/04-shatter-effect` |     |           |             |
 | 5   | React + React Router adapter  | ☐      | `milestone/05-react-router`   |     |           |             |
 | 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
@@ -80,7 +80,9 @@ Target: ≤ 0.5 %. From ADR-014 on, the threshold applies to the number that for
 | 2026-11-14 | WebKit 2388, Windows 11 | `/work` scrolled 240 px | 1280x720 | 2 | 0.2358 % | layout grid `device` |
 | 2026-11-14 | Chromium headless, Linux CI (spike run) | top / scrolled at 1x; `/` at 2x | 1280x720 | 1 / 2 | 0.1401 % / 0.2240 %; 2x: 0.8217 % raw | 2x before ADR-014; see the PR #2 run for the forgiving number |
 | 2026-11-14 | WebKit, Linux CI (spike run) | top / scrolled | 1280x720 | 2 | 0.4519 % / 0.0435 % raw | layout grid `device` |
-| 2026-11-14 | Firefox | all | | | pending | CI only (cannot launch locally); WebGL needed ADR-015 |
+| 2026-11-14 | **PR #2 CI (ubuntu-latest), final** Chromium | top / scrolled / `/` at 2x | 1280x720 | 1 / 1 / 2 | 0.1401 % / 0.2240 % / 0.5247 % (raw 0.8217 %) | 2x ceiling 0.6 % (ADR-016) |
+| 2026-11-14 | **PR #2 CI, final** Firefox (headed, xvfb, Mesa) | top / scrolled / `/` at 2x | 1280x720 | 1 / 1 / 2 | 0.0000 % / 0.0000 % / 0.0000 % | layout grid `css` |
+| 2026-11-14 | **PR #2 CI, final** WebKit | top / scrolled / `/` at 2x | 1280x720 | 2 | 0.2858 % / 0.0023 % / 0.2858 % (raw 0.4519 / 0.0435 / 0.4522 %) | layout grid `device` |
 | 2026-11-14 | Chromium 1255 headless, Windows 11, metric with shift radius (ADR-014) | `/` at 2x | 1280x720 | 2 | 0.0568 % (raw 0.0585 %) | |
 | 2026-11-14 | WebKit 2388, Windows 11, metric with shift radius | top / scrolled | 1280x720 | 2 | 0.0255 % / 0.0000 % (raw 0.1210 % / 0.2358 %) | |
 
@@ -95,6 +97,9 @@ History of the same cases while fixing them (so the causes are on record): Chrom
 | 2026-11-14 | same machine, headless Chromium, 4 parallel workers | 1280x720 | 1 | 131–174 ms | software GL, CPU shared between tests |
 | 2026-11-14 | same machine, headless Chromium | 1280x720 | 2 | 128–209 ms | |
 | 2026-11-14 | same machine, Playwright WebKit | 1280x720 | 2 | 66–185 ms | |
+| 2026-11-14 | GitHub Actions ubuntu-latest, headless Chromium (PR #2) | 1280x720 | 1 / 2 | 74–76 ms / 74 ms | |
+| 2026-11-14 | GitHub Actions ubuntu-latest, Firefox headed (xvfb, Mesa) | 1280x720 | 1 / 2 | 123–131 ms / 161 ms | |
+| 2026-11-14 | GitHub Actions ubuntu-latest, WebKit | 1280x720 | 2 | 192–243 ms | |
 
 The section 8 target (≤ 120 ms on the docs landing page at 1440x900) is measured in Milestone 10; the docs site does not exist yet.
 
@@ -107,4 +112,4 @@ Fracture time, FPS, draw calls during animation, Lighthouse, 100-transition memo
 | Milestone | Unit | E2E |
 | --- | --- | --- |
 | 1 | 39 tests in 4 files | 6 tests per engine (vanilla navigation). PR #1 CI: Chromium, Firefox, WebKit all green (Linux). Local Windows 11: Chromium + WebKit green, Firefox cannot launch (see LEARNINGS) |
-| 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4 |
+| 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4. PR #2 CI: all three engines green |

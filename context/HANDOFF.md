@@ -1,39 +1,35 @@
 # Hand-off
 
-- **Last updated:** 2026-11-14 22:10 PKT (UTC+5)
+- **Last updated:** 2026-11-14 23:30 PKT (UTC+5)
 - **Session:** 1
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 2 — Renderer + seam (code complete locally, PR not opened yet)
-- **Current branch:** `milestone/02-renderer-seam`
+- **Current milestone:** 3 — Fracture + crack propagation
+- **Current branch:** `milestone/03-fracture-crack` (from `main` at `ca25842`)
 - **Last commit:** see `git log -1` (this file is committed with the code it describes)
-- **Latest tag:** `m01-scaffold` (on `18f25c1`)
+- **Latest tag:** `m02-renderer-seam` (on `ca25842`)
 
-## Done in this milestone
+## Done so far
 
-- `src/engine/`: WebGL2 device (one context, loss tracking, texture counter), pixel-exact perspective camera, top-layer overlay (`popover="manual"` with fixed fallback), intact page quad.
-- `src/capture/`: `DomCapturer` (modern-screenshot 4.7.0 behind the `Capturer` interface) and `CloneSession` (scroll via negative root margin, fixed/sticky repair, scrolled containers, page background, off-screen image skipping). See ADR-008, ADR-009, ADR-010.
-- `src/core/shatter.ts`: `createShatter()` with capture → cover → commit → reveal, events, fallback to plain commit, idle warm-up, debug hook `window.__SHATTER_TEST__` (ADR-006).
-- Lazy chunks `dist/engine.js` and `dist/capture.js` with size budgets (ADR-011): core 2.32 kB, engine 3.33 kB, capture 10.74 kB (gzip).
-- Tests: 68 unit; e2e 10 per engine. First-frame seam: Chromium 0.06–0.22 %, WebKit 0.12–0.24 % (target ≤ 0.5 %). Verified in real Chrome (RTX 4050): three transitions, captures 60/42/31 ms, clean console.
+- Milestones 0–2 merged and tagged (PR #1, PR #2). First-frame seam passes on Chromium, Firefox and WebKit in CI (numbers in `PROGRESS.md`).
+- `spike/linux-layout-grid` stays on GitHub as a record (never merge it).
 
 ## In progress
 
-- Milestone end ritual (A.5) for Milestone 2.
+- Milestone 3 has just started; no code yet.
 
 ## Next 3 steps
 
-1. Check the push CI run on `milestone/02-renderer-seam` (`gh run list --branch milestone/02-renderer-seam`). **Firefox has never run this code** (it cannot launch locally): it only runs on the PR.
-2. Open the PR `Milestone 02: Renderer + seam` into `main`. If Firefox fails the seam tests, read the `[seam] firefox …` lines in the job log and the uploaded `test-results` artifact; the first thing to try for a DPR-2-only failure is the `device` layout grid for Firefox (`layoutGridFor` in `src/capture/index.ts`, ADR-010).
-3. When all checks are green: `gh pr merge --merge`, tag `m02-renderer-seam` on `main`, record PR/merge SHA/tag in `context/PROGRESS.md` as the first commit of `milestone/03-fracture-crack`, then start Milestone 3 (fracture geometry with d3-delaunay, crack shader, debug wireframe).
+1. `pnpm add d3-delaunay` (latest) in `packages/shatter-router`, read its `.d.ts` / source for `Delaunay.from`, `voronoi([x0,y0,x1,y1])`, `cellPolygon(i)` (closed ring, may be null) and record facts in `LEARNINGS.md`. Write `src/engine/fracture.ts`: impact-biased polar seeds `r = maxR * u^k` with blue-noise minimum distance and mulberry32 (`src/core/random.ts`), Voronoi cells clipped to the viewport, centroid fan triangulation, extruded side faces (`thickness`), per-vertex `position, uv, shardId, centroid, edgeDistance, normal`, one interleaved buffer. Shard count `'auto' | number`, tiers 40/90/160, clamp [12, 400].
+2. Unit tests (section 11): area sums to `w × h` within 0.01 %, ≥ 3 vertices per cell, UVs in [0,1], determinism with a seed, sliver rejection, null-cell handling. Measure fracture time at 160 shards (decide on a Worker only if > 4 ms) and record it.
+3. Crack shader (section 5.2) in the engine: fractured mesh drawn with `uCrackRadius` growing over 140 ms + 40 ms hold, bright 1–1.5 px lines from `edgeDistance`, refraction offset, impact flash; at radius 0 the frame must equal the intact page (keep the first-frame seam green). Debug wireframe + impact point toggle. Then the milestone ritual (A.5).
 
 ## Open problems / blockers
 
-- Local Firefox cannot launch (LEARNINGS, Environment). CI is the only Firefox signal.
-- Not built yet, by design (Milestone 4): interruption rules, pre-capture on pointerdown, scroll lock, focus management, reduced motion, View Transition fallback, hard-to-capture content (iframes, video, canvas, CORS images), `data-shatter-ignore`.
-- Known capture gaps listed in ADR-008 (consequences).
+- Local Firefox cannot launch (LEARNINGS, Environment); CI runs Firefox headed under xvfb.
+- Not built yet, by design (Milestone 4): state machine, interruption, pre-capture, scroll lock, focus, reduced motion, hard-to-capture content, `data-shatter-ignore`.
 
 ## Questions waiting on the user
 
@@ -64,7 +60,6 @@ pnpm size
 
 ## Read first
 
-- `SHATTER_ROUTER_MASTER_PROMPT.md` (the spec, never edit)
-- `context/PROGRESS.md`, `context/DECISIONS.md` (ADR-006 to ADR-013), `context/LEARNINGS.md`
-- `packages/shatter-router/src/core/shatter.ts`, `src/engine/index.ts`, `src/capture/index.ts`, `src/capture/clone-session.ts`
-- `e2e/seam.ts`, `e2e/vanilla/seam.spec.ts`, `e2e/fixtures.ts`
+- `SHATTER_ROUTER_MASTER_PROMPT.md` sections 5.1–5.2 (the spec, never edit)
+- `context/PROGRESS.md`, `context/DECISIONS.md` (ADR-006 to ADR-016), `context/LEARNINGS.md`
+- `packages/shatter-router/src/engine/index.ts`, `src/engine/shaders.ts`, `src/engine/camera.ts`, `src/core/random.ts`
