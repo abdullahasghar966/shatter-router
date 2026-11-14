@@ -48,8 +48,26 @@
       "name": "core (shatter-router)",
       "path": "dist/index.js",
       "import": "*",
-      "limit": "6 KB",
-      "gzip": true
+      "ignore": [
+        "./engine.js",
+        "./capture.js"
+      ],
+      "gzip": true,
+      "limit": "6 KB"
+    },
+    {
+      "name": "engine chunk (lazy: renderer, fracture, effects)",
+      "path": "dist/engine.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "22 KB"
+    },
+    {
+      "name": "capture chunk (lazy: DOM capture incl. modern-screenshot)",
+      "path": "dist/capture.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "16 KB"
     }
   ],
   "devDependencies": {
@@ -58,5 +76,8 @@
     "size-limit": "14.3.0",
     "tsup": "9.0.0",
     "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "modern-screenshot": "4.7.0"
   }
 }

@@ -6,8 +6,11 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 
 - Machine: Windows 11, project path `D:\Shatter Router` contains a space: always quote paths in scripts and docs.
 - Toolchain at session 1: git 2.55.0.windows.3, gh 2.96.0, Node v24.21.0, npm 11.19.0, pnpm 12.8.1 (global), corepack 0.36.0.
+- GPU on the dev machine: NVIDIA GeForce RTX 4050 Laptop GPU (Chrome uses ANGLE D3D11).
+- The local clock is PKT (UTC+5); `date` prints the zone as `PST`, which is Pakistan Standard Time here, not Pacific.
 - No global git identity on this machine; the repo uses a repo-local identity (ADR-002).
-- `pnpm exec playwright install chromium firefox webkit` took more than 10 minutes on this connection. Browsers land in `%LOCALAPPDATA%\ms-playwright`. While the install is still running, launching an already-listed browser can fail with `browserType.launch: spawn UNKNOWN`; wait for the install to finish.
+- `pnpm exec playwright install chromium firefox webkit` took more than 10 minutes on this connection. Browsers land in `%LOCALAPPDATA%\ms-playwright`.
+- **Playwright Firefox (build 1572, Firefox 159) does not launch on this machine.** Symptom: `browserType.launch: spawn UNKNOWN`; from cmd/PowerShell: "side-by-side configuration is incorrect"; Application event log (SideBySide): `Dependent Assembly mozglue ... could not be found` although `mozglue.dll` is present with an embedded manifest. `playwright install --force firefox` did not fix it; Smart App Control is off. Not diagnosed further (sxstrace needs admin). **Firefox e2e is verified on CI (Linux) only**; run local e2e with `--project=chromium --project=webkit`.
 
 ## Tooling
 
@@ -16,22 +19,48 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **typescript 7.0.2** has no classic JS compiler API (exports only `./lib/version.cjs` and `unstable/*`). typescript-eslint 8.72.2 requires `<6.1.0`. See ADR-003.
 - **typescript-eslint 8.72.2:** `tseslint.config()` is deprecated; use `defineConfig` from `eslint/config` (ESLint 10.15.0) and pass `tseslint.configs.strictTypeChecked` without spreading.
 - **typescript-eslint projectService:** a file listed in `allowDefaultProject` that is also covered by a tsconfig is a hard parsing error. Only `*.js` (the ESLint config itself) is in `allowDefaultProject`; `playwright.config.ts` and `e2e/` are covered by the root `tsconfig.json`.
-- **size-limit 14.3.0** (`@size-limit/preset-small-lib`, bundles with rolldown) reports **brotli** by default. The spec's budgets are gzip, so every check sets `"gzip": true`.
-- **Vitest 5.1.0 + happy-dom 21.0.4:** the document URL defaults to `about:blank`; set `environmentOptions.happyDOM.url` so relative `href`s resolve to an http(s) origin.
-- Bash heredocs containing TypeScript with template literals and nested quotes failed once with `unexpected EOF while looking for matching '` in this harness. Write source files with the file tool instead of heredocs.
+- **typescript-eslint `no-unnecessary-condition`** flags a second read of a getter after an `await` (TypeScript keeps the narrowing from the first read) and a `let` flag that is only assigned inside a callback. Use a method call, or a field on an object, for state that changes across awaits.
+- **size-limit 14.3.0** (`@size-limit/preset-small-lib`, bundles with rolldown) reports **brotli** by default. The spec's budgets are gzip, so every check sets `"gzip": true`. It bundles dynamic imports into the measured entry; see ADR-011 for how the lazy chunks are budgeted separately.
+- **tsup 9.0.0:** an entry that another entry loads with dynamic `import()` is emitted under its entry name (`dist/engine.js`) and referenced as `import('./engine.js')`. `dts: { entry: { index: 'src/index.ts' } }` limits declaration output to the public entry.
+- **Vitest 5.1.0 + happy-dom 21.0.4:** the document URL defaults to `about:blank`; set `environmentOptions.happyDOM.url` so relative `href`s resolve to an http(s) origin. happy-dom has no WebGL2, so `createShatter` tests exercise the fallback path.
+- **Shell quoting:** heredocs and `node -e "…"` strings that contain apostrophes, backticks or nested quotes have failed several times in this harness (`unexpected EOF while looking for matching`). Write files with the file tool; keep inline scripts free of apostrophes.
+- **Prettier** rewrites Markdown tables with padding; `context/` is in `.prettierignore` so the context files stay easy to edit.
 
-## API facts (verified from installed type definitions)
+## API facts (verified from installed type definitions and source)
 
-- `size-limit@14.3.0` `Check`: `gzip?: boolean` ("use Gzip and disable Brotli"), `brotli?: boolean`, `import?: string | Record<string, string>`, `path`, `limit`, `ignore?: string[]`.
+- `size-limit@14.3.0` `Check`: `gzip?: boolean` ("use Gzip and disable Brotli"), `brotli?: boolean`, `import?: string | Record<string, string>`, `path`, `limit`, `ignore?: string[]`. `ignore: ["./engine.js", "./capture.js"]` on the core check excludes the lazy chunks (passed to the bundler as externals).
+- **modern-screenshot 4.7.0** (read from `dist/index.d.ts` and `dist/index.mjs`):
+  - `createContext(node, options)` resolves only after `waitUntilLoad` (every `<img>`/`<video>` under the node loaded, or `timeout` ms, default 30000). With `autoDestruct: false` the context can be passed to `domToForeignObjectSvg(context)` repeatedly; before each reuse `svgStyleElement` and `svgDefsElement` must be replaced and `svgStyles` cleared (`domToCanvas` does that internally; `createStyleElement` is not exported).
+  - `context.width/height` size the cloned root (with `!important`) and the SVG; they are plain mutable fields.
+  - Hooks: `filter(node)` is called for each child (text nodes too; never for `<style>`, `<script>` or comments) right before it is cloned. `onCloneEachNode(cloned)` runs after the node and its subtree are cloned (not for text nodes, and before the clone is attached to its parent). `onCloneNode(root)` runs once the tree is complete, before fonts and images are embedded. `onCreateForeignObjectSvg(svg)` runs last. Hooks receive only the clone, never the original.
+  - A same-origin `<iframe>` is replaced by a clone of its document, and `onCloneEachNode` fires twice with that same clone.
+  - Computed styles are inlined as a diff against per-tag defaults measured in a sandbox `<iframe id="__SANDBOX__…">` that the library appends to `document.body` (a DOM mutation: filter it out of captures and mutation tracking). `width` and `height` are always inlined as computed values.
+  - `embedImageElement` fetches `currentSrc || src` unless it is a `data:` URL. An `<img>` with an empty `src` makes it fetch the page itself: give skipped images a tiny data URL instead of removing `src`.
+  - `features.restoreScrollPosition` (default off) translates the children of any scrolled element, including `<body>` for the window scroll.
+  - Its own rasteriser (`domToCanvas`) redraws the image up to N times, 100 ms apart, in Safari and Firefox (`drawImageCount`). We rasterise ourselves and have not needed that in Playwright WebKit so far.
+- **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found
 
-- **Example re-rendered on in-page anchor clicks.** Symptom: e2e "same-page hash links do not re-render the route" failed (the marked `<h1>` was replaced). Root cause: browsers fire `popstate` for fragment navigations too, and the example's `popstate` handler always re-rendered. Fix: remember the rendered `pathname + search` and re-render only when it changes (`examples/vanilla/src/main.ts`). The adapters must apply the same rule: a hash-only `popstate` is not a route change.
+- **Example re-rendered on in-page anchor clicks.** Symptom: e2e "same-page hash links do not re-render the route" failed (the marked `<h1>` was replaced). Root cause: browsers fire `popstate` for fragment navigations too, and the example's `popstate` handler always re-rendered. Fix: remember the rendered route and re-render only when it changes (`examples/vanilla/src/main.ts`, commit `14966aa`). The adapters must apply the same rule: a hash-only `popstate` is not a route change.
+- **WebKit drew the copy unscrolled (65 % seam diff).** Root cause: WebKit reports `view-transition-name: root` as a computed style of `<html>`; inlined on the clone it creates a layer, and WebKit positions layered HTML inside an SVG image without the SVG `viewBox` offset. Fix: strip `view-transition-name` from clones and shift the root with negative margins instead of a `viewBox` offset (ADR-008).
+- **ClearType text turned grayscale in the overlay (Windows Chromium, 0.54–0.70 % seam diff).** Root cause: an SVG rasterised onto a canvas with an alpha channel cannot use LCD antialiasing. Fix: `getContext('2d', { alpha: false })` (ADR-009).
+- **WebKit at 2x: content below a fractional-height box sat one device pixel low (0.55–0.68 %).** Root cause: WebKit snaps to whole CSS pixels inside an SVG image but to device pixels in the live page. Fix: lay the copy out in device pixels with CSS `zoom`, on WebKit only (ADR-010).
+- **Transitions hung in an unpainted browser pane.** Root cause: `requestAnimationFrame` does not fire while the page is not being painted. Fix: `nextFrame()` races rAF against a 120 ms timer (`src/core/frame.ts`).
 
 ## Approaches that did not work
 
-_(none yet)_
+- **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
+- **A canvas probe to choose the layout grid** (a 1px bar at `top: 0.5px` in a 4x4 SVG drawn at 2x): Chromium and WebKit return identical pixels (`255 255 0 0 255 255 255 255` down the column), because both snap boxes to CSS pixels inside SVG images. They differ in the live page, which cannot be read back.
+- **`--use-angle=swiftshader --enable-unsafe-swiftshader`** for headless Chromium: the GL driver warning stayed and captures slowed enough to trip the 250 ms budget.
+- **SVG `viewBox` offset to emulate scroll:** fine in Chromium, wrong in WebKit as soon as a clone is layered (see Bugs).
 
 ## Browser / OS quirks
 
+- **Headless Chromium** logs `GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels` as a console warning for any page that presents a WebGL canvas (software compositor read-back). Chrome on a real GPU does not print it. Filtered in `e2e/fixtures.ts` (ADR-013).
+- **Headless Chromium has WebGL2** out of the box (software). Playwright WebKit on Windows has WebGL2 and the Popover API too.
+- **`position: fixed` inside `<foreignObject>`** is positioned relative to the foreignObject (the SVG viewport when it starts at 0,0) in Chromium and WebKit, and is not moved by margins on the cloned root.
+- **Playwright `devices['Desktop Safari']`** has `deviceScaleFactor: 2`, so every WebKit e2e test runs at 2x.
+- On Windows, live Chromium uses LCD (ClearType) antialiasing for small text on opaque layers and grayscale for text in layers with `backdrop-filter`.
+- At DPR 2, Blink places text lines on whole CSS pixels (live and in SVG images); WebKit uses device pixels live and CSS pixels in SVG images (ADR-010).
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.

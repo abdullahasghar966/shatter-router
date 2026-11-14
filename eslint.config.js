@@ -51,6 +51,11 @@ export default defineConfig(
     languageOptions: { globals: { ...globals.node } },
   },
   {
+    // E2E tests print measured numbers (seam diff, capture time) into the CI log.
+    files: ['e2e/**'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['**/*.js'],
     ...tseslint.configs.disableTypeChecked,
   },

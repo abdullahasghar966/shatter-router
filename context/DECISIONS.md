@@ -48,3 +48,83 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** Export `classifyLinkClick`, `findAnchor` and `getLinkEffect` from the core entry. `classifyLinkClick` returns a typed decision with a skip reason. `data-shatter="off"` and `data-shatter-effect` are also honoured on ancestors (a superset of the spec, so a whole nav can opt out). A click on a link to the exact current URL is intercepted; only links that differ from the current URL by hash alone (or equal it with a hash) are left to the browser.
 - **Alternatives considered:** keeping the rules internal (every vanilla integration would re-implement them, usually wrongly).
 - **Consequences:** These three functions are part of the semver surface and count against the 6 KB core budget (823 B gzip for the whole core at this point).
+
+## ADR-006 — `createShatter` arrives in Milestone 2 with a cover → commit → reveal pipeline
+
+- **Date:** 2026-11-14
+- **Status:** accepted (the pipeline is replaced by the full state machine in Milestone 4)
+- **Context:** Milestone 2 needs a way to put the intact page on the overlay and to run the first-frame seam test. The spec's full state machine, interruption rules and fallback chain are Milestone 4.
+- **Decision:** Ship the real `createShatter()` now with the part of the pipeline that exists: capture → cover (intact quad) → `commit()` → two frames → reveal. Options so far: `captureBudget`, `debug`. Events: `start`, `covered`, `committed`, `end`, `fallback`, `error`. A second `transition()` while one runs commits immediately with fallback reason `busy`. Any failure falls back to a plain `commit()`. `window.__SHATTER_TEST__` (debug only) can pause at `covered`.
+- **Alternatives considered:** a test-only harness page driving internal modules (would not exercise the public API and would be thrown away).
+- **Consequences:** Until Milestone 4 a transition is visually an instant swap under cover. Interruption rules, focus handling, reduced motion, scroll lock and pre-capture are not implemented yet and are listed in `HANDOFF.md`.
+
+## ADR-007 — The overlay covers the scrollbar-free visual viewport
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** Section 3.1 says to capture `[scrollX, scrollY, innerWidth, innerHeight]`. `innerWidth` includes a classic vertical scrollbar, which a fixed-position overlay can never cover, and it is an integer even under fractional browser zoom.
+- **Decision:** Capture and cover `visualViewport.width × visualViewport.height` (scrollbar-free, fractional), falling back to `documentElement.clientWidth/Height`. When `visualViewport.scale ≠ 1` the effect is skipped (fallback reason `pinch-zoom`, section 3.8). The backing store is `round(size × min(dpr, 2))`, reduced uniformly if it exceeds `MAX_TEXTURE_SIZE`.
+- **Alternatives considered:** `innerWidth/innerHeight` (overlay and texture would be one scrollbar wider than the area they cover, shifting every pixel).
+- **Consequences:** The scrollbar stays live next to the overlay; apps should set `scrollbar-gutter: stable` (to be documented in the README, section 3.7).
+
+## ADR-008 — How the viewport is captured with modern-screenshot
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** modern-screenshot 4.7.0 clones a node into an SVG `<foreignObject>`. A static clone has no scroll position, treats `position: fixed/sticky` wrongly, and paints the page background on a box instead of the canvas.
+- **Decision:**
+  1. Clone `document.documentElement` at its live size and **shift it with negative margins** equal to its live bounding-box offset (`margin-left/top = rootRect.left/top`). The SVG is exactly viewport-sized with no `viewBox` offset, so the SVG viewport stands in for the real one and `position: fixed` elements need no correction.
+  2. `position: sticky` elements are pinned (`position: fixed` at their live rect) and an invisible shallow copy keeps their place in the flow.
+  3. Scrolled inner containers: children get `translate(-scrollLeft, -scrollTop)`; fixed/sticky descendants are corrected relative to the ancestor that becomes their containing block.
+  4. The page background is rebuilt on the cloned root (body background moves to the root when `<html>` has none); `Canvas` is used when neither has one.
+  5. Images and background images further than 128 px outside the viewport are not fetched.
+  6. `view-transition-name` is stripped from every clone.
+  7. Originals are paired with clones by treating the library's `filter` (called before a child is cloned) and `onCloneEachNode` (called after its subtree) as push/pop. If the pairing goes out of step the capture throws and the transition falls back.
+  8. One library context is reused for the capturer's lifetime (caches default styles, fetched assets, fonts). We rasterise the SVG ourselves instead of using `domToCanvas`.
+- **Alternatives considered:** SVG `viewBox` offset (works in Chromium; WebKit ignored it once an element carried `view-transition-name`, a 65 % seam diff); CSS `transform` on the root (makes the root the containing block of every fixed element); the library's `restoreScrollPosition` (would shift `<body>` for the window scroll and applies to text nodes inconsistently); a hand-written capturer (large, and the spec names modern-screenshot).
+- **Consequences:** The pairing relies on modern-screenshot's traversal order, so the dependency must be bumped deliberately with the seam tests as the guard. Known gaps, to be handled with hard-to-capture content in Milestone 4: `background-attachment: fixed`, background images on pages shorter than the viewport, sticky elements that also have a transform, fixed elements that are direct children of a scrolled container.
+
+## ADR-009 — The capture canvas is opaque and CPU-backed
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** On Windows, live Chromium draws small text with ClearType (LCD sub-pixel) antialiasing. A capture drawn onto a canvas with an alpha channel used grayscale antialiasing: 0.54–0.70 % of pixels differed and text visibly changed weight at the swap.
+- **Decision:** Create the 2D capture canvas with `{ alpha: false, willReadFrequently: true }`. An opaque destination lets the engine keep LCD antialiasing when it rasterises the SVG; CPU backing avoids a GPU read-back when the canvas is uploaded with `texImage2D`. The canvas is pre-filled with the page background colour.
+- **Alternatives considered:** accepting the difference and loosening the seam threshold (the spec says to investigate first); fading the overlay in (hides, not fixes).
+- **Consequences:** Seam diff on Windows Chromium dropped to 0.06–0.22 %. The snapshot is always opaque, which matches a page capture.
+
+## ADR-010 — The copy's layout grid is chosen per engine
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** At device pixel ratio 2, WebKit drew everything below a fractional-height element one device pixel lower in the overlay than in the live page. Laying the copy out in device pixels (CSS `zoom: <scale>` on the cloned root, SVG sized in device pixels) fixed WebKit (0.12–0.24 %) but moved text lines by one device pixel in Chromium (0.06 % → 0.59 %). A canvas probe cannot tell the engines apart: both snap boxes to whole CSS pixels inside an SVG image; they differ in how the *live page* rounds, which cannot be read back.
+- **Decision:** `layoutGrid = navigator.vendor.startsWith('Apple') ? 'device' : 'css'`. `device` applies `zoom`; `css` lays out in CSS pixels and lets `drawImage` scale.
+- **Alternatives considered:** `zoom` everywhere (breaks Chromium); none anywhere (breaks WebKit); user-agent string parsing (Chrome on iOS is WebKit but says CriOS; `vendor` is `Apple Computer, Inc.` on every WebKit browser).
+- **Consequences:** An engine check lives in the capturer. Firefox uses `css` until CI shows otherwise. The value is visible in debug mode as `__SHATTER_TEST__.layoutGrid()`.
+
+## ADR-011 — Lazy chunks are build entries with stable names; bundle budgets
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** size-limit bundles an entry with everything it imports, dynamic imports included, so the 6 KB core check counted the renderer and modern-screenshot.
+- **Decision:** `src/engine/index.ts` and `src/capture/index.ts` are tsup entries (`dist/engine.js`, `dist/capture.js`), loaded by the core with `import('./engine.js')` / `import('./capture.js')`. They are not in the package `exports`. size-limit (gzip): core ≤ 6 KB with the two lazy files ignored, engine ≤ 22 KB (spec), capture ≤ 16 KB. The spec sets no number for the capture chunk; 16 KB is our own ceiling above the measured 10.74 KB (modern-screenshot included).
+- **Alternatives considered:** `@size-limit/file` on the built files (would not count external dependencies such as d3-delaunay inside the engine budget).
+- **Consequences:** Three file names in `dist/` are part of the internal contract between chunks.
+
+## ADR-012 — Cover order and frame waits
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** Section 4.4 says to draw the intact quad, wait one animation frame, then show the overlay. A canvas inside a closed popover is `display: none`, and whether its drawing buffer survives until it is first composited differs between engines.
+- **Decision:** Show the (still transparent) overlay, draw, wait a frame, draw again, wait a frame, then report `covered`. A transparent overlay is harmless because the DOM beneath is the very page the snapshot shows; nothing may change in the DOM until `covered`. Every frame wait races `requestAnimationFrame` against a 120 ms timer, because hidden tabs and unpainted panes stop producing frames and navigation must never hang.
+- **Alternatives considered:** the literal order from the spec (risk of one blank frame on engines that drop an undisplayed canvas' buffer).
+- **Consequences:** `covered` arrives two frames (about 33 ms at 60 Hz) after the capture finishes.
+
+## ADR-013 — E2E ignores one headless GL driver message
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** Section 11 requires no console errors or warnings in any test. Headless Chromium has no GPU compositor and reads each WebGL frame back from its software GL driver, which logs `GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels` as a console warning, even in tests where the page never calls `readPixels`. Chrome on a real GPU (RTX 4050, ANGLE D3D11) prints nothing.
+- **Decision:** `e2e/fixtures.ts` filters exactly that message (regex in `ENVIRONMENT_NOISE`). Everything else still fails the test.
+- **Alternatives considered:** `--use-angle=swiftshader --enable-unsafe-swiftshader` (the message stayed and captures got slower, tripping the capture budget); dropping the rule.
+- **Consequences:** One narrowly scoped exception, documented next to the pattern.
