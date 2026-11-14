@@ -38,6 +38,11 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - `embedImageElement` fetches `currentSrc || src` unless it is a `data:` URL. An `<img>` with an empty `src` makes it fetch the page itself: give skipped images a tiny data URL instead of removing `src`.
   - `features.restoreScrollPosition` (default off) translates the children of any scrolled element, including `<body>` for the window scroll.
   - Its own rasteriser (`domToCanvas`) redraws the image up to N times, 100 ms apart, in Safari and Firefox (`drawImageCount`). We rasterise ourselves and have not needed that in Playwright WebKit so far.
+- **d3-delaunay 6.0.6** (read from `dist/d3-delaunay.mjs` and `@types/d3-delaunay` 6.0.4):
+  - `new Delaunay(flatFloat64Array)` avoids the `[x, y]` arrays `Delaunay.from` needs. `voronoi([xmin, ymin, xmax, ymax])` takes **bounds**, although the `Bounds` type comment says "[x, y, width, height]".
+  - `cellPolygon(i)` returns a **closed** ring (first vertex repeated) and **`null`** for coincident points or cells clipped away, although the type says `Polygon`. `renderCell(i, context)` (public) draws nothing in those cases and avoids the allocation; it calls `moveTo` once, `lineTo` per vertex, `closePath` at the end.
+  - Rings are counter-clockwise in y-up maths, so **clockwise on a y-down screen** (positive shoelace sum). We reverse them.
+  - A single seed yields the whole bounds rectangle.
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found
@@ -52,12 +57,16 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Firefox on Linux CI had no WebGL2.** Headless: `AllowWebgl2:false`; with `webgl.force-enabled`: `FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS`, even with Mesa installed. Headed under `xvfb-run` with Mesa: works, 0.0000 % seam (ADR-015).
 - **Linux CI Chromium at 2x after the shift-tolerant metric: 0.5247 %.** Remaining pixels are text lines one device pixel lower in the copy on fractional line heights; `text-rendering: geometricPrecision` did not help (0.80 % / 0.98 %). Measured ceiling 0.6 % (ADR-016).
 
+- **WebKit copy wrapped a button's last word** ("See the work"), invisible to the whole-screen seam number (0.03 %). Root cause: glyphs a hair wider in the zoomed copy, box width inlined at the live text width. Fix: `keepSingleLines` nowrap spans; plus a local "worst block" seam check (ADR-019).
+- **Impact flash lingered** (a third of its peak at 60 ms). Squared the pulse (crack.ts); caught by the unit test.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
 - **A canvas probe to choose the layout grid** (a 1px bar at `top: 0.5px` in a 4x4 SVG drawn at 2x): Chromium and WebKit return identical pixels (`255 255 0 0 255 255 255 255` down the column), because both snap boxes to CSS pixels inside SVG images. They differ in the live page, which cannot be read back.
 - **`--use-angle=swiftshader --enable-unsafe-swiftshader`** for headless Chromium: the GL driver warning stayed and captures slowed enough to trip the 250 ms budget.
 - **CSS `zoom` (device layout grid) for Linux Chromium:** 0.97 % at 2x vs 0.82 % without; Linux Chromium needs the css grid too.
+- **A local seam check on colour differences:** Windows Chromium's ClearType-vs-grayscale header text scored 15 %, the wrapped-word bug 18 %: no margin. Luminance-based structural pixels separate them (4 % vs 16.5 %).
 - **SVG `viewBox` offset to emulate scroll:** fine in Chromium, wrong in WebKit as soon as a clone is layered (see Bugs).
 
 ## Browser / OS quirks
@@ -69,4 +78,6 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Playwright `devices['Desktop Safari']`** has `deviceScaleFactor: 2`, so every WebKit e2e test runs at 2x.
 - On Windows, live Chromium uses LCD (ClearType) antialiasing for small text on opaque layers and grayscale for text in layers with `backdrop-filter`.
 - At DPR 2, Blink places text lines on whole CSS pixels (live and in SVG images); WebKit uses device pixels live and CSS pixels in SVG images (ADR-010).
+- **The Claude desktop app's browser pane** is not a benchmark: plain JavaScript ran ~5× slower than Node on the same machine (fracture 3.5 ms vs 0.6 ms in headless Chromium) and animation frames are throttled (a 350 ms transition took ~900 ms). Use it for visual checks; take numbers from Playwright or a real browser.
+- **Headless Chromium (software GL):** ~80 ms between the capture finishing and the overlay showing at 1440x900, mostly the 5 MB texture upload. Re-measure on a real GPU in Milestone 10.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.

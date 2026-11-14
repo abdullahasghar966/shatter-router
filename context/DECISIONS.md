@@ -155,3 +155,30 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** Keep 0.5 % for every configuration except Chromium on Linux at DPR ≥ 2, whose ceiling is 0.6 % (`seamLimit()` in `e2e/seam.ts`), set just above the measured value so a regression still fails. The number and its cause are recorded here and in `context/PROGRESS.md`, and will be listed under browser support in the README.
 - **Alternatives considered:** a global 0.6 % (would weaken every other engine); allowing a one-CSS-pixel shift (hides real layout bugs); per-line rounding fixes in the copy (needs the live line boxes, which are not exposed).
 - **Consequences:** On Linux HiDPI Chrome some paragraph lines can move by half a CSS pixel at the instant the overlay appears. Revisit when the effect is running: during the crack phase this is covered by motion, but the first frame is still static.
+
+## ADR-017 — Fracture stays on the main thread
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** Section 5.1: move fracture to a Worker only if it exceeds 4 ms at 160 shards on a mid-range laptop. Measured on an RTX 4050 / 12-core laptop: Node 0.75 ms; headless Chromium 0.6 ms median (p95 1.0 ms) at 1440x900, 1.4 ms at 400 shards; Playwright WebKit ≤ 1 ms (1 ms timer). The Claude desktop app's embedded browser pane measured 3.4–3.6 ms, but it also runs plain JavaScript about 5× slower than Node and throttles animation frames, so it is not representative.
+- **Decision:** No Worker. Fracture runs synchronously after `covered` and before `commit()`. Seeds use a typed-array linked-list grid; Voronoi rings are read through d3's public `renderCell(i, context)` without per-vertex arrays.
+- **Alternatives considered:** an inline Worker (adds a `worker-src blob:` CSP requirement and a message round trip for ~1 ms of work).
+- **Consequences:** Re-measure on a mid-range laptop in Milestone 10; `__SHATTER_TEST__.measureFracture(shards, runs)` and `e2e/vanilla/fracture-timing.spec.ts` produce the numbers.
+
+## ADR-018 — Crack runs after commit; shards are drawn from one merged mesh
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** Section 4 orders covering → committing → waiting → animating, and 5.2 says the crack plays before any shard moves.
+- **Decision:** Pipeline in Milestone 3: capture → cover (intact quad) → fracture (the mesh at rest replaces the quad; identical pixels, seam-tested) → `commit()` → two frames → crack (140 ms + 40 ms hold) → reveal. The mesh holds front faces (z = 0), back faces (z = −thickness, reversed) and side quads, interleaved as position·uv·shardId·centroid·edgeDistance·normal (12 floats). While shards lie flat only the front faces are drawn. One draw call per frame. Pause points `covered`, `fractured`, `cracked` exist in debug mode.
+- **Alternatives considered:** a separate line geometry for cracks (spec forbids); cracking before `commit()` (would delay the router by 180 ms).
+- **Consequences:** Milestone 4 adds shard motion through the vertex shader, the state machine's waiting phase and the reveal timing.
+
+## ADR-019 — Single-line text stays single-line in the copy; local seam check
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** In WebKit's device-grid copy (ADR-010) the "See the work" button wrapped its last word: glyphs measure a hair wider in the copy and the button's inlined width is exactly its text width. The whole-screen seam number did not catch it (0.03 %; a word is ~0.1 % of the screen).
+- **Decision:** (1) `CloneSession.keepSingleLines`: every text run that lies on one line in the live page (all client rects share a top) is wrapped in a `white-space: nowrap` span in the copy, unless the element is already `nowrap`/`pre`. (2) The seam test also checks the worst 24×24 CSS-pixel block for "structural" pixels: luminance off by ≥ 80/255 with no match within the shift radius. Limit 8 %. Measured: healthy seams 0–4.2 % (Windows Chromium's grayscale-vs-ClearType header text is 4 %); the wrap bug 16.5 %.
+- **Alternatives considered:** padding inlined widths (moves centred content); a block check on colour differences (ClearType vs grayscale text scored 15 %, the wrap bug 18 %: no margin).
+- **Consequences:** One `Range.getClientRects()` per text node during capture. Text that wraps live is not forced to wrap the same way in the copy (not seen so far).

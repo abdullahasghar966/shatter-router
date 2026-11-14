@@ -10,8 +10,10 @@ const outlet: HTMLElement = app;
 // machines measure the seam instead of tripping the fallback.
 const params = new URLSearchParams(location.search);
 const budget = Number(params.get('budget'));
+const seed = Number(params.get('seed'));
 const shatter = createShatter({
   debug: params.has('debug'),
+  ...(params.has('seed') && Number.isFinite(seed) ? { seed } : {}),
   ...(budget > 0 ? { captureBudget: budget } : {}),
 });
 
@@ -30,8 +32,9 @@ function render(url: URL): void {
   if (url.hash) document.getElementById(url.hash.slice(1))?.scrollIntoView();
 }
 
-function navigate(url: URL): Promise<void> {
+function navigate(url: URL, origin?: { x: number; y: number }): Promise<void> {
   return shatter.transition({
+    ...(origin ? { origin } : {}),
     commit: () => {
       history.pushState(null, '', url);
       render(url);
@@ -46,7 +49,13 @@ document.addEventListener('click', (event) => {
   const decision = classifyLinkClick(event, anchor);
   if (!decision.intercept) return;
   event.preventDefault();
-  void navigate(decision.url);
+  // Keyboard activation (Enter) reports 0,0: break from the link's centre instead.
+  const fromPointer = event.detail > 0;
+  const rect = anchor.getBoundingClientRect();
+  const origin = fromPointer
+    ? { x: event.clientX, y: event.clientY }
+    : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  void navigate(decision.url, origin);
 });
 
 window.addEventListener('popstate', () => {
