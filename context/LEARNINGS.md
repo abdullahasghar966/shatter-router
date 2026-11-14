@@ -24,6 +24,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **tsup 9.0.0:** an entry that another entry loads with dynamic `import()` is emitted under its entry name (`dist/engine.js`) and referenced as `import('./engine.js')`. `dts: { entry: { index: 'src/index.ts' } }` limits declaration output to the public entry.
 - **Vitest 5.1.0 + happy-dom 21.0.4:** the document URL defaults to `about:blank`; set `environmentOptions.happyDOM.url` so relative `href`s resolve to an http(s) origin. happy-dom has no WebGL2, so `createShatter` tests exercise the fallback path.
 - **Shell quoting:** heredocs and `node -e "…"` strings that contain apostrophes, backticks or nested quotes have failed several times in this harness (`unexpected EOF while looking for matching`). Write files with the file tool; keep inline scripts free of apostrophes.
+- **React `act()` + a commit that waits for a render deadlocks in tests:** inside `act(async () => { await navigate() })` React holds the render until the callback returns, while the commit waits for that render (it resolved only at the 1500 ms timeout). Start the navigation inside `act` and await it after `act`.
+- **happy-dom 21.0.4** `history.back()` fires `popstate` (through its browser frame); unit tests can exercise back/forward.
+- `@types/react 19.3.0`: `ref` is a plain prop for function components (React 19), no `forwardRef` needed.
 - **Prettier** rewrites Markdown tables with padding; `context/` is in `.prettierignore` so the context files stay easy to edit.
 
 ## API facts (verified from installed type definitions and source)
@@ -43,6 +46,13 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - `cellPolygon(i)` returns a **closed** ring (first vertex repeated) and **`null`** for coincident points or cells clipped away, although the type says `Polygon`. `renderCell(i, context)` (public) draws nothing in those cases and avoids the allocation; it calls `moveTo` once, `lineTo` per vertex, `closePath` at the end.
   - Rings are counter-clockwise in y-up maths, so **clockwise on a y-down screen** (positive shoelace sum). We reverse them.
   - A single seed yields the whole bounds rectangle.
+- **react-router 8.5.1** (read from `dist/development/lib/*.js` and `dist/production/lib/*.d.ts`):
+  - `<Link>` calls the app's `onClick` first and its own handler only `if (!event.defaultPrevented)`; with `reloadDocument` the app's `onClick` is passed straight to the `<a>`.
+  - Router state updates (declarative `BrowserRouter`/`MemoryRouter` and data `RouterProvider`) are wrapped in `React.startTransition` unless `useTransitions === false` or the navigation passes `flushSync: true`, so `flushSync(() => navigate(to))` does **not** render synchronously. Detect "rendered" with a layout effect on `useLocation().key`.
+  - `useNavigation()` throws outside a data router (`useDataRouterNavigation` invariant). It reads `UNSAFE_DataRouterNavigationContext` (`{ navigation, revalidation }`), which is `null` in declarative mode.
+  - Declarative `useNavigate()` returns `void`; data-mode `useNavigate()` returns a promise that resolves when the router's navigation completes (before React has rendered it). The navigate function is a no-op until its component's layout effect ran.
+  - The browser history listens with `window.addEventListener('popstate', handlePop)` (bubbling); `handlePop` reads the index from `window.history.state.idx`, so a later, re-dispatched popstate is handled correctly.
+  - Peer dependencies: `react >=19.2.7`, `react-dom >=19.2.7`.
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found

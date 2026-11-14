@@ -233,3 +233,28 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Context:** Section 10's debug panel and section 6's `backForward: 'reverse'` are not tied to a milestone. `'reverse'` maps `shatter` back to `assemble`, which arrives in Milestone 7; the panel's FPS/seam-check tools belong with the performance pass.
 - **Decision:** `backForward` is implemented in Milestone 7 with `assemble`; until then `direction: 'back'` plays the same effect (the uniform `uDirection` is already passed). The debug panel (shadow DOM, timings, FPS, wireframe toggle, seam-check heatmap) is built in Milestone 10. The data it needs is already exposed on the debug hook (`state`, `timings`, `lastAnimation`, `lastFracture`, `wireframe`, `setMotionTime`).
 - **Consequences:** Listed in `HANDOFF.md` so it is not forgotten.
+
+## ADR-026 — Back/forward in React Router: hold the router's popstate, not the Navigation API
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 7 says to capture the outgoing page before React Router re-renders on POP, using the Navigation API's `navigate` event where available and playing no effect elsewhere. A capture takes 30–250 ms and is asynchronous, while React Router 8.5.1 handles `popstate` immediately (`window.addEventListener('popstate', handlePop)` in `lib/router/history.js`, both declarative and data mode). Starting the capture in the `navigate` event, a few microseconds before `popstate`, cannot finish before the router renders the new route, so the overlay would show the *new* page shattering.
+- **Decision:** `<ShatterProvider>` (react-router) adds a **capture-phase `popstate` listener on `window`**. When the route (`pathname + search`) differs from the one last rendered, it calls `stopImmediatePropagation()` and starts a `direction: 'back'` transition; the commit dispatches a new `PopStateEvent` with `history.state`, which the router handles as usual, and resolves when `<ShatterRouteSignal>` reports the new location. The browser history (URL, entry, `history.state`) moves at once and is never blocked; only the router's reaction is postponed until the overlay covers the page (≤ capture budget + 2 frames). A held popstate is always released: by the next commit, when the last in-flight transition settles (`RouteBridge.run`), or when the provider unmounts. Fragment-only moves are not held. Works in every engine; the Navigation API is not needed.
+- **Alternatives considered:** Navigation API `navigate` event only (cannot capture in time, see above); `navigate` event + `intercept()` (does not stop the router's popstate listener; Firefox/Safari support is recent); no effect on POP (loses a spec'd feature that is achievable).
+- **Consequences:** Other `popstate` listeners on the page also receive the event late, and as a synthetic (`isTrusted: false`) event. A capture listener is relied on to run before React Router's bubble listener at the window target (DOM spec: capture listeners at the target run first, implemented in Chromium, Firefox, WebKit); verified in all three engines by e2e.
+
+## ADR-027 — React adapter shape
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 6 names `ShatterProvider`, `ShatterLink`, `useShatter`, `useShatterNavigate` for `shatter-router/react`, but plain React has no router, and section 7 needs the React Router adapter to know when a route has rendered.
+- **Decision:**
+  1. `shatter-router/react` is router-agnostic: `<ShatterProvider navigate={(href, { replace, state }) => …}>` connects any router; a synchronous state update inside it is flushed with `flushSync`, and a returned promise is awaited. Without `navigate`, `<ShatterLink>` is a plain `<a>` and `useShatterNavigate()` uses `location.assign`.
+  2. `shatter-router/react-router` exports its own `ShatterProvider` (rendered **inside** the router; in data mode in the root route element), `ShatterLink` (wraps `<Link>`), `ShatterNavLink` (wraps `<NavLink>`), `useShatterNavigate` (takes `To` + `NavigateOptions`), `useShatter`, `ShatterRouteSignal`. Both providers share one context, so the generic hooks also work under the React Router provider.
+  3. The instance is created in an effect after mount (SSR and the first render never touch the DOM), destroyed on unmount, re-created on a StrictMode remount. `options` are read once. `instance` lets the app pass its own (never destroyed by the provider). `useShatter()` returns `Shatter | null`.
+  4. Every router commit is bounded by `readyTimeout` (default 1500 ms), since the runtime awaits `commit()` without a timeout and a blocked or slow navigation must not keep the overlay up.
+  5. Data-mode idleness is read from `UNSAFE_DataRouterNavigationContext` (the context `useNavigation()` reads; `useNavigation()` itself throws outside a data router). It is null in declarative mode.
+  6. Links: the app's `onClick` runs first; `classifyLinkClick` decides; `reloadDocument` links are never intercepted; a link to the current location replaces the entry (same rule as `<Link>`). `viewTransition` is omitted from the props (the overlay is the transition).
+  7. Size budgets: each adapter entry including the core ≤ 6 KB gzip (the core's own budget); react, react-dom and react-router are peers and excluded.
+- **Alternatives considered:** `useNavigation()` behind a mode prop (users must say which mode they use); creating the instance during render (StrictMode double render leaks listeners of the discarded instance); a separate React Router provider outside the router (cannot call router hooks).
+- **Consequences:** `UNSAFE_DataRouterNavigationContext` is a React Router export marked unsafe; an upgrade must be checked against the unit tests (`test/react-router.test.tsx` covers data mode).

@@ -48,6 +48,9 @@ Recorded 2026-11-14 (session 1). Node v24.21.0, pnpm 12.8.1.
 | happy-dom | 21.0.4 | packages/shatter-router |
 | size-limit, @size-limit/preset-small-lib | 14.3.0 | packages/shatter-router |
 | vite | 8.3.8 | examples/vanilla |
+| react / react-dom | 19.3.1 | packages/shatter-router (dev; optional peer `>=19.0.0`), recorded 2026-11-15 |
+| react-router | 8.5.1 | packages/shatter-router (dev; optional peer `>=8.0.0`) |
+| @types/react / @types/react-dom | 19.3.0 | packages/shatter-router (dev) |
 
 GitHub Actions: actions/checkout v7, actions/setup-node v7, pnpm/action-setup v6, actions/cache v6, actions/upload-artifact v7.
 
@@ -74,6 +77,8 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | runtime `dist/runtime.js` (lazy) | 6.56 kB | 8 KB (own) | Milestone 4: state machine, fallbacks, a11y, scroll lock, pre-capture |
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 16.82 kB | 22 KB | Milestone 4: + effect programs, shard data texture, frame loop, `shatter` effect |
 | 2026-11-15 | capture `dist/capture.js` (lazy) | 11.94 kB | 16 KB | Milestone 4: + substitutes for iframe/video/ignored, CORS image rule |
+| 2026-11-15 | `shatter-router/react` (`dist/react.js`, incl. core) | 2.46 kB | 6 KB (ADR-027) | Milestone 5; react, react-dom excluded (peers) |
+| 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
 
