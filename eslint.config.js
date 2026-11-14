@@ -51,6 +51,18 @@ export default defineConfig(
     languageOptions: { globals: { ...globals.node } },
   },
   {
+    // E2E tests print measured numbers (seam diff, capture time) into the CI log.
+    files: ['e2e/**'],
+    rules: {
+      'no-console': 'off',
+      // Playwright requires a destructured first argument even when no fixture is used.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
     files: ['**/*.js'],
     ...tseslint.configs.disableTypeChecked,
   },

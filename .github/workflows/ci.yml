@@ -67,9 +67,20 @@ jobs:
       - name: Install Playwright system dependencies
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps ${{ matrix.browser }}
+      - name: Install software OpenGL and a virtual display for Firefox
+        if: matrix.browser == 'firefox'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libegl1 libegl-mesa0 libglx-mesa0 xvfb
       - run: pnpm build
       - run: pnpm build:examples
-      - run: pnpm test:e2e --project=${{ matrix.browser }}
+      - name: Run e2e
+        shell: bash
+        run: |
+          if [ "${{ matrix.browser }}" = "firefox" ]; then
+            # Headless Firefox finds no GL driver on the runner; headed under xvfb uses Mesa (ADR-015).
+            PW_HEADED=1 xvfb-run -a pnpm test:e2e --project=firefox
+          else
+            pnpm test:e2e --project=${{ matrix.browser }}
+          fi
       - name: Upload Playwright report
         if: ${{ !cancelled() && failure() }}
         uses: actions/upload-artifact@v7
