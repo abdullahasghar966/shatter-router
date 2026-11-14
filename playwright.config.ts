@@ -15,6 +15,7 @@ export default defineConfig({
   retries: isCI ? 1 : 0,
   reporter: isCI ? [['github'], ['html', { open: 'never' }]] : [['list']],
   use: {
+    headless: !process.env.PW_HEADED,
     trace: 'retain-on-failure',
     viewport: { width: 1280, height: 720 },
   },
