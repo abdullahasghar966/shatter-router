@@ -50,6 +50,8 @@ export type LayoutGrid = 'css' | 'device';
  * the engine: every browser on Apple's engine reports Apple as its vendor.
  */
 function layoutGridFor(win: Window): LayoutGrid {
+  const forced = (win as unknown as { __SPIKE_GRID__?: LayoutGrid }).__SPIKE_GRID__;
+  if (forced) return forced;
   return win.navigator.vendor.startsWith('Apple') ? 'device' : 'css';
 }
 

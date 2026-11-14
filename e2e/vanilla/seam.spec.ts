@@ -69,6 +69,29 @@ test.describe('vanilla example: first-frame seam', () => {
     await expect(page.locator('h1')).toHaveText('Links that behave.');
   });
 
+  for (const grid of ['css', 'device'] as const) {
+    test.describe(`SPIKE grid ${grid} at dpr 2`, () => {
+      test.use({ deviceScaleFactor: 2 });
+      test('measure', async ({ page }, testInfo) => {
+        await page.addInitScript((g) => {
+          (window as unknown as { __SPIKE_GRID__: string }).__SPIKE_GRID__ = g;
+        }, grid);
+        await page.goto(`${BASE}/?debug&budget=5000`);
+        await waitForShatterReady(page);
+        await firstFrameSeam(page, testInfo, `spike-${grid}`, 'About');
+      });
+      test('measure dpr1', async ({ page }, testInfo) => {
+        await page.setViewportSize({ width: 1280, height: 720 });
+        await page.addInitScript((g) => {
+          (window as unknown as { __SPIKE_GRID__: string }).__SPIKE_GRID__ = g;
+        }, grid);
+        await page.goto(`${BASE}/work?debug&budget=5000`);
+        await waitForShatterReady(page);
+        await firstFrameSeam(page, testInfo, `spike1x-${grid}`, 'About');
+      });
+    });
+  }
+
   test.describe('at device pixel ratio 2', () => {
     test.use({ deviceScaleFactor: 2 });
 
