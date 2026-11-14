@@ -132,9 +132,7 @@ export function ShatterProvider({
     if (!shatter) return undefined;
     setPopHolder(() => {
       if (!bridge.holdPop()) return false;
-      bridge
-        .run(shatter, { direction: 'back', commit: () => bridge.commitPop() })
-        .catch(reportNavigationError);
+      bridge.runPop(shatter).catch(reportNavigationError);
       return true;
     });
     return () => {

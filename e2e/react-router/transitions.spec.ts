@@ -191,6 +191,12 @@ test.describe('React Router example: transitions', () => {
 });
 
 async function firstFrameSeam(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  // Diagnostics for the platform font of form controls (ADR-029), CI only.
+  const buttonFont = await page.evaluate(() => {
+    const button = document.querySelector('button');
+    return button ? getComputedStyle(button).font : 'no button';
+  });
+  console.log(`[button-font] ${testInfo.project.name}: ${buttonFont}`);
   const link = page.getByRole('link', { name: 'Work', exact: true });
   await link.hover();
   const live = await page.screenshot();

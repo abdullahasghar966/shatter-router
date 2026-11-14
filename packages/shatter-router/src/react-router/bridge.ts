@@ -1,3 +1,4 @@
+import { nextFrame } from '../core/frame';
 import type { Shatter, TransitionRequest } from '../core/types';
 import { boundedCommit } from '../react/shared';
 
@@ -52,6 +53,8 @@ export class RouteBridge {
   private readonly positions = new Map<string, ScrollPosition>();
   /** Where the held back/forward navigation should end up scrolled, if known. */
   private popTarget: ScrollPosition | null = null;
+  /** Scroll position of the page shown while its popstate is held. */
+  private heldScroll: ScrollPosition | null = null;
   private restorationBefore: ScrollRestoration | null = null;
 
   constructor(timeout: number) {
@@ -68,7 +71,15 @@ export class RouteBridge {
     this.restorationBefore ??= window.history.scrollRestoration;
     window.history.scrollRestoration = 'manual';
     const onScroll = (): void => {
-      if (!this.pendingPop && this.key !== null) this.positions.set(this.key, currentScroll());
+      const held = this.heldScroll;
+      if (held) {
+        // The browser may still apply its own restoration to the held page
+        // (Firefox ignores 'manual' on the first entry, ADR-030): undo it.
+        // Scroll events run before the next paint, so the jump is never seen.
+        if (window.scrollX !== held.x || window.scrollY !== held.y) window.scrollTo(held.x, held.y);
+        return;
+      }
+      if (this.key !== null) this.positions.set(this.key, currentScroll());
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
@@ -168,10 +179,29 @@ export class RouteBridge {
     if (this.releasing || !this.connected) return false;
     // Fragment-only history moves (and moves back to what is shown) keep the route.
     if (!this.pendingPop && windowRoute() === this.renderedRoute) return false;
-    if (!this.pendingPop && this.key !== null) this.positions.set(this.key, currentScroll());
+    if (!this.pendingPop) {
+      this.heldScroll = currentScroll();
+      if (this.key !== null) this.positions.set(this.key, this.heldScroll);
+    }
     this.popTarget = this.positions.get(incomingKey()) ?? null;
     this.pendingPop = true;
     return true;
+  }
+
+  /**
+   * Runs the back/forward transition one frame later, so that a scroll the
+   * browser applies to the held page right after `popstate` has been undone
+   * before the capture reads the page.
+   */
+  async runPop(shatter: Shatter): Promise<void> {
+    this.inflight += 1;
+    try {
+      await nextFrame(window);
+      await shatter.transition({ direction: 'back', commit: () => this.commitPop() });
+    } finally {
+      this.inflight -= 1;
+      if (this.inflight === 0) this.releasePop();
+    }
   }
 
   /**
@@ -199,6 +229,7 @@ export class RouteBridge {
   releasePop(): void {
     if (!this.pendingPop) return;
     this.pendingPop = false;
+    this.heldScroll = null;
     this.releasing = true;
     try {
       window.dispatchEvent(
