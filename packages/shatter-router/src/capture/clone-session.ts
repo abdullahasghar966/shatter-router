@@ -227,6 +227,7 @@ export class CloneSession {
   private repair(original: Element, cloned: HTMLElement | SVGElement): void {
     const style = cloned.style;
     stripLayerNames(style);
+    this.keepSingleLines(original, cloned);
     if (original === this.doc.body && cloned instanceof this.win.HTMLElement) {
       this.bodyClone = cloned;
     }
@@ -266,6 +267,61 @@ export class CloneSession {
         });
       }
     }
+  }
+
+  /**
+   * Text that sits on one line in the live page must not wrap in the copy.
+   *
+   * The copy can measure text a fraction of a pixel wider than the live page
+   * (glyph hinting at a different size, a different rounding grid), and a
+   * shrink-to-fit box such as a button is exactly as wide as its text: the
+   * last word then drops to a new line. Each text run that is on a single line
+   * live is wrapped in a `white-space: nowrap` span in the copy. Runs that
+   * already wrap live are left alone.
+   */
+  private keepSingleLines(original: Element, cloned: HTMLElement | SVGElement): void {
+    if (original.shadowRoot || !(cloned instanceof this.win.HTMLElement)) return;
+    const whiteSpace = this.win.getComputedStyle(original).whiteSpace;
+    if (whiteSpace === 'nowrap' || whiteSpace === 'pre') return;
+
+    // Pair live children with cloned children the way the library cloned them:
+    // comments, <style>, <script> and Shatter's own nodes are not cloned.
+    const liveChildren: ChildNode[] = [];
+    for (const child of original.childNodes) {
+      if (child.nodeType === 8) continue;
+      if (isElement(child)) {
+        const tag = child.tagName.toUpperCase();
+        if (tag === 'STYLE' || tag === 'SCRIPT') continue;
+        if (child.hasAttribute(OVERLAY_ATTRIBUTE) || child.id.startsWith('__SANDBOX__')) continue;
+      }
+      liveChildren.push(child);
+    }
+    const clonedChildren = Array.from(cloned.childNodes);
+    if (clonedChildren.length !== liveChildren.length) return;
+
+    const range = this.doc.createRange();
+    liveChildren.forEach((live, index) => {
+      const copy = clonedChildren[index];
+      if (live.nodeType !== 3 || copy?.nodeType !== 3) return;
+      const text = live.textContent ?? '';
+      if (text.trim().length < 2) return;
+      range.selectNodeContents(live);
+      const rects = range.getClientRects();
+      if (rects.length === 0) return;
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (const rect of rects) {
+        if (rect.width === 0) continue;
+        top = Math.min(top, rect.top);
+        bottom = Math.max(bottom, rect.top);
+      }
+      // Rects of one line share their top; a second line starts a line-height lower.
+      if (!(bottom - top < 1)) return;
+      const span = this.doc.createElement('span');
+      span.style.whiteSpace = 'nowrap';
+      cloned.replaceChild(span, copy);
+      span.append(copy);
+    });
   }
 
   /**

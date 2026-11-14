@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { PNG } from 'pngjs';
-import { compareScreenshots } from './seam';
+import { compareScreenshots, SEAM_MAX_BLOCK_PERCENT } from './seam';
 
 // Pure image maths: no page involved, so it runs in the Chromium project only.
 
@@ -18,6 +18,20 @@ function bars(shift: number): Buffer {
       png.data[i + 1] = value;
       png.data[i + 2] = value;
       png.data[i + 3] = 255;
+    }
+  }
+  return PNG.sync.write(png);
+}
+
+/** `bars(0)` with a 96x96 patch (two 48 px blocks at 2x) blanked out, like a word that moved away. */
+function barsWithHole(): Buffer {
+  const png = PNG.sync.read(bars(0));
+  for (let y = 48; y < 144; y++) {
+    for (let x = 48; x < 144; x++) {
+      const i = (y * SIZE + x) * 4;
+      png.data[i] = 12;
+      png.data[i + 1] = 12;
+      png.data[i + 2] = 12;
     }
   }
   return PNG.sync.write(png);
@@ -53,5 +67,17 @@ test.describe('seam metric', () => {
     const result = await compareScreenshots(testInfo, 'shift1-r0', bars(0), bars(1), 0);
     expect(result.percent).toBe(result.rawPercent);
     expect(result.percent).toBeGreaterThan(5);
+  });
+
+  test('flags a local defect the whole-screen share would dilute', async ({
+    page: _unused,
+  }, testInfo) => {
+    const result = await compareScreenshots(testInfo, 'hole', bars(0), barsWithHole(), 1);
+    expect(result.worstBlockPercent).toBeGreaterThan(SEAM_MAX_BLOCK_PERCENT * 2);
+  });
+
+  test('a forgiven half-pixel shift is not a local defect', async ({ page: _unused }, testInfo) => {
+    const result = await compareScreenshots(testInfo, 'shift1-block', bars(0), bars(1), 1);
+    expect(result.worstBlockPercent).toBe(0);
   });
 });

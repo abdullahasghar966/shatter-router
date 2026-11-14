@@ -12,6 +12,12 @@ export interface SeamResult {
   readonly percent: number;
   /** Share of pixels that differ by more than the colour tolerance, no shift allowed. */
   readonly rawPercent: number;
+  /**
+   * Worst 24x24 CSS px block: its share of structural pixels (luminance off by
+   * `STRUCTURAL_LUMA` with no match within `shiftRadius`), 0..100. Catches a
+   * local defect, such as a wrapped word, that the whole-screen percentage dilutes.
+   */
+  readonly worstBlockPercent: number;
   readonly differing: number;
   readonly total: number;
 }
@@ -22,6 +28,46 @@ export interface SeamResult {
  * step but still flags a shifted or missing glyph.
  */
 export const SEAM_TOLERANCE = 0.1;
+
+/** Side of the blocks the local check uses, in CSS pixels. */
+const BLOCK_CSS_PX = 24;
+
+/**
+ * Luminance difference (0..255) that counts as structural for the local
+ * check: something appeared, vanished or moved. ClearType versus grayscale
+ * anti-aliasing changes colour fringes but stays well below it.
+ */
+const STRUCTURAL_LUMA = 80;
+
+/** Local check limit: no block may have more structural pixels than this share. */
+export const SEAM_MAX_BLOCK_PERCENT = 8;
+
+function luma(data: Uint8Array, i: number): number {
+  return 0.2126 * (data[i] ?? 0) + 0.7152 * (data[i + 1] ?? 0) + 0.0722 * (data[i + 2] ?? 0);
+}
+
+/** True when pixel (x, y) of `from` has a pixel of similar luminance in `to` within `radius`. */
+function hasNearbyLuma(
+  from: Uint8Array,
+  to: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  radius: number,
+): boolean {
+  const value = luma(from, (y * width + x) * 4);
+  for (let dy = -radius; dy <= radius; dy++) {
+    const ny = y + dy;
+    if (ny < 0 || ny >= height) continue;
+    for (let dx = -radius; dx <= radius; dx++) {
+      const nx = x + dx;
+      if (nx < 0 || nx >= width) continue;
+      if (Math.abs(luma(to, (ny * width + nx) * 4) - value) < STRUCTURAL_LUMA) return true;
+    }
+  }
+  return false;
+}
 
 /** Per-channel tolerance (0..255) when matching a pixel against its shifted neighbours. */
 const SHIFT_CHANNEL_TOLERANCE = 24;
@@ -133,6 +179,31 @@ export async function compareScreenshots(
   const percent = (differing / total) * 100;
   const rawPercent = (rawDiffering / total) * 100;
 
+  // Local check: the worst block. A whole-screen percentage can hide one
+  // glaring defect (a wrapped word is ~0.1 % of a 1280x720 screen).
+  const liveData = new Uint8Array(a.data.buffer, a.data.byteOffset, a.data.length);
+  const overlayData = new Uint8Array(b.data.buffer, b.data.byteOffset, b.data.length);
+  const block = Math.max(8, Math.round(BLOCK_CSS_PX * (shiftRadius + 1)));
+  let worstBlock = 0;
+  for (let by = 0; by < height; by += block) {
+    for (let bx = 0; bx < width; bx += block) {
+      let count = 0;
+      const yEnd = Math.min(height, by + block);
+      const xEnd = Math.min(width, bx + block);
+      for (let y = by; y < yEnd; y++) {
+        for (let x = bx; x < xEnd; x++) {
+          const i = (y * width + x) * 4;
+          if (Math.abs(luma(liveData, i) - luma(overlayData, i)) < STRUCTURAL_LUMA) continue;
+          const structural =
+            !hasNearbyLuma(liveData, overlayData, width, height, x, y, shiftRadius) ||
+            !hasNearbyLuma(overlayData, liveData, width, height, x, y, shiftRadius);
+          if (structural) count++;
+        }
+      }
+      worstBlock = Math.max(worstBlock, (count / ((yEnd - by) * (xEnd - bx))) * 100);
+    }
+  }
+
   const files: [string, Buffer][] = [
     ['live', expected],
     ['overlay', actual],
@@ -145,9 +216,9 @@ export async function compareScreenshots(
   }
   testInfo.annotations.push({
     type: 'seam',
-    description: `${name}: ${percent.toFixed(4)} % (${differing}/${total} px), raw ${rawPercent.toFixed(4)} %, shift radius ${shiftRadius}`,
+    description: `${name}: ${percent.toFixed(4)} % (${differing}/${total} px), raw ${rawPercent.toFixed(4)} %, worst block ${worstBlock.toFixed(1)} %, shift radius ${shiftRadius}`,
   });
-  return { percent, rawPercent, differing, total };
+  return { percent, rawPercent, worstBlockPercent: worstBlock, differing, total };
 }
 
 interface TestHook {
@@ -159,6 +230,8 @@ interface TestHook {
   lastCaptureMs: number | null;
   lastFallback: string | null;
   layoutGrid(): string | null;
+  wireframe: boolean;
+  lastFracture: { shardCount: number; fractureMs: number; tier: string } | null;
 }
 
 type HookWindow = Window & { __SHATTER_TEST__?: TestHook };
@@ -169,21 +242,33 @@ export async function waitForShatterReady(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
 }
 
-/** Arms the debug hook so the next transition stops once the overlay covers the page. */
-export async function pauseAtCovered(page: Page): Promise<void> {
-  await page.evaluate(() => {
+/** Pipeline phases the debug hook can stop at. */
+export type PausePoint = 'covered' | 'fractured' | 'cracked';
+
+/** Arms the debug hook so the next transition stops when it reaches `point`. */
+export async function pauseAt(page: Page, point: PausePoint): Promise<void> {
+  await page.evaluate((p) => {
     const hook = (window as HookWindow).__SHATTER_TEST__;
     if (!hook) throw new Error('debug hook missing: load the page with ?debug');
-    hook.pauseAt = 'covered';
-  });
+    hook.pauseAt = p;
+  }, point);
 }
 
-export async function waitForCovered(page: Page): Promise<void> {
-  await page.waitForFunction(() => {
+/** Waits until the transition is stopped at `point`; fails fast if it fell back. */
+export async function waitForPause(page: Page, point: PausePoint): Promise<void> {
+  await page.waitForFunction((p) => {
     const hook = (window as HookWindow).__SHATTER_TEST__;
     if (hook?.lastFallback) throw new Error(`Shatter fell back: ${hook.lastFallback}`);
-    return hook?.paused === 'covered';
-  });
+    return hook?.paused === p;
+  }, point);
+}
+
+/** Turns the debug wireframe on or off (redraws immediately). */
+export async function setWireframe(page: Page, on: boolean): Promise<void> {
+  await page.evaluate((value) => {
+    const hook = (window as HookWindow).__SHATTER_TEST__;
+    if (hook) hook.wireframe = value;
+  }, on);
 }
 
 /** Resumes a paused transition and waits until the overlay is gone and its texture freed. */
@@ -203,6 +288,7 @@ export async function readHook(page: Page): Promise<{
   lastCaptureMs: number | null;
   lastFallback: string | null;
   layoutGrid: string | null;
+  lastFracture: { shardCount: number; fractureMs: number; tier: string } | null;
 }> {
   return page.evaluate(() => {
     const hook = (window as HookWindow).__SHATTER_TEST__;
@@ -210,6 +296,7 @@ export async function readHook(page: Page): Promise<{
       lastCaptureMs: hook?.lastCaptureMs ?? null,
       lastFallback: hook?.lastFallback ?? null,
       layoutGrid: hook?.layoutGrid() ?? null,
+      lastFracture: hook?.lastFracture ?? null,
     };
   });
 }

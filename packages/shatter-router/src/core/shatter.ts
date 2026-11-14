@@ -13,11 +13,28 @@ export interface ShatterOptions {
   captureBudget?: number;
   /** Exposes `window.__SHATTER_TEST__` and extra diagnostics. Default false. */
   debug?: boolean;
+  /**
+   * Number of shards, or `'auto'` to pick by device tier: 40 (low), 90 (mid),
+   * 160 (high). Clamped to [12, 400]. Default `'auto'`.
+   */
+  shards?: 'auto' | number;
+  /** Makes the fracture layout deterministic. Default: random each time. */
+  seed?: number;
+  /** Glass thickness in CSS pixels, seen on the shards' sides as they tumble. Default 6. */
+  thickness?: number;
+}
+
+/** A point in viewport (CSS pixel) coordinates. */
+export interface Point {
+  x: number;
+  y: number;
 }
 
 export interface TransitionRequest {
   /** Makes the app show the new route (swap the DOM, call the router). */
   commit: () => void | Promise<void>;
+  /** Impact point in viewport coordinates. Default: the viewport centre. */
+  origin?: Point;
 }
 
 /** Why a transition ran without the WebGL effect. */
@@ -35,6 +52,8 @@ export interface ShatterEventMap {
   start: undefined;
   /** The overlay shows the outgoing page; the live DOM is no longer visible. */
   covered: { captureMs: number };
+  /** The page is broken into shards (geometry ready, nothing has moved yet). */
+  fractured: { shardCount: number; fractureMs: number };
   /** The app's `commit()` finished. */
   committed: undefined;
   /** The overlay is gone and the new page is live. */
@@ -58,7 +77,7 @@ export interface Shatter {
 }
 
 /** Phases a test can pause the pipeline at (debug mode only). */
-export type PausePoint = 'covered';
+export type PausePoint = 'covered' | 'fractured' | 'cracked';
 
 /** Shape of `window.__SHATTER_TEST__`, available only when `debug` is on. */
 export interface ShatterTestHook {
@@ -78,6 +97,20 @@ export interface ShatterTestHook {
   lastFallback: FallbackReason | null;
   /** Grid the page copy is laid out on in this engine, once the capturer is loaded. */
   layoutGrid(): 'css' | 'device' | null;
+  /** Most recent fracture: shard count, CPU time and the device tier used for `'auto'`. */
+  lastFracture: { shardCount: number; fractureMs: number; tier: string } | null;
+  /** Draws every cell edge and the impact point on the overlay. */
+  wireframe: boolean;
+  /** Freezes the crack at `radius` CSS px (with no flash) while paused. */
+  setCrack(radius: number): void;
+  /**
+   * Times the fracture of the current viewport into `shards` pieces, `runs`
+   * times, isolated from capture and drawing. Null until the engine is loaded.
+   */
+  measureFracture(
+    shards: number,
+    runs: number,
+  ): { medianMs: number; p95Ms: number; runs: number } | null;
 }
 
 class Fallback extends Error {
@@ -87,10 +120,14 @@ class Fallback extends Error {
 }
 
 const DEFAULT_CAPTURE_BUDGET = 250;
+const DEFAULT_THICKNESS = 6;
 
 class ShatterController implements Shatter {
   private readonly handlers = new Map<ShatterEventName, Set<(payload: never) => void>>();
   private readonly captureBudget: number;
+  private readonly shards: 'auto' | number;
+  private readonly seed: number | undefined;
+  private readonly thickness: number;
   private readonly hook: ShatterTestHook | null;
   private engine: Engine | null = null;
   private capturer: DomCapturer | null = null;
@@ -98,10 +135,14 @@ class ShatterController implements Shatter {
   private resumePaused: (() => void) | null = null;
   private idleHandle: number | null = null;
   private busy = false;
+  private wireframe = false;
   private destroyed = false;
 
   constructor(options: ShatterOptions) {
     this.captureBudget = options.captureBudget ?? DEFAULT_CAPTURE_BUDGET;
+    this.shards = options.shards ?? 'auto';
+    this.seed = options.seed;
+    this.thickness = options.thickness ?? DEFAULT_THICKNESS;
     this.hook = options.debug && isBrowser() ? this.installHook() : null;
     if (isBrowser()) this.scheduleWarmUp();
   }
@@ -193,13 +234,30 @@ class ShatterController implements Shatter {
     this.emit('covered', { captureMs: snapshot.duration });
     await this.pause('covered');
 
+    // Fracture now, before the router runs, so the geometry work overlaps the
+    // time the new route needs to render.
+    const origin = request.origin ?? { x: viewport.width / 2, y: viewport.height / 2 };
+    const { count, tier } = engine.resolveShardCount(this.shards, snapshot.duration);
+    const stats = engine.fracture({
+      origin,
+      count,
+      thickness: this.thickness,
+      ...(this.seed === undefined ? {} : { seed: this.seed }),
+    });
+    if (this.hook) this.hook.lastFracture = { ...stats, tier };
+    this.emit('fractured', { shardCount: stats.shardCount, fractureMs: stats.fractureMs });
+    await this.pause('fractured');
+
     await request.commit();
     progress.committed = true;
     this.emit('committed', undefined);
 
-    // Let the new route lay out and paint under the overlay before revealing it.
+    // Let the new route lay out and paint under the overlay.
     await nextFrame(window);
     await nextFrame(window);
+
+    await engine.crack();
+    await this.pause('cracked');
     engine.release();
   }
 
@@ -241,6 +299,7 @@ class ShatterController implements Shatter {
         ]);
         if (this.destroyed) return;
         this.engine = engineModule.createEngine(document);
+        this.engine.wireframe = this.wireframe;
         this.capturer = captureModule.createCapturer(document);
         await this.capturer.warmUp();
         if (this.hook) this.hook.ready = true;
@@ -302,6 +361,8 @@ class ShatterController implements Shatter {
   }
 
   private installHook(): ShatterTestHook {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- accessor properties below need the instance
+    const controller = this;
     const hook: ShatterTestHook = {
       pauseAt: null,
       paused: null,
@@ -311,6 +372,36 @@ class ShatterController implements Shatter {
       lastCaptureMs: null,
       lastFallback: null,
       layoutGrid: () => this.capturer?.layoutGrid ?? null,
+      lastFracture: null,
+      get wireframe(): boolean {
+        return controller.wireframe;
+      },
+      set wireframe(value: boolean) {
+        controller.wireframe = value;
+        const engine = controller.engine;
+        if (engine) {
+          engine.wireframe = value;
+          engine.draw();
+        }
+      },
+      setCrack: (radius: number) => {
+        this.engine?.setCrack(radius, 0);
+      },
+      measureFracture: (shards: number, runs: number) => {
+        const engine = this.engine;
+        if (!engine) return null;
+        const { width, height } = readViewport(window);
+        return engine.measureFracture(
+          {
+            width,
+            height,
+            origin: { x: width / 2, y: height / 2 },
+            count: shards,
+            thickness: this.thickness,
+          },
+          runs,
+        );
+      },
     };
     (window as unknown as { __SHATTER_TEST__?: ShatterTestHook }).__SHATTER_TEST__ = hook;
     return hook;
