@@ -6,6 +6,24 @@ interface Waiter {
   readonly resolve: () => void;
 }
 
+interface ScrollPosition {
+  readonly x: number;
+  readonly y: number;
+}
+
+function currentScroll(): ScrollPosition {
+  return { x: window.scrollX, y: window.scrollY };
+}
+
+/**
+ * The location key React Router gives the entry the browser just moved to:
+ * it keeps it in `history.state.key`; the first entry has none ('default').
+ */
+function incomingKey(): string {
+  const state = window.history.state as { key?: unknown } | null;
+  return typeof state?.key === 'string' ? state.key : 'default';
+}
+
 /** `pathname + search` of the window: what decides whether a popstate changes the route. */
 function windowRoute(): string {
   return window.location.pathname + window.location.search;
@@ -30,15 +48,44 @@ export class RouteBridge {
   private pendingPop = false;
   private releasing = false;
   private inflight = 0;
+  /** Last known scroll position of each rendered history entry, by location key. */
+  private readonly positions = new Map<string, ScrollPosition>();
+  /** Where the held back/forward navigation should end up scrolled, if known. */
+  private popTarget: ScrollPosition | null = null;
+  private restorationBefore: ScrollRestoration | null = null;
 
   constructor(timeout: number) {
     this.timeout = timeout;
+  }
+
+  /**
+   * Takes over scroll restoration for history traversals (ADR-030): the
+   * browser must not scroll the old page while its popstate is held, so every
+   * rendered entry is set to `scrollRestoration = 'manual'`, and the bridge
+   * remembers and restores positions itself. Returns the detach function.
+   */
+  attach(): () => void {
+    this.restorationBefore ??= window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    const onScroll = (): void => {
+      if (!this.pendingPop && this.key !== null) this.positions.set(this.key, currentScroll());
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (this.restorationBefore !== null) {
+        window.history.scrollRestoration = this.restorationBefore;
+        this.restorationBefore = null;
+      }
+    };
   }
 
   /** Called by `<ShatterRouteSignal>` after every commit of the router's location. */
   rendered(key: string, idle: boolean): void {
     this.key = key;
     this.renderedRoute = windowRoute();
+    // Each history entry has its own mode; set it on every entry we show.
+    if (this.restorationBefore !== null) window.history.scrollRestoration = 'manual';
     if (!idle) return;
     for (const waiter of [...this.waiters]) {
       if (waiter.from !== key) {
@@ -84,6 +131,7 @@ export class RouteBridge {
   /** Runs `navigate` (the router call) and resolves once its route has rendered. */
   commit(navigate: () => unknown): Promise<void> {
     this.releasePop();
+    if (this.key !== null) this.positions.set(this.key, currentScroll());
     const next = this.nextRender();
     return boundedCommit(() => {
       const result = navigate();
@@ -120,17 +168,31 @@ export class RouteBridge {
     if (this.releasing || !this.connected) return false;
     // Fragment-only history moves (and moves back to what is shown) keep the route.
     if (!this.pendingPop && windowRoute() === this.renderedRoute) return false;
+    if (!this.pendingPop && this.key !== null) this.positions.set(this.key, currentScroll());
+    this.popTarget = this.positions.get(incomingKey()) ?? null;
     this.pendingPop = true;
     return true;
   }
 
-  /** The commit of a back/forward transition: let the router see the popstate now. */
-  commitPop(): Promise<void> {
+  /**
+   * The commit of a back/forward transition: let the router see the popstate
+   * now, and once the route has rendered, restore the entry's scroll position
+   * unless the app (for example React Router's `<ScrollRestoration>`) already
+   * scrolled during the render.
+   */
+  async commitPop(): Promise<void> {
     const changes = windowRoute() !== this.renderedRoute;
+    const target = this.popTarget;
+    this.popTarget = null;
+    const before = currentScroll();
     const next = this.nextRender();
     this.releasePop();
     if (!changes) next.cancel();
-    return next.promise;
+    await next.promise;
+    const after = currentScroll();
+    if (target && after.x === before.x && after.y === before.y) {
+      window.scrollTo(target.x, target.y);
+    }
   }
 
   /** Dispatches the held-back popstate, if any, for the router's own listener. */

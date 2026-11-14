@@ -364,6 +364,33 @@ describe('React Router adapter, back/forward', () => {
     router.dispose();
   });
 
+  it('keeps scroll restoration manual and restores the entry position on back', async () => {
+    const shatter = fakeShatter();
+    window.history.scrollRestoration = 'auto';
+    const app = await mount(
+      <BrowserRouter>
+        <ShatterProvider instance={shatter}>
+          <Nav />
+          <Routes>
+            <Route path="/" element={page('Home')} />
+            <Route path="/about" element={page('About')} />
+          </Routes>
+        </ShatterProvider>
+      </BrowserRouter>,
+    );
+    expect(window.history.scrollRestoration).toBe('manual');
+    window.scrollTo(0, 120);
+    await click(anchor(app.container, 'About'));
+    await settle();
+    window.scrollTo(0, 0); // the runtime scrolls a forward navigation to the top
+    window.history.back();
+    await settle(50);
+    expect(heading(app.container)).toBe('Home');
+    expect(window.scrollY).toBe(120);
+    await app.unmount();
+    expect(window.history.scrollRestoration).toBe('auto');
+  });
+
   it('ignores hash-only history moves', async () => {
     const shatter = fakeShatter();
     const { container } = await render(

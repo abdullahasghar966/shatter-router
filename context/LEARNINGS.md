@@ -52,6 +52,7 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - `useNavigation()` throws outside a data router (`useDataRouterNavigation` invariant). It reads `UNSAFE_DataRouterNavigationContext` (`{ navigation, revalidation }`), which is `null` in declarative mode.
   - Declarative `useNavigate()` returns `void`; data-mode `useNavigate()` returns a promise that resolves when the router's navigation completes (before React has rendered it). The navigate function is a no-op until its component's layout effect ran.
   - The browser history listens with `window.addEventListener('popstate', handlePop)` (bubbling); `handlePop` reads the index from `window.history.state.idx`, so a later, re-dispatched popstate is handled correctly.
+  - The location key lives in `history.state.key` (`getHistoryState` in `lib/router/history.js`: `{ usr, key, idx }`); the first entry has no key and its location key is `'default'`.
   - Peer dependencies: `react >=19.2.7`, `react-dom >=19.2.7`.
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
@@ -84,6 +85,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 
 - **A `<button>` without an app `font-family` was serif in the copy on Linux WebKit** (PR #5 CI, worst block 15.3 %). Root cause: the platform font of form controls is not inlined by modern-screenshot (equal to its sandbox default), and an SVG image resolves the control default differently. Fix: pin the computed font longhands on form controls (ADR-029). Windows WebKit did not show it: check CI diff images, not only local numbers.
 - **Firefox warns "Loading failed for the module with source …"** when a document unload (a second `page.goto`) aborts the idle prefetch of the lazy chunks. Tests that navigate away wait for `waitForShatterReady` first.
+
+- **Firefox scrolled the held old page on back** (PR #5 CI): with the entry's `history.scrollRestoration` = `auto`, Firefox applies the target entry's scroll position before `popstate`, onto whatever page is shown. Firefox reported `auto` on the first entry although React Router's `<ScrollRestoration>` had set `manual` at mount. Fix: the bridge keeps every entry `manual` and restores positions itself (ADR-030). Diagnosed with a scroll log printed from the CI test, since Firefox cannot run locally.
 
 ## Approaches that did not work
 

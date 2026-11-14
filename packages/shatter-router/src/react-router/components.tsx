@@ -113,12 +113,13 @@ export function ShatterProvider({
   bridge.timeout = timeout;
   const navigate = useLatest(useNavigate());
 
-  useEffect(
-    () => () => {
+  useLayoutEffect(() => {
+    const detach = bridge.attach();
+    return () => {
       bridge.dispose();
-    },
-    [bridge],
-  );
+      detach();
+    };
+  }, [bridge]);
 
   // Back/forward: hold the router's popstate until the old page is captured.
   // The gate must be on window before the router's listener (ADR-028): a

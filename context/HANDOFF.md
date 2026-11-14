@@ -22,11 +22,11 @@
 
 - Milestone 5, sub-task 2: `examples/react-router` (Vite 8.3.8 + `@vitejs/plugin-react` 6.3.0, data mode via `createShatterBrowserRouter`, `?mode=declarative`, `?mode=data-plain`; port 4174, in `playwright.config.ts`). E2E `e2e/react-router/navigation.spec.ts` (9) and `transitions.spec.ts` (7). Back/forward bug found and fixed: popstate gate before the router (`src/react-router/pop-gate.ts`, `createShatterBrowserRouter`, ADR-028). Local full suite Chromium + WebKit: 105 passed, 9 skipped. Visual check done with headless screenshots (PROGRESS).
 
-- PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) open. First PR CI run: Chromium green; WebKit failed the React Router first-frame seam (button font, fixed by ADR-029); Firefox failed the deep-link test (aborted prefetch warnings, test fixed) and the back/forward test (scrollY 243.9 instead of 0 after forward; not yet understood: a scroll log is printed by the test as `[scroll-log] firefox` to diagnose it on CI).
+- PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) open. First PR CI run: Chromium green; WebKit failed the React Router first-frame seam (button font, fixed by ADR-029); Firefox failed the deep-link test (aborted prefetch warnings, test fixed) and the back/forward test (scrollY 243.9 instead of 0 after forward). The scroll log printed by the test showed Firefox scrolling the held old page (entry in `auto` scroll restoration): fixed by ADR-030 (bridge keeps entries `manual`, restores positions itself). Waiting for the PR CI run on that fix.
 
 ## Next 3 steps
 
-1. **Read the Firefox `[scroll-log]`** in the PR CI log (`gh run view <id> --log | grep -A30 "scroll-log] firefox"`). Hypothesis: Firefox applies a scroll position to the still-shown old page while the router's popstate is held, so React Router's `saveScrollPosition` stores a wrong value for the outgoing entry. Fix in the adapter (e.g. remember the rendered page's scroll in the bridge and restore it before releasing the popstate), add an ADR + LEARNINGS entry, then remove the diagnostics from the test.
+1. **Check PR #5 CI** (`gh pr checks 5`). If Firefox is green, remove the `[scroll-log]` diagnostics from `e2e/react-router/transitions.spec.ts` in a small `test:` commit. If not, read `gh run view <id> --log | grep -A30 "scroll-log] firefox"`.
 2. **Finish the ritual (A.5):** PR checks green on all three engines, `gh pr merge 5 --merge`, tag `m05-react-router` on main, record PR/merge/tag in PROGRESS as the first commit of `milestone/06-nextjs`.
 3. **Start Milestone 6 (Next.js App Router):** see the master prompt section 7; read the installed `next` types first.
 
