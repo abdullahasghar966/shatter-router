@@ -194,7 +194,23 @@ async function firstFrameSeam(page: Page, testInfo: TestInfo, name: string): Pro
   // Diagnostics for the platform font of form controls (ADR-029), CI only.
   const buttonFont = await page.evaluate(() => {
     const button = document.querySelector('button');
-    return button ? getComputedStyle(button).font : 'no button';
+    const families = ['-webkit-standard', 'sans-serif', 'serif', 'monospace', 'system-ui'];
+    const context = document.createElement('canvas').getContext('2d');
+    const canvas = families.map((family) => {
+      if (!context) return `${family}=?`;
+      context.font = `72px ${family}`;
+      return `${family}=${context.measureText('mmmwwwiiil0O@Qg').width.toFixed(2)}(${context.font})`;
+    });
+    const dom = families.map((family) => {
+      const span = document.createElement('span');
+      span.style.cssText = `position:absolute;visibility:hidden;font:72px ${family};white-space:nowrap`;
+      span.textContent = 'mmmwwwiiil0O@Qg';
+      document.body.append(span);
+      const width = span.getBoundingClientRect().width;
+      span.remove();
+      return `${family}=${width.toFixed(2)}`;
+    });
+    return `${button ? getComputedStyle(button).font : 'no button'} | canvas ${canvas.join(' ')} | dom ${dom.join(' ')}`;
   });
   console.log(`[button-font] ${testInfo.project.name}: ${buttonFont}`);
   const link = page.getByRole('link', { name: 'Work', exact: true });
