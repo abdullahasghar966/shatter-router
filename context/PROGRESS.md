@@ -61,4 +61,4 @@ Every number here comes from a run, with date, device and browser.
 
 | Milestone | Unit | E2E |
 | --- | --- | --- |
-| 1 (in progress) | 39 tests in 4 files | 6 tests x 3 engines (vanilla navigation) |
+| 1 | 39 tests in 4 files | 6 tests per engine (vanilla navigation); local: Chromium + WebKit 12/12 on Windows 11, CI: Chromium green on push |

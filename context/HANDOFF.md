@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-14 06:55 PST
+- **Last updated:** 2026-11-14 07:05 PKT (UTC+5)
 - **Session:** 1
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
@@ -22,13 +22,13 @@
 
 ## In progress
 
-- Getting CI green on GitHub for the first time, then the milestone end ritual (A.5).
+- Milestone end ritual (A.5): PR into `main`, full three-engine CI, merge, tag `m01-scaffold`. The push run on this branch is already green (run 43542818149: check + Chromium e2e).
 
 ## Next 3 steps
 
-1. `gh run watch` the push run on `milestone/01-scaffold`; fix anything red on this branch.
+1. Open the PR `Milestone 01: Scaffold` (base `main`), run `gh pr checks --watch`, fix anything red on this branch.
 2. Local Firefox: Playwright's `firefox-1572` failed to launch from Node (`spawn UNKNOWN`, Windows side-by-side error); a `playwright install --force firefox` was started. Re-run `pnpm test:e2e --project=firefox`. Chromium and WebKit pass locally (12/12).
-3. Run ritual A.5: update the four context files, open the PR `Milestone 01: Scaffold`, `gh pr checks --watch`, `gh pr merge --merge`, tag `m01-scaffold`, then branch `milestone/02-renderer-seam`.
+3. `gh pr merge --merge`, tag `m01-scaffold` on `main`, record PR/merge SHA/tag in `context/PROGRESS.md` as the first commit of `milestone/02-renderer-seam`.
 
 ## Open problems / blockers
 
