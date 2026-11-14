@@ -305,3 +305,12 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** The clone session measures, once per capture, which generic family (`sans-serif`, `serif`, `monospace`) has exactly the width of `-webkit-standard` for a probe string, with a detached 2D canvas (a canvas accepts the keyword and resolves it with the live settings; no DOM mutation). Every `-webkit-standard` entry in the `font-family` of the cloned root and of form controls is replaced with that generic. If no single generic matches, nothing changes.
 - **Alternatives considered:** a hidden measuring element (a DOM mutation that dirties pre-captures); hard-coding `sans-serif` on Linux (wrong where the setting differs).
 - **Consequences:** Pages without an author font, and unstyled form controls, keep their face in the WebKit copy. Capture chunk 11.96 → 12.31 kB. Measured on Windows WebKit: `-webkit-standard` = `serif` (646.3 px for the probe at 72 px), so nothing changes there.
+
+## ADR-033 — Form controls: copy the font their text is painted in
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-029 and ADR-032)
+- **Context:** CI measurements (canvas and layout agree): on Linux WebKit `-webkit-standard` = `serif` (763.8 px for the probe at 72 px), `sans-serif` = `system-ui` = 743.9 px. The button's computed font is `600 16px -webkit-standard`, yet it is painted sans: WebKit's control theme draws the text in the system font without changing the computed style. ADR-032 therefore correctly replaced the keyword with `serif`, and the copy stayed serif.
+- **Decision:** For a form control with a single line of text and `letter-spacing: normal`, the clone session measures the live text run (`Range.getBoundingClientRect()` over its contents) and compares it with the same text drawn on a detached 2D canvas in the control's style, weight and size: first in the computed family (match → keep it), then `sans-serif`, `serif`, `monospace`, `system-ui`. The first family within max(0.5 px, 1 %) becomes the clone's `font-family`. No match → keep the computed family (ADR-029/032 still apply).
+- **Alternatives considered:** trusting `getComputedStyle` (it does not describe what is painted here); forcing `system-ui` on controls (inside an SVG image it may not resolve either, and it is wrong where the theme uses the author font).
+- **Consequences:** One `Range` and up to five `measureText` calls per text-bearing form control per capture. Capture chunk 12.31 → 12.53 kB. Inputs (value text is not in the DOM) are not measured.

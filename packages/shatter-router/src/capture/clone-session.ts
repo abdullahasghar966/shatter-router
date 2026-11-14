@@ -338,6 +338,38 @@ export class CloneSession {
     style.setProperty('font-family', withStandardFont(family, generic));
   }
 
+  /**
+   * The family a form control's text is actually painted in, when it is not
+   * its computed `font-family`: WebKit's control theme can draw button text
+   * in the system font while `getComputedStyle` still reports the standard
+   * font (Linux CI: computed `-webkit-standard` = serif, painted sans,
+   * ADR-033). Measures the live text run and compares it with each generic
+   * family drawn on a detached canvas. Null to keep the computed family.
+   */
+  private paintedControlFamily(original: Element, computed: CSSStyleDeclaration): string | null {
+    const text = original.textContent.trim();
+    if (text === '' || computed.letterSpacing !== 'normal') return null;
+    const range = this.doc.createRange();
+    range.selectNodeContents(original);
+    const rects = range.getClientRects();
+    const first = rects[0];
+    if (!first || [...rects].some((rect) => Math.abs(rect.top - first.top) > 1)) return null;
+    const live = range.getBoundingClientRect().width;
+    const context = this.doc.createElement('canvas').getContext('2d');
+    if (!context || live <= 0) return null;
+    const { fontStyle, fontWeight, fontSize, fontFamily } = computed;
+    const widthIn = (family: string): number => {
+      context.font = `${fontStyle} ${fontWeight} ${fontSize} ${family}`;
+      return context.measureText(text).width;
+    };
+    const tolerance = Math.max(0.5, live * 0.01);
+    if (Math.abs(widthIn(fontFamily) - live) <= tolerance) return null;
+    for (const family of ['sans-serif', 'serif', 'monospace', 'system-ui']) {
+      if (Math.abs(widthIn(family) - live) <= tolerance) return family;
+    }
+    return null;
+  }
+
   /** Sizes the SVG to the viewport, in the units the clone is laid out in. */
   readonly onCreateForeignObjectSvg = (svg: SVGSVGElement): void => {
     const width = this.geometry.width * this.geometry.layoutScale;
@@ -360,6 +392,8 @@ export class CloneSession {
         style.setProperty(property, computed.getPropertyValue(property));
       }
       this.pinStandardFont(computed.fontFamily, style);
+      const painted = this.paintedControlFamily(original, computed);
+      if (painted !== null) style.setProperty('font-family', painted);
     }
     // Text first: substitutes add children that have no live counterpart to pair with.
     this.keepSingleLines(original, cloned);

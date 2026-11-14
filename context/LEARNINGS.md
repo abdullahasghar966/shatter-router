@@ -99,6 +99,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 
 - **Capture-phase `popstate` listener on `window` to run before React Router's** (ADR-026 as first written): works in WebKit/Firefox, not in Chromium (registration order wins at the target).
 
+- **Pinning or resolving the computed font of form controls** (ADR-029, ADR-032) did not fix the serif button on Linux WebKit: the computed family is not what is painted.
+
 ## Browser / OS quirks
 
 - **Headless Chromium** logs `GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels` as a console warning for any page that presents a WebGL canvas (software compositor read-back). Chrome on a real GPU does not print it. Filtered in `e2e/fixtures.ts` (ADR-013).
@@ -117,4 +119,5 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Listener order at the `window` target differs by engine** (Playwright 1.65.1, measured with a bubble listener added before a capture listener, then a synthetic `popstate`): Chromium runs them in **registration order** (bubble first); WebKit runs the **capture listener first**. Do not rely on `capture: true` to get ahead of a listener on `window` (ADR-028).
 - **React 19.3.1 renders a transition update made during a `popstate` event synchronously** (`shouldAttemptEagerTransition` in `react-dom-client`): React Router's route is committed inside its own `popstate` listener, before later listeners run.
 - **WebKit's computed font of a `<button>` on Linux is `600 16px -webkit-standard`** (PR #5 CI); on Windows WebKit `13px MS Shell Dlg`, Chromium `13.3333px Arial`, Firefox (Linux) `13.3333px Sans`. `-webkit-standard` is also WebKit's `<html>` default. A 2D canvas accepts it (`ctx.font` reads back `72px standard`) and measures it with the live settings (ADR-032).
+- **`getComputedStyle` does not tell which font a WebKit form control is painted in** (Linux CI): computed `600 16px -webkit-standard` (which is serif there: 763.8 px probe width, same as `serif`), painted in the system sans (743.9 px, same as `sans-serif`/`system-ui`). Measure the rendered text run instead (ADR-033). Chromium on Linux: `-webkit-standard` = serif (646.3 px), `system-ui` 743.9 px; Firefox: button computed `Sans`.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.
