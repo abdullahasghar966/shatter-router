@@ -78,10 +78,10 @@ Target: ≤ 0.5 %. From ADR-014 on, the threshold applies to the number that for
 | 2026-11-14 | Chromium 1255 headless, Windows 11 | top of `/` | 1280x720 | 2 | 0.0585 % | |
 | 2026-11-14 | WebKit 2388, Windows 11 | top of `/` | 1280x720 | 2 | 0.1210 % | layout grid `device` |
 | 2026-11-14 | WebKit 2388, Windows 11 | `/work` scrolled 240 px | 1280x720 | 2 | 0.2358 % | layout grid `device` |
-| 2026-11-14 | Chromium headless, Linux CI (spike run) | top / scrolled at 1x;  at 2x | 1280x720 | 1 / 2 | 0.1401 % / 0.2240 %; 2x: 0.8217 % raw | 2x before ADR-014; see the PR #2 run for the forgiving number |
-| 2026-11-14 | WebKit, Linux CI (spike run) | top / scrolled | 1280x720 | 2 | 0.4519 % / 0.0435 % raw | layout grid  |
+| 2026-11-14 | Chromium headless, Linux CI (spike run) | top / scrolled at 1x; `/` at 2x | 1280x720 | 1 / 2 | 0.1401 % / 0.2240 %; 2x: 0.8217 % raw | 2x before ADR-014; see the PR #2 run for the forgiving number |
+| 2026-11-14 | WebKit, Linux CI (spike run) | top / scrolled | 1280x720 | 2 | 0.4519 % / 0.0435 % raw | layout grid `device` |
 | 2026-11-14 | Firefox | all | | | pending | CI only (cannot launch locally); WebGL needed ADR-015 |
-| 2026-11-14 | Chromium 1255 headless, Windows 11, metric with shift radius (ADR-014) |  at 2x | 1280x720 | 2 | 0.0568 % (raw 0.0585 %) | |
+| 2026-11-14 | Chromium 1255 headless, Windows 11, metric with shift radius (ADR-014) | `/` at 2x | 1280x720 | 2 | 0.0568 % (raw 0.0585 %) | |
 | 2026-11-14 | WebKit 2388, Windows 11, metric with shift radius | top / scrolled | 1280x720 | 2 | 0.0255 % / 0.0000 % (raw 0.1210 % / 0.2358 %) | |
 
 History of the same cases while fixing them (so the causes are on record): Chromium DPR 1 with an alpha canvas 0.54 % / 0.70 % (ClearType lost, ADR-009); WebKit scrolled with a `viewBox` offset 65.4 % (ADR-008); WebKit without `zoom` 0.55 % / 0.68 % (ADR-010); Chromium DPR 2 with `zoom` 0.59 % (ADR-010).
