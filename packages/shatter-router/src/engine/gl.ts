@@ -144,6 +144,27 @@ export class GLDevice {
     return texture;
   }
 
+  /**
+   * Uploads per-shard data as an RGBA32F texture (`width` texels per row,
+   * `height` rows). Float textures cannot be filtered: always NEAREST, read with texelFetch.
+   */
+  createDataTexture(width: number, height: number, data: Float32Array): WebGLTexture {
+    const { gl } = this;
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    this.liveTextures += 1;
+    return texture;
+  }
+
   deleteTexture(texture: WebGLTexture | null): void {
     if (!texture) return;
     this.gl.deleteTexture(texture);

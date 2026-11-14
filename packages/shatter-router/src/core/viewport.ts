@@ -22,7 +22,8 @@ export interface ViewportMetrics {
  */
 export function readViewport(win: Window): ViewportMetrics {
   const root = win.document.documentElement;
-  const visual = win.visualViewport;
+  // Missing (undefined, not null) in older browsers and some WebViews.
+  const visual = win.visualViewport ?? null;
   const pinchZoomed = visual ? Math.abs(visual.scale - 1) > 0.01 : false;
   const useVisual = visual !== null && !pinchZoomed && visual.width > 0 && visual.height > 0;
   return {

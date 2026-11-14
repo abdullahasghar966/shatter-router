@@ -6,6 +6,7 @@ export default defineConfig({
     // Internal lazy chunks. They are entries only so their file names are
     // stable (the core loads them with dynamic import, size-limit budgets
     // them separately); they are not part of the package's public exports.
+    runtime: 'src/runtime/index.ts',
     engine: 'src/engine/index.ts',
     capture: 'src/capture/index.ts',
   },

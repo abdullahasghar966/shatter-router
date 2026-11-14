@@ -65,6 +65,7 @@ export class DomCapturer implements Capturer {
   private context: Context<HTMLElement> | null = null;
   private contextPromise: Promise<Context<HTMLElement>> | null = null;
   private destroyed = false;
+  private queue: Promise<unknown> = Promise.resolve();
 
   /** The grid this engine needs the copy laid out on (see `layoutGridFor`). */
   readonly layoutGrid: LayoutGrid;
@@ -78,7 +79,18 @@ export class DomCapturer implements Capturer {
     await this.ensureContext();
   }
 
-  async capture(request: CaptureRequest): Promise<Snapshot> {
+  /**
+   * Captures the viewport. Calls are serialised: the library context is shared
+   * and its hooks hold per-capture state, so captures must never overlap.
+   */
+  capture(request: CaptureRequest): Promise<Snapshot> {
+    const run = this.queue.then(() => this.captureNow(request));
+    // Keep the queue alive past a failed capture.
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async captureNow(request: CaptureRequest): Promise<Snapshot> {
     const started = performance.now();
     const { doc } = this;
     const { viewport } = request;

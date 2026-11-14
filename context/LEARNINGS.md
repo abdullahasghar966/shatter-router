@@ -60,6 +60,12 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **WebKit copy wrapped a button's last word** ("See the work"), invisible to the whole-screen seam number (0.03 %). Root cause: glyphs a hair wider in the zoomed copy, box width inlined at the live text width. Fix: `keepSingleLines` nowrap spans; plus a local "worst block" seam check (ADR-019).
 - **Impact flash lingered** (a third of its peak at 60 ms). Squared the pulse (crack.ts); caught by the unit test.
 
+- **`centroid` is a reserved word in GLSL ES 3.00** (interpolation qualifier). A struct field named `centroid` failed to compile ("'centroid' : syntax error") and every transition fell back. Renamed to `center`; the debug-mode log of pipeline errors (`[shatter-router] transition failed`) found it.
+- **`window.visualViewport` is `undefined` (not `null`) where it is missing** (happy-dom, older browsers). `readViewport` checked `!== null` and crashed. Fixed with `?? null`.
+- **`document.images` is not iterable in happy-dom 21**; `document.fonts` and `img.decode` may be missing. `ready.ts` uses `querySelectorAll('img')` and guards both.
+- **Pre-capture was always "dirty"**: modern-screenshot sets `srcdoc` on its sandbox iframe after inserting it, an attribute mutation our observer counted. Mutations inside `#__SANDBOX__*` now count as our own.
+- **View Transition `ready` rejects when the transition is skipped** (hidden tab, "Transition was aborted because of timeout in DOM update"); unhandled, it shows up as an uncaught promise rejection. `crossfade.ts` attaches a catch.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
@@ -80,4 +86,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - At DPR 2, Blink places text lines on whole CSS pixels (live and in SVG images); WebKit uses device pixels live and CSS pixels in SVG images (ADR-010).
 - **The Claude desktop app's browser pane** is not a benchmark: plain JavaScript ran ~5× slower than Node on the same machine (fracture 3.5 ms vs 0.6 ms in headless Chromium) and animation frames are throttled (a 350 ms transition took ~900 ms). Use it for visual checks; take numbers from Playwright or a real browser.
 - **Headless Chromium (software GL):** ~80 ms between the capture finishing and the overlay showing at 1440x900, mostly the 5 MB texture upload. Re-measure on a real GPU in Milestone 10.
+- **Playwright WebKit on Windows has no `HTMLCanvasElement.prototype.captureStream`**, so a canvas-stream video never gets a frame there.
+- **Playwright WebKit on Windows crashes the page** when a View Transition starts right after a CSP-blocked data: image (strict-CSP fallback). Plain View Transitions, and the same fallback without CSP, do not crash. Test marked `fixme` on win32 WebKit; check CI (Linux).
+- **Playwright `test.use({ option: [a, b] })`** treats an array as a fixture tuple `[value, options]`; pass a single value (we use one RegExp).
+- **Software-GL parallel runs are slow**: with 4 workers on this laptop, headless Chromium animated at ~11 fps and WebKit ~15 fps; a single worker gives ~55 fps. Functional tests must not gate on frame rate.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.

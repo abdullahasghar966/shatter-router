@@ -1,6 +1,8 @@
 export interface Page {
   readonly title: string;
   readonly render: () => string;
+  /** Runs after the page HTML is in the DOM (canvas drawing, media). */
+  readonly mount?: (root: HTMLElement) => void;
 }
 
 const swatches = [

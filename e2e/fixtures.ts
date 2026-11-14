@@ -20,15 +20,22 @@ const ENVIRONMENT_NOISE = [
  * Shared test fixture: every test fails if the page logs a console error or
  * warning, or throws an uncaught exception (master prompt, section 11).
  */
-export const test = base.extend<{ consoleProblems: string[] }>({
+export const test = base.extend<{ consoleProblems: string[]; expectedConsole: RegExp | null }>({
+  /**
+   * Console messages a specific test expects (for example the CSP violation
+   * a strict-CSP test provokes on purpose). Set with test.use(); none by default.
+   * A single RegExp: Playwright would read an array as a fixture tuple.
+   */
+  expectedConsole: [null, { option: true }],
   consoleProblems: [
-    async ({ page }, use) => {
+    async ({ page, expectedConsole }, use) => {
       const problems: string[] = [];
       page.on('console', (message) => {
         const type = message.type();
         if (type !== 'error' && type !== 'warning') return;
         const text = message.text();
         if (ENVIRONMENT_NOISE.some((pattern) => pattern.test(text))) return;
+        if (expectedConsole?.test(text)) return;
         problems.push(`[console.${type}] ${text}`);
       });
       page.on('pageerror', (error) => {

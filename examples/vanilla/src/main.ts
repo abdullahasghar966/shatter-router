@@ -1,4 +1,5 @@
-import { classifyLinkClick, createShatter, findAnchor } from 'shatter-router';
+import { classifyLinkClick, createShatter, findAnchor, getLinkEffect } from 'shatter-router';
+import { lab } from './lab';
 import { notFound, pages } from './pages';
 
 const app = document.getElementById('app');
@@ -8,37 +9,65 @@ const outlet: HTMLElement = app;
 // `?debug` on the first load turns on debug mode (and the e2e test hook).
 // `?budget=<ms>` overrides the capture budget; the e2e suite uses it so slow CI
 // machines measure the seam instead of tripping the fallback.
+// `?seed=<n>` makes the fracture deterministic; `?shards=<n>` fixes the count;
+// `?duration=<ms>` sets the motion length.
 const params = new URLSearchParams(location.search);
-const budget = Number(params.get('budget'));
-const seed = Number(params.get('seed'));
+const number = (name: string): number | undefined => {
+  const value = Number(params.get(name));
+  return params.has(name) && Number.isFinite(value) ? value : undefined;
+};
+const seed = number('seed');
+const shards = number('shards');
+const budget = number('budget');
+const duration = number('duration');
 const shatter = createShatter({
   debug: params.has('debug'),
-  ...(params.has('seed') && Number.isFinite(seed) ? { seed } : {}),
-  ...(budget > 0 ? { captureBudget: budget } : {}),
+  ...(seed === undefined ? {} : { seed }),
+  ...(shards === undefined ? {} : { shards }),
+  ...(budget === undefined ? {} : { captureBudget: budget }),
+  ...(duration === undefined ? {} : { duration }),
 });
+
+// The example restores scroll positions itself, under the overlay.
+history.scrollRestoration = 'manual';
+
+interface HistoryState {
+  readonly scrollY: number;
+}
 
 let renderedRoute = '';
 
 function render(url: URL): void {
   renderedRoute = url.pathname;
-  const page = pages[url.pathname] ?? notFound;
+  const page = (url.pathname === '/lab' ? lab : pages[url.pathname]) ?? notFound;
   outlet.innerHTML = page.render();
+  page.mount?.(outlet);
   document.title = `${page.title} — Shatter Router vanilla example`;
   for (const link of document.querySelectorAll<HTMLAnchorElement>('.site-header nav a')) {
     const active = new URL(link.href).pathname === url.pathname;
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
-  if (url.hash) document.getElementById(url.hash.slice(1))?.scrollIntoView();
 }
 
-function navigate(url: URL, origin?: { x: number; y: number }): Promise<void> {
+/** Remembers where the current entry was scrolled to, for back/forward. */
+function saveScroll(): void {
+  const state: HistoryState = { scrollY: window.scrollY };
+  history.replaceState(state, '');
+}
+
+function navigate(url: URL, origin: { x: number; y: number }, effect?: string): Promise<void> {
+  saveScroll();
   return shatter.transition({
-    ...(origin ? { origin } : {}),
+    origin,
+    ...(effect ? { effect } : {}),
+    // In-page anchors scroll themselves; everything else starts at the top.
+    scroll: url.hash ? 'none' : 'top',
     commit: () => {
-      history.pushState(null, '', url);
+      const state: HistoryState = { scrollY: 0 };
+      history.pushState(state, '', url);
       render(url);
-      if (!url.hash) window.scrollTo(0, 0);
+      if (url.hash) document.getElementById(url.hash.slice(1))?.scrollIntoView();
     },
   });
 }
@@ -55,13 +84,22 @@ document.addEventListener('click', (event) => {
   const origin = fromPointer
     ? { x: event.clientX, y: event.clientY }
     : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  void navigate(decision.url, origin);
+  void navigate(decision.url, origin, getLinkEffect(anchor));
 });
 
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', (event) => {
   // Fragment navigations fire popstate too; only re-render when the route changed.
   const url = new URL(location.href);
-  if (url.pathname !== renderedRoute) render(url);
+  if (url.pathname === renderedRoute) return;
+  const state = event.state as Partial<HistoryState> | null;
+  // The DOM still shows the old page here, so it can be captured and shattered.
+  void shatter.transition({
+    direction: 'back',
+    scroll: { x: 0, y: state?.scrollY ?? 0 },
+    commit: () => {
+      render(url);
+    },
+  });
 });
 
 render(new URL(location.href));

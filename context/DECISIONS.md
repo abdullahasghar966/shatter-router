@@ -182,3 +182,54 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** (1) `CloneSession.keepSingleLines`: every text run that lies on one line in the live page (all client rects share a top) is wrapped in a `white-space: nowrap` span in the copy, unless the element is already `nowrap`/`pre`. (2) The seam test also checks the worst 24×24 CSS-pixel block for "structural" pixels: luminance off by ≥ 80/255 with no match within the shift radius. Limit 8 %. Measured: healthy seams 0–4.2 % (Windows Chromium's grayscale-vs-ClearType header text is 4 %); the wrap bug 16.5 %.
 - **Alternatives considered:** padding inlined widths (moves centred content); a block check on colour differences (ClearType vs grayscale text scored 15 %, the wrap bug 18 %: no margin).
 - **Consequences:** One `Range.getClientRects()` per text node during capture. Text that wraps live is not forced to wrap the same way in the copy (not seen so far).
+
+## ADR-020 — Core facade + lazy runtime chunk
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** With the full state machine, fallbacks, accessibility, scroll lock and pre-capture, the core entry measured 6.45 kB gzip, over the 6 KB budget (section 8: "the core entry, including the listeners that detect intent, is ≤ 6 KB").
+- **Decision:** The core entry (`src/core/shatter.ts`, `ShatterFacade`) holds options, events, the effect registry and the intent listeners (pointerdown/hover pre-capture triggers), plus a plain-navigation path. The transition runtime (`src/runtime/index.ts`: state machine, waiting phase, fallback chain, focus/announce, scroll lock, pre-capture) is a lazy chunk `dist/runtime.js`, prefetched on idle together with the engine and capture chunks. If the runtime chunk cannot load, `transition()` emits `fallback: unsupported` and commits plainly.
+- **Alternatives considered:** squeezing the code (not enough headroom for later milestones); putting the runtime into the engine chunk (reduced-motion users would then download WebGL code).
+- **Consequences:** Core 1.77 kB, runtime 6.56 kB (own budget 8 KB), engine 16.82 kB, capture 11.94 kB. The debug hook appears once the runtime has loaded.
+
+## ADR-021 — Effect plugin data model and GLSL hook
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 6 sketches `ShatterEffect` (`shardAttributes`, `vertexChunk`, `isComplete(t, ctx)`), asking to refine the details.
+- **Decision:** `shardAttributes(ctx)` returns exactly 8 floats per shard (two vec4, `Shard.a` and `Shard.b`), uploaded as an RGBA32F texture (2 × shardCount, NEAREST) read with `texelFetch` by shard id. `vertexChunk` defines `void shardMotion(Shard shard, inout Pose pose)`; `Pose` = translate, rotate (mat3), scale, alpha about the shard centre. `fragmentChunk` optionally defines `void shardFragment(inout vec4 color)`. `isComplete(t, state)` receives `EffectState` = the context plus the generated attributes. Uniforms `uTime`, `uDuration`, `uOrigin`, `uViewport`, `uMaxRadius`, `uGravity`, `uImpulse`, `uDirection`; helper `axisAngle`. The struct field is `center`, not `centroid` (reserved word in GLSL ES 3.00, found when the first program failed to compile). One program per effect, compiled on first use; still one draw call per frame. Documented in `src/core/effect.ts`.
+- **Alternatives considered:** per-vertex duplicated attributes (2× buffer size per effect); uniform arrays (limit ~256 vec4 on some GPUs, too few for 400 shards).
+- **Consequences:** Rapier mode (Milestone 8) can reuse the texture approach for per-shard matrices.
+
+## ADR-022 — Interruption semantics and transition() promise
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 4 interruption rules; the spec does not say what the superseded navigation's promise does.
+- **Decision:** A new `transition()` before the old one has called `commit()` cancels the old one: its promise resolves without committing (the newest navigation wins; several rapid ones collapse to the last). After `commit()` was called, the old one is fast-forwarded (crack and motion jump to their end within one frame, the waiting phase stops) and revealed, then the new one starts. Escape, a pointerdown on the overlay, or the page becoming hidden skip from the waiting phase on. Errors thrown by `commit()` are passed to the caller and never trigger a second commit.
+- **Consequences:** Routers must treat a resolved-but-not-committed promise as "superseded" (adapters in Milestones 5–6).
+
+## ADR-023 — Hard-to-capture content is substituted, all iframes included
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 9 lists iframes, video, canvas, CORS images and `data-shatter-ignore`. The capture library re-downloads videos (slow, network), clones same-origin iframe documents in a way our original/clone pairing had to special-case, and its fetch of a non-CORS cross-origin image logs a browser CORS error.
+- **Decision:** `IFRAME`, `VIDEO`, `OBJECT`, `EMBED` and `[data-shatter-ignore]` are filtered out of the clone and a substitute box takes their place, with ~60 copied layout properties: iframes/plugins/ignored → their computed background colour; videos → current frame via `drawImage` + `toDataURL` (null on taint), else a same-origin/data poster, else the background. Same-origin iframes are also substituted (not captured) in v1. Cross-origin `<img>` without a `crossorigin` attribute gets the library's transparent placeholder without a fetch. Canvas keeps the library's `toDataURL` copy.
+- **Alternatives considered:** letting the library handle video (slow, network, may exceed budget); capturing same-origin iframe content (fragile pairing; nested scroll/fixed handling).
+- **Consequences:** Verified per case in `e2e/vanilla/lab.spec.ts` (Chromium and WebKit).
+
+## ADR-024 — Capture budget applies to pre-captures too
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** In WebKit a pre-capture finished before the click although it took longer than the budget, so `captureBudget: 1` did not fall back.
+- **Decision:** A pre-capture whose own duration exceeds `captureBudget` is discarded and the transition falls back with `capture-budget`, exactly as a slow capture on click would.
+- **Consequences:** Behaviour does not depend on whether the user pressed long enough for the pre-capture to finish.
+
+## ADR-025 — Deferred: debug panel and `backForward`
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 10's debug panel and section 6's `backForward: 'reverse'` are not tied to a milestone. `'reverse'` maps `shatter` back to `assemble`, which arrives in Milestone 7; the panel's FPS/seam-check tools belong with the performance pass.
+- **Decision:** `backForward` is implemented in Milestone 7 with `assemble`; until then `direction: 'back'` plays the same effect (the uniform `uDirection` is already passed). The debug panel (shadow DOM, timings, FPS, wireframe toggle, seam-check heatmap) is built in Milestone 10. The data it needs is already exposed on the debug hook (`state`, `timings`, `lastAnimation`, `lastFracture`, `wireframe`, `setMotionTime`).
+- **Consequences:** Listed in `HANDOFF.md` so it is not forgotten.

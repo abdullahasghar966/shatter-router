@@ -19,6 +19,76 @@ const BACKGROUND_PROPERTIES = [
   'background-blend-mode',
 ] as const;
 
+/** Computed properties copied onto a substitute so it takes the original's place in layout. */
+const BOX_PROPERTIES = [
+  'display',
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'float',
+  'clear',
+  'z-index',
+  'box-sizing',
+  'width',
+  'height',
+  'min-width',
+  'min-height',
+  'max-width',
+  'max-height',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'border-top-width',
+  'border-right-width',
+  'border-bottom-width',
+  'border-left-width',
+  'border-top-style',
+  'border-right-style',
+  'border-bottom-style',
+  'border-left-style',
+  'border-top-color',
+  'border-right-color',
+  'border-bottom-color',
+  'border-left-color',
+  'border-top-left-radius',
+  'border-top-right-radius',
+  'border-bottom-right-radius',
+  'border-bottom-left-radius',
+  'vertical-align',
+  'transform',
+  'transform-origin',
+  'opacity',
+  'visibility',
+  'object-fit',
+  'object-position',
+  'flex-grow',
+  'flex-shrink',
+  'flex-basis',
+  'align-self',
+  'justify-self',
+  'order',
+  'grid-row-start',
+  'grid-row-end',
+  'grid-column-start',
+  'grid-column-end',
+  'aspect-ratio',
+  'background-color',
+  'box-shadow',
+] as const;
+
+/** Elements whose content cannot (or must not) be copied: replaced by a substitute box. */
+const SUBSTITUTED_TAGS = new Set(['IFRAME', 'VIDEO', 'OBJECT', 'EMBED']);
+
+/** Longest side of a video frame grabbed for the copy, in device pixels. */
+const MAX_FRAME_SIDE = 2048;
+
 interface Point {
   readonly x: number;
   readonly y: number;
@@ -118,7 +188,8 @@ function prependTranslate(style: CSSStyleDeclaration, x: number, y: number): voi
  */
 export class CloneSession {
   private readonly stack: Node[] = [];
-  private readonly iframeDocumentSeen = new WeakSet<Node>();
+  /** Live elements left out of the clone; a substitute takes their place. */
+  private readonly substituted = new WeakSet<Element>();
   private readonly stickyFixes: StickyFix[] = [];
   private readonly win: Window & typeof globalThis;
   private readonly root: HTMLElement;
@@ -126,7 +197,6 @@ export class CloneSession {
   private bodyClone: HTMLElement | null = null;
   private rootDone = false;
   private mappingBroken = false;
-  private lastCloned: Node | null = null;
 
   /** Colour to paint under the rasterised page, or null when the clone paints its own. */
   fillColor: string | null = null;
@@ -152,6 +222,13 @@ export class CloneSession {
     if (isElement(node)) {
       if (node.hasAttribute(OVERLAY_ATTRIBUTE)) return false;
       if (node.id.startsWith('__SANDBOX__')) return false;
+      if (
+        SUBSTITUTED_TAGS.has(node.tagName.toUpperCase()) ||
+        node.hasAttribute('data-shatter-ignore')
+      ) {
+        this.substituted.add(node);
+        return false;
+      }
     }
     this.stack.push(node);
     return true;
@@ -162,31 +239,12 @@ export class CloneSession {
       this.mappingBroken = true;
       return;
     }
-    const top = this.stack[this.stack.length - 1];
-    // A same-origin iframe is replaced by a clone of its document. The library
-    // reports that clone twice: once as the inner document's root (no filter
-    // call came before it) and once as the iframe itself. Skip the first.
-    if (
-      top !== undefined &&
-      top instanceof this.win.HTMLIFrameElement &&
-      cloned !== this.lastCloned &&
-      cloned.nodeName.toUpperCase() !== 'IFRAME' &&
-      !this.iframeDocumentSeen.has(top)
-    ) {
-      this.iframeDocumentSeen.add(top);
-      this.lastCloned = cloned;
-      return;
-    }
-    this.lastCloned = cloned;
-
     const original = this.stack.pop();
     if (original === undefined) {
       this.rootDone = true;
       return;
     }
     if (!isElement(original) || !isStyled(cloned)) return;
-    // Content of same-origin iframes lives in another coordinate space; leave it as cloned.
-    if (original.ownerDocument !== this.doc) return;
     try {
       this.repair(original, cloned);
     } catch {
@@ -227,14 +285,22 @@ export class CloneSession {
   private repair(original: Element, cloned: HTMLElement | SVGElement): void {
     const style = cloned.style;
     stripLayerNames(style);
+    // Text first: substitutes add children that have no live counterpart to pair with.
     this.keepSingleLines(original, cloned);
+    this.insertSubstitutes(original, cloned);
     if (original === this.doc.body && cloned instanceof this.win.HTMLElement) {
       this.bodyClone = cloned;
     }
 
     // Do not fetch and inline pixels nobody can see.
-    if (cloned instanceof this.win.HTMLImageElement) {
-      if (!this.isVisible(original.getBoundingClientRect())) {
+    if (
+      cloned instanceof this.win.HTMLImageElement &&
+      original instanceof this.win.HTMLImageElement
+    ) {
+      // Off-screen images are not fetched. Cross-origin images loaded without
+      // CORS cannot be read: the fetch would fail (and log a CORS error), so
+      // they get the capture library's transparent placeholder straight away.
+      if (!this.isVisible(original.getBoundingClientRect()) || !this.isReadable(original)) {
         cloned.removeAttribute('srcset');
         cloned.src = BLANK_IMAGE;
       }
@@ -270,6 +336,142 @@ export class CloneSession {
   }
 
   /**
+   * Pairs live children with their clones the way the library cloned them:
+   * comments, <style>, <script> and Shatter's own nodes are not cloned, and
+   * substituted elements have no clone (copy is null). Null when the lists do
+   * not line up (shadow roots, slots), in which case nothing is changed.
+   */
+  private pairChildren(
+    original: Element,
+    cloned: HTMLElement | SVGElement,
+  ): { live: ChildNode; copy: ChildNode | null }[] | null {
+    if (original.shadowRoot) return null;
+    const copies = Array.from(cloned.childNodes);
+    const pairs: { live: ChildNode; copy: ChildNode | null }[] = [];
+    let next = 0;
+    for (const child of original.childNodes) {
+      if (child.nodeType === 8) continue;
+      if (isElement(child)) {
+        const tag = child.tagName.toUpperCase();
+        if (tag === 'STYLE' || tag === 'SCRIPT') continue;
+        if (tag === 'SLOT') return null;
+        if (child.hasAttribute(OVERLAY_ATTRIBUTE) || child.id.startsWith('__SANDBOX__')) continue;
+        if (this.substituted.has(child)) {
+          pairs.push({ live: child, copy: null });
+          continue;
+        }
+      }
+      const copy = copies[next++];
+      if (!copy) return null;
+      pairs.push({ live: child, copy });
+    }
+    return next === copies.length ? pairs : null;
+  }
+
+  /** Puts a substitute box where each left-out child was (section 9: hard-to-capture content). */
+  private insertSubstitutes(original: Element, cloned: HTMLElement | SVGElement): void {
+    if (!original.firstElementChild) return;
+    const pairs = this.pairChildren(original, cloned);
+    if (!pairs) return;
+    let anchor: ChildNode | null = null;
+    // Walk backwards so each substitute goes in front of the next real clone.
+    for (let i = pairs.length - 1; i >= 0; i--) {
+      const pair = pairs[i];
+      if (!pair) continue;
+      if (pair.copy) {
+        anchor = pair.copy;
+        continue;
+      }
+      if (!isElement(pair.live)) continue;
+      const substitute = this.substitute(pair.live);
+      cloned.insertBefore(substitute, anchor);
+      anchor = substitute;
+    }
+  }
+
+  /**
+   * A box with the original's size, position and background. Videos show
+   * their current frame when it can be read without tainting, else the poster,
+   * else the background colour. Iframes, plugins and `data-shatter-ignore`
+   * elements show their computed background colour.
+   */
+  private substitute(live: Element): HTMLElement {
+    const computed = this.win.getComputedStyle(live);
+    const video = live instanceof this.win.HTMLVideoElement ? live : null;
+    const box = this.doc.createElement(video ? 'img' : 'div');
+    for (const property of BOX_PROPERTIES) {
+      box.style.setProperty(property, computed.getPropertyValue(property));
+    }
+    if (computed.display === 'inline' || computed.display === 'contents') {
+      const rect = live.getBoundingClientRect();
+      box.style.display = 'inline-block';
+      box.style.boxSizing = 'border-box';
+      box.style.width = `${rect.width}px`;
+      box.style.height = `${rect.height}px`;
+    }
+    if (video && box instanceof this.win.HTMLImageElement) {
+      box.src = this.videoFrame(video) ?? this.posterOf(video) ?? BLANK_IMAGE;
+    }
+    return box;
+  }
+
+  /** The current frame as a data URL, or null when there is none or reading it would taint. */
+  private videoFrame(video: HTMLVideoElement): string | null {
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return null;
+    const rect = video.getBoundingClientRect();
+    if (!this.isVisible(rect)) return null;
+    const dpr = Math.min(this.win.devicePixelRatio || 1, 2);
+    const wanted = Math.max(
+      (rect.width * dpr) / video.videoWidth,
+      (rect.height * dpr) / video.videoHeight,
+    );
+    const scale = Math.min(
+      1,
+      wanted,
+      MAX_FRAME_SIDE / Math.max(video.videoWidth, video.videoHeight),
+    );
+    const canvas = this.doc.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+    try {
+      const context = canvas.getContext('2d');
+      if (!context) return null;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Throws a SecurityError for a cross-origin video without CORS.
+      return canvas.toDataURL();
+    } catch {
+      return null;
+    } finally {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+  }
+
+  /** The poster URL when the capture may read it (same origin, data or blob URL), else null. */
+  private posterOf(video: HTMLVideoElement): string | null {
+    const poster = video.poster;
+    if (!poster) return null;
+    const local =
+      poster.startsWith('data:') || poster.startsWith('blob:') || this.sameOrigin(poster);
+    return local ? poster : null;
+  }
+
+  /** True when the image's pixels may be read: same origin, data/blob URL, or loaded with CORS. */
+  private isReadable(image: HTMLImageElement): boolean {
+    const source = image.currentSrc || image.src;
+    if (!source || source.startsWith('data:') || source.startsWith('blob:')) return true;
+    return this.sameOrigin(source) || image.crossOrigin !== null;
+  }
+
+  private sameOrigin(url: string): boolean {
+    try {
+      return new URL(url, this.doc.baseURI).origin === this.win.location.origin;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Text that sits on one line in the live page must not wrap in the copy.
    *
    * The copy can measure text a fraction of a pixel wider than the live page
@@ -284,24 +486,10 @@ export class CloneSession {
     const whiteSpace = this.win.getComputedStyle(original).whiteSpace;
     if (whiteSpace === 'nowrap' || whiteSpace === 'pre') return;
 
-    // Pair live children with cloned children the way the library cloned them:
-    // comments, <style>, <script> and Shatter's own nodes are not cloned.
-    const liveChildren: ChildNode[] = [];
-    for (const child of original.childNodes) {
-      if (child.nodeType === 8) continue;
-      if (isElement(child)) {
-        const tag = child.tagName.toUpperCase();
-        if (tag === 'STYLE' || tag === 'SCRIPT') continue;
-        if (child.hasAttribute(OVERLAY_ATTRIBUTE) || child.id.startsWith('__SANDBOX__')) continue;
-      }
-      liveChildren.push(child);
-    }
-    const clonedChildren = Array.from(cloned.childNodes);
-    if (clonedChildren.length !== liveChildren.length) return;
-
+    const pairs = this.pairChildren(original, cloned);
+    if (!pairs) return;
     const range = this.doc.createRange();
-    liveChildren.forEach((live, index) => {
-      const copy = clonedChildren[index];
+    pairs.forEach(({ live, copy }) => {
       if (live.nodeType !== 3 || copy?.nodeType !== 3) return;
       const text = live.textContent ?? '';
       if (text.trim().length < 2) return;
