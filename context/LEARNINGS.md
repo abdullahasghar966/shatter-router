@@ -48,11 +48,15 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **WebKit at 2x: content below a fractional-height box sat one device pixel low (0.55–0.68 %).** Root cause: WebKit snaps to whole CSS pixels inside an SVG image but to device pixels in the live page. Fix: lay the copy out in device pixels with CSS `zoom`, on WebKit only (ADR-010).
 - **Transitions hung in an unpainted browser pane.** Root cause: `requestAnimationFrame` does not fire while the page is not being painted. Fix: `nextFrame()` races rAF against a 120 ms timer (`src/core/frame.ts`).
 
+- **Linux CI Chromium at 2x: 0.82 % seam diff on text only.** Glyphs a fraction of a device pixel apart between live paint and the SVG copy. Neither layout grid fixes it (spike/linux-layout-grid: css 0.82 %, device 0.97 %). Handled in the metric (ADR-014).
+- **Firefox on Linux CI had no WebGL2** (headless, no GPU). Fixed with the pref webgl.force-enabled (ADR-015).
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
 - **A canvas probe to choose the layout grid** (a 1px bar at `top: 0.5px` in a 4x4 SVG drawn at 2x): Chromium and WebKit return identical pixels (`255 255 0 0 255 255 255 255` down the column), because both snap boxes to CSS pixels inside SVG images. They differ in the live page, which cannot be read back.
 - **`--use-angle=swiftshader --enable-unsafe-swiftshader`** for headless Chromium: the GL driver warning stayed and captures slowed enough to trip the 250 ms budget.
+- **CSS `zoom` (device layout grid) for Linux Chromium:** 0.97 % at 2x vs 0.82 % without; Linux Chromium needs the css grid too.
 - **SVG `viewBox` offset to emulate scroll:** fine in Chromium, wrong in WebKit as soon as a clone is layered (see Bugs).
 
 ## Browser / OS quirks
@@ -60,6 +64,7 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Headless Chromium** logs `GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels` as a console warning for any page that presents a WebGL canvas (software compositor read-back). Chrome on a real GPU does not print it. Filtered in `e2e/fixtures.ts` (ADR-013).
 - **Headless Chromium has WebGL2** out of the box (software). Playwright WebKit on Windows has WebGL2 and the Popover API too.
 - **`position: fixed` inside `<foreignObject>`** is positioned relative to the foreignObject (the SVG viewport when it starts at 0,0) in Chromium and WebKit, and is not moved by margins on the cloned root.
+- **Playwright WebKit on Linux CI** with the device layout grid: 0.04–0.45 % raw at 2x (spike run), confirming ADR-010 on a second OS.
 - **Playwright `devices['Desktop Safari']`** has `deviceScaleFactor: 2`, so every WebKit e2e test runs at 2x.
 - On Windows, live Chromium uses LCD (ClearType) antialiasing for small text on opaque layers and grayscale for text in layers with `backdrop-filter`.
 - At DPR 2, Blink places text lines on whole CSS pixels (live and in SVG images); WebKit uses device pixels live and CSS pixels in SVG images (ADR-010).

@@ -33,7 +33,9 @@ async function firstFrameSeam(
   await waitForCovered(page);
   const overlay = await page.screenshot();
 
-  const result = await compareScreenshots(testInfo, name, live, overlay);
+  const dpr = await page.evaluate(() => window.devicePixelRatio);
+  const shiftRadius = Math.max(0, Math.round(Math.min(dpr, 2)) - 1);
+  const result = await compareScreenshots(testInfo, name, live, overlay, shiftRadius);
   await resumeAndFinish(page);
   const hook = await readHook(page);
   expect(hook.lastFallback).toBeNull();
@@ -42,7 +44,7 @@ async function firstFrameSeam(
     description: `${name}: ${hook.lastCaptureMs?.toFixed(1) ?? '?'} ms, layout grid: ${hook.layoutGrid ?? '?'}`,
   });
   console.log(
-    `[seam] ${testInfo.project.name} ${name}: ${result.percent.toFixed(4)} % differ, capture ${hook.lastCaptureMs?.toFixed(1) ?? '?'} ms, grid ${hook.layoutGrid ?? '?'}`,
+    `[seam] ${testInfo.project.name} ${name}: ${result.percent.toFixed(4)} % differ (raw ${result.rawPercent.toFixed(4)} %, shift radius ${shiftRadius}), capture ${hook.lastCaptureMs?.toFixed(1) ?? '?'} ms, grid ${hook.layoutGrid ?? '?'}`,
   );
   return result.percent;
 }

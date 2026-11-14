@@ -4,8 +4,14 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
 export interface SeamResult {
-  /** Share of pixels that differ by more than the tolerance, 0..100. */
+  /**
+   * Share of pixels, 0..100, that differ by more than the colour tolerance and
+   * cannot be explained by a sub-CSS-pixel shift (see `shiftRadius`). This is
+   * the number the threshold applies to.
+   */
   readonly percent: number;
+  /** Share of pixels that differ by more than the colour tolerance, no shift allowed. */
+  readonly rawPercent: number;
   readonly differing: number;
   readonly total: number;
 }
@@ -17,28 +23,98 @@ export interface SeamResult {
  */
 export const SEAM_TOLERANCE = 0.1;
 
+/** Per-channel tolerance (0..255) when matching a pixel against its shifted neighbours. */
+const SHIFT_CHANNEL_TOLERANCE = 24;
+
 /** Master prompt, section 11: at most 0.5 % of pixels may differ. */
 export const SEAM_MAX_PERCENT = 0.5;
 
-/** Compares two same-sized PNG screenshots and attaches them (plus a diff) to the report. */
+function channelsMatch(a: Uint8Array, i: number, b: Uint8Array, j: number): boolean {
+  return (
+    Math.abs((a[i] ?? 0) - (b[j] ?? 0)) <= SHIFT_CHANNEL_TOLERANCE &&
+    Math.abs((a[i + 1] ?? 0) - (b[j + 1] ?? 0)) <= SHIFT_CHANNEL_TOLERANCE &&
+    Math.abs((a[i + 2] ?? 0) - (b[j + 2] ?? 0)) <= SHIFT_CHANNEL_TOLERANCE
+  );
+}
+
+/** True when pixel (x, y) of `from` has a matching pixel in `to` within `radius`. */
+function hasNearbyMatch(
+  from: Uint8Array,
+  to: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  radius: number,
+): boolean {
+  const i = (y * width + x) * 4;
+  for (let dy = -radius; dy <= radius; dy++) {
+    const ny = y + dy;
+    if (ny < 0 || ny >= height) continue;
+    for (let dx = -radius; dx <= radius; dx++) {
+      const nx = x + dx;
+      if (nx < 0 || nx >= width) continue;
+      if (channelsMatch(from, i, to, (ny * width + nx) * 4)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Compares two same-sized PNG screenshots and attaches them (plus a diff) to the report.
+ *
+ * `shiftRadius` (device pixels) forgives a pixel whose colour appears within
+ * that distance in the other image, in both directions: glyphs placed a
+ * fraction of a CSS pixel apart. Pass `devicePixelRatio - 1`: 0 at 1x (no
+ * shift forgiven), 1 at 2x (half a CSS pixel). A real one-CSS-pixel shift is
+ * two device pixels at 2x and still fails. See ADR-014.
+ */
 export async function compareScreenshots(
   testInfo: TestInfo,
   name: string,
   expected: Buffer,
   actual: Buffer,
+  shiftRadius = 0,
 ): Promise<SeamResult> {
   const a = PNG.sync.read(expected);
   const b = PNG.sync.read(actual);
   if (a.width !== b.width || a.height !== b.height) {
     throw new Error(`Screenshots differ in size: ${a.width}x${a.height} vs ${b.width}x${b.height}`);
   }
-  const diff = new PNG({ width: a.width, height: a.height });
-  const differing = pixelmatch(a.data, b.data, diff.data, a.width, a.height, {
+  const { width, height } = a;
+  const diff = new PNG({ width, height });
+  const rawDiffering = pixelmatch(a.data, b.data, diff.data, width, height, {
     threshold: SEAM_TOLERANCE,
     includeAA: true,
   });
-  const total = a.width * a.height;
+
+  let differing = rawDiffering;
+  if (shiftRadius > 0 && rawDiffering > 0) {
+    differing = 0;
+    const live = new Uint8Array(a.data.buffer, a.data.byteOffset, a.data.length);
+    const overlay = new Uint8Array(b.data.buffer, b.data.byteOffset, b.data.length);
+    const marks = diff.data;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        // pixelmatch paints differing pixels pure red in the diff image.
+        if (marks[i] !== 255 || marks[i + 1] !== 0 || marks[i + 2] !== 0) continue;
+        const shifted =
+          hasNearbyMatch(live, overlay, width, height, x, y, shiftRadius) &&
+          hasNearbyMatch(overlay, live, width, height, x, y, shiftRadius);
+        if (shifted) {
+          // Forgiven: repaint orange so the diff image still shows it.
+          marks[i + 1] = 165;
+        } else {
+          differing += 1;
+        }
+      }
+    }
+  }
+
+  const total = width * height;
   const percent = (differing / total) * 100;
+  const rawPercent = (rawDiffering / total) * 100;
 
   const files: [string, Buffer][] = [
     ['live', expected],
@@ -52,9 +128,9 @@ export async function compareScreenshots(
   }
   testInfo.annotations.push({
     type: 'seam',
-    description: `${name}: ${percent.toFixed(4)} % (${differing}/${total} px)`,
+    description: `${name}: ${percent.toFixed(4)} % (${differing}/${total} px), raw ${rawPercent.toFixed(4)} %, shift radius ${shiftRadius}`,
   });
-  return { percent, differing, total };
+  return { percent, rawPercent, differing, total };
 }
 
 interface TestHook {

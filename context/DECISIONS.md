@@ -128,3 +128,21 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** `e2e/fixtures.ts` filters exactly that message (regex in `ENVIRONMENT_NOISE`). Everything else still fails the test.
 - **Alternatives considered:** `--use-angle=swiftshader --enable-unsafe-swiftshader` (the message stayed and captures got slower, tripping the capture budget); dropping the rule.
 - **Consequences:** One narrowly scoped exception, documented next to the pattern.
+
+## ADR-014 — Seam metric forgives sub-CSS-pixel glyph shifts at 2x
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** On Linux CI, headless Chromium at device pixel ratio 2 measured 0.82 % on the first-frame seam (Windows: 0.06 %). The diff image shows every text edge, and the crops show glyphs a fraction of a device pixel apart: Linux Blink positions glyphs differently when it rasterises the SVG copy than when it paints the live page. A spike branch (`spike/linux-layout-grid`, never merged) measured both layout grids on CI: `css` 0.82 %, `device` 0.97 %, so the layout grid is not the cause. Section 11 allows a "small tolerance" and says to investigate before loosening.
+- **Decision:** `compareScreenshots` takes a `shiftRadius` in device pixels. A differing pixel is forgiven when its colour (±24 per channel) appears within that radius in the other image, checked in both directions. The seam tests pass `round(min(dpr, 2)) - 1`: 0 at 1x (nothing forgiven), 1 at 2x (half a CSS pixel). The threshold (≤ 0.5 %) is unchanged and applies to the forgiving number; the raw number is printed and recorded too. `e2e/seam-metric.spec.ts` proves a one-CSS-pixel shift at 2x still fails.
+- **Alternatives considered:** raising the threshold (would hide real regressions everywhere); excluding text (would hide real layout bugs); per-platform thresholds (opaque).
+- **Consequences:** At 2x, glyph placement differences below half a CSS pixel are not counted. Raw numbers stay visible in CI logs and `context/PROGRESS.md`.
+
+## ADR-015 — Firefox e2e forces WebGL on
+
+- **Date:** 2026-11-14
+- **Status:** accepted
+- **Context:** Headless Firefox on GPU-less Linux CI refuses WebGL2: `Failed to create WebGL context: WebGL creation failed: * AllowWebgl2:false restricts context creation on this system.` Every transition fell back, and the browser's own console warning failed every test.
+- **Decision:** The Firefox Playwright project sets the user pref `webgl.force-enabled: true`.
+- **Alternatives considered:** filtering the warning (the seam would never be measured in Firefox).
+- **Consequences:** Firefox CI renders WebGL in software. The no-WebGL path is tested explicitly in Milestone 4 (launch flag), where this browser warning must be expected rather than forbidden.
