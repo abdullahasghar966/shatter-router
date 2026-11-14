@@ -14,8 +14,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
 | 3   | Fracture + crack propagation  | ☑      | `milestone/03-fracture-crack` | [#3](https://github.com/abdullahasghar966/shatter-router/pull/3) | `5523bfc` | `m03-fracture-crack` |
 | 4   | `shatter` effect (procedural) | ☑      | `milestone/04-shatter-effect` | [#4](https://github.com/abdullahasghar966/shatter-router/pull/4) | `17b79cc` | `m04-shatter-effect` |
-| 5   | React + React Router adapter  | ◐      | `milestone/05-react-router`   |     |           |             |
-| 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
+| 5   | React + React Router adapter  | ☑      | `milestone/05-react-router`   | [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) | `0d4d85f` | `m05-react-router` |
+| 6   | Next.js App Router adapter    | ◐      | `milestone/06-nextjs`         |     |           |             |
 | 7   | Remaining effects             | ☐      | `milestone/07-effects`        |     |           |             |
 | 8   | Rapier mode                   | ☐      | `milestone/08-rapier`         |     |           |             |
 | 9   | Glass shading polish          | ☐      | `milestone/09-glass-shading`  |     |           |             |

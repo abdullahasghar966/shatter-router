@@ -1,30 +1,30 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 2, Milestone 5 ready to merge)
+- **Last updated:** 2026-11-15 (session 2, Milestone 5 merged, Milestone 6 branch created)
 - **Session:** 2
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 5 — React + React Router adapter
-- **Current branch:** `milestone/05-react-router` (from `main` at `17b79cc`)
-- **Last commit:** see `git log -1` (`docs(context): milestone 5 complete`)
-- **Latest tag:** `m04-shatter-effect` (on `17b79cc`)
+- **Current milestone:** 6 — Next.js App Router adapter (branch created, no code yet)
+- **Current branch:** `milestone/06-nextjs` (from `main` at `0d4d85f`)
+- **Last commit:** see `git log -1` (`docs(context): record milestone 5 merge and start milestone 6`)
+- **Latest tag:** `m05-react-router` (on `0d4d85f`)
 
 ## Done so far
 
 - Milestones 0–4 merged and tagged (see `PROGRESS.md`; ADR-001..025).
-- Milestone 5 complete on this branch, PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) green on all three engines:
+- Milestone 5 merged: PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5), merge `0d4d85f`, tag `m05-react-router`, all three engines green:
   - `shatter-router/react` (router-agnostic provider, link, hooks) and `shatter-router/react-router` (provider inside the router, `ShatterLink`, `ShatterNavLink`, `useShatterNavigate`, `ShatterRouteSignal`, `createShatterBrowserRouter`). ADR-026..028, 030, 031.
   - Capture fixes found by the React Router example on CI: form-control fonts (ADR-029, 032, 033).
   - `examples/react-router` (port 4174) with e2e `e2e/react-router/*` (16 per engine).
   - Unit 257 tests. Measurements in PROGRESS.
 
-## Next 3 steps
+## Next 3 steps (Milestone 6)
 
-1. **Merge PR #5** once `gh pr checks 5` is green for the last push: `gh pr merge 5 --merge` (never squash/rebase/delete-branch). Then `git switch main; git pull --ff-only; git tag -a m05-react-router -m "Milestone 05 complete"; git push origin m05-react-router`.
-2. **Start `milestone/06-nextjs`** from `main` and, as its first commit, record PR #5, the merge SHA and the tag in PROGRESS (row 5 ☑) and refresh HANDOFF.
-3. **Milestone 6 (Next.js App Router):** `npm view next version`; read the installed `next/navigation` (`useRouter`, `usePathname`, `useSearchParams`) and `next/link` types; plan `src/next/` reusing `src/react/shared.ts`, `src/react/context.ts`, and the `RouteBridge` / pop-gate ideas (Next's own popstate handling must be checked the same way: who registers first, does React render it synchronously); handle `'use client'` in built entries; `loading.tsx` with `waitFor: 'settled'`.
+1. **Read the installed APIs first (rule 3):** `npm view next version` (latest stable) and add `next` as a dev + optional peer dependency of `packages/shatter-router` (`peerDependenciesMeta`). Read `node_modules/next/dist/client/components/navigation.d.ts` (`useRouter`, `usePathname`, `useSearchParams`), `next/link` props (`prefetch`, `scroll`, `replace`, `onNavigate`), and how the App Router handles `popstate` (who registers first, whether the update renders synchronously in React 19): the same questions ADR-026/028/030/031 answered for React Router. Record facts in LEARNINGS.
+2. **Build `src/next/`** → `shatter-router/next` with `'use client'` preserved in the built file (check tsup/esbuild keeps or strips the directive; add a banner if needed): `ShatterProvider` (root layout), `ShatterLink` (wraps `next/link`, keeps prefetch), `useShatterNavigate`, commit = `router.push(href, { scroll: false })` resolving when `usePathname()` + `useSearchParams()` (inside `<Suspense>`) change, plus two rAFs; `waitFor: 'commit' | 'settled'` (`[data-shatter-pending]` / Suspense fallback marker, bounded by `readyTimeout`). Reuse `src/react/shared.ts`, `context.ts`, the bridge and pop-gate ideas. Exports, tsup entry, size-limit entry (≤ 6 KB incl. core). ADRs for every deviation.
+3. **`examples/next`** (App Router, same pages/look, a `loading.tsx` route, port 4175) + e2e `e2e/next/*` mirroring `e2e/react-router/*` (links, modifier clicks, loading boundary, back/forward with scroll, seams, interruption). Then the ritual (A.5).
 
 ## Deferred (tracked, not forgotten)
 
