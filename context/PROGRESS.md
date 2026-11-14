@@ -12,8 +12,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 0   | Git, GitHub and context setup | ☑      | `main`                        | — (initial commit, no PR) | `81d68e1` | `m00-setup` |
 | 1   | Scaffold                      | ☑      | `milestone/01-scaffold`       | [#1](https://github.com/abdullahasghar966/shatter-router/pull/1) | `18f25c1` | `m01-scaffold` |
 | 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
-| 3   | Fracture + crack propagation  | ◐      | `milestone/03-fracture-crack` |     |           |             |
-| 4   | `shatter` effect (procedural) | ☐      | `milestone/04-shatter-effect` |     |           |             |
+| 3   | Fracture + crack propagation  | ☑      | `milestone/03-fracture-crack` | [#3](https://github.com/abdullahasghar966/shatter-router/pull/3) | `5523bfc` | `m03-fracture-crack` |
+| 4   | `shatter` effect (procedural) | ◐      | `milestone/04-shatter-effect` |     |           |             |
 | 5   | React + React Router adapter  | ☐      | `milestone/05-react-router`   |     |           |             |
 | 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
 | 7   | Remaining effects             | ☐      | `milestone/07-effects`        |     |           |             |
@@ -99,6 +99,14 @@ Milestone 3, local Windows 11 (with the single-line text guard and the worst-blo
 | 2026-11-14 | WebKit 2388 | intact quad top / scrolled; fractured mesh | 2 | 0.0021 / 0.0000 / 0.0021 % (raw 0.0975 / 0.2358 / 0.0975 %) | 0.0 % |
 | 2026-11-14 | Chromium / WebKit | fully cracked frame (expected to differ: lines) | 1 / 2 | 4.81 % / 3.92 % | 12.2 % / 25.3 % |
 
+Milestone 3, **PR #3 CI (GitHub Actions ubuntu-latest)**, diff / worst block:
+
+| Date | Browser | top | scrolled | 2x | fractured 1x | fractured 2x |
+|---|---|---|---|---|---|---|
+| 2026-11-14 | Chromium headless | 0.1401 % / 4.0 % | 0.2240 % / 4.2 % | 0.5247 % (raw 0.8217) / 5.8 % | 0.1398 % / 4.0 % | 0.5275 % (raw 0.8230) / 5.8 % |
+| 2026-11-14 | Firefox headed (xvfb, Mesa) | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % |
+| 2026-11-14 | WebKit (all at 2x) | 0.1495 % (raw 0.3157) / 0.0 % | 0.0023 % / 0.0 % | 0.1495 % / 0.0 % | 0.1495 % / 0.0 % | 0.1495 % / 0.0 % |
+
 History of the same cases while fixing them (so the causes are on record): Chromium DPR 1 with an alpha canvas 0.54 % / 0.70 % (ClearType lost, ADR-009); WebKit scrolled with a `viewBox` offset 65.4 % (ADR-008); WebKit without `zoom` 0.55 % / 0.68 % (ADR-010); Chromium DPR 2 with `zoom` 0.59 % (ADR-010).
 
 ### Capture time (viewport capture of the vanilla example, capturer warm)
@@ -125,6 +133,9 @@ The section 8 target (≤ 120 ms on the docs landing page at 1440x900) is measur
 | 2026-11-14 | Headless Chromium 1255, same machine | 1440x900 | 0.20 ms | 0.40 ms | **0.60 ms** (p95 1.00) | 1.40 ms (p95 2.20) |
 | 2026-11-14 | Playwright WebKit 2388, same machine (1 ms timer) | 1440x900 | 0–1 ms | 0–1 ms | ≤ 1 ms | 1 ms (p95 2) |
 | 2026-11-14 | Claude desktop browser pane (throttled, not representative) | 1024x768 | 0.6 ms | | 3.4–3.6 ms (p95 5.5) | 8.0 ms |
+| 2026-11-14 | GitHub Actions ubuntu-latest, headless Chromium (PR #3) | 1440x900 | 0.20 ms | 0.50 ms | 0.90 ms (p95 2.30) | 2.20 ms (p95 4.10) |
+| 2026-11-14 | GitHub Actions, Firefox headed (1 ms timer) | 1440x900 | 0 ms | 1 ms | 1 ms (p95 2) | 3 ms (p95 4) |
+| 2026-11-14 | GitHub Actions, WebKit (1 ms timer) | 1440x900 | 0 ms | 0 ms | 1 ms (p95 1) | 2 ms (p95 3) |
 
 Decision: below the 4 ms Worker threshold, stays on the main thread. Re-measure on a mid-range laptop in Milestone 10.
 

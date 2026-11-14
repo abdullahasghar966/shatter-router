@@ -1,17 +1,17 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 00:10 PKT (UTC+5)
+- **Last updated:** 2026-11-15 00:40 PKT (UTC+5)
 - **Session:** 1
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 3 — Fracture + crack propagation (code complete, local checks green, PR being opened)
-- **Current branch:** `milestone/03-fracture-crack`
+- **Current milestone:** 4 — `shatter` effect (procedural), state machine, fallbacks, accessibility
+- **Current branch:** `milestone/04-shatter-effect` (from `main` at `5523bfc`)
 - **Last commit:** see `git log -1` (this file is committed with the code it describes)
-- **Latest tag:** `m02-renderer-seam` (on `ca25842`)
+- **Latest tag:** `m03-fracture-crack` (on `5523bfc`)
 
-## Done in this milestone
+## Done in Milestone 3 (merged: PR #3, `5523bfc`, tag `m03-fracture-crack`)
 
 - `src/engine/fracture.ts`: impact-biased blue-noise seeds (mulberry32), d3-delaunay Voronoi via `renderCell`, centroid fans, back faces, side quads; 12-float interleaved vertices; shard count `'auto'` by device tier (40/90/160) or a number clamped to [12, 400]. 23 unit tests (area within 0.01 %, UVs, determinism, slivers, null cells).
 - `src/engine/crack.ts` + `SHARD_FRAGMENT` in `src/engine/shaders.ts`: crack front 140 ms + 40 ms hold, 1.3 px lines from `edgeDistance`, refraction band, impact flash, debug wireframe + impact dot. 7 unit tests.
@@ -21,13 +21,13 @@
 
 ## In progress
 
-- Milestone end ritual (A.5): PR `Milestone 03: Fracture + crack propagation`, three-engine CI, merge, tag `m03-fracture-crack`.
+- Milestone 4 has just started; no code yet.
 
 ## Next 3 steps
 
-1. Open the PR, `gh pr checks 3 --watch`. New in CI: the worst-block check and the fractured/cracked tests on Linux Chromium, Firefox (xvfb) and WebKit. If a worst-block value fails on Linux, look at the `[seam]` log lines and the diff image before touching the 8 % limit.
-2. Merge with `gh pr merge --merge`, tag `m03-fracture-crack`, record PR/merge/tag in `PROGRESS.md` as the first commit of `milestone/04-shatter-effect`.
-3. Milestone 4: the `ShatterEffect` interface and the `shatter` effect (procedural vertex-shader motion, section 5.3), the full state machine (section 4) with interruption rules and unit tests at every state, fallbacks (View Transition crossfade, instant), reduced motion, focus management + `aria-live` title announcement, scroll lock, pre-capture on pointerdown, hard-to-capture content (iframes, video, canvas, CORS images, `data-shatter-ignore`).
+1. **Effect + motion:** define the public `ShatterEffect` interface (section 6: `name`, `needsIncomingSnapshot`, `crack`, `duration`, `seedPoints`, `shardAttributes`, `vertexChunk`, `fragmentChunk`, `isComplete`) and a documented GLSL hook in `SHARD_VERTEX`. Write the `shatter` effect against only that interface: per-shard attributes (velocity, axis, angular velocity, delay) in a second vertex buffer or texture, closed-form motion in the vertex shader (section 5.3, z clamped below `camera.maxZ`), alpha fade, completion when every shard is off-screen or transparent. Draw full mesh (front, back, sides) with depth test during motion; still one draw call.
+2. **State machine:** replace the linear `run()` in `src/core/shatter.ts` with an explicit typed FSM `idle → capturing → covering → committing → waiting → animating → revealing → idle` plus `fallback`. Waiting phase per section 4.6 (commit promise, `document.fonts.ready`, `img.decode()` for in-viewport images, two rAFs, scroll handling, `readyTimeout` 1500 ms). Interruption rules (section 4) and unit tests for every state × interruption, idempotent `destroy()`. Escape/click skips, `visibilitychange` finishes instantly.
+3. **Robustness + a11y:** fallback chain (View Transition crossfade ≤ 200 ms → instant), `reducedMotion` option, focus move (`[data-shatter-focus]` → `main h1` → `main`) + `aria-live` title announcement, layout-neutral scroll lock (+ `scrollLock` option), `precapture` on pointerdown/hover with a MutationObserver dirty flag, `data-shatter-ignore`, iframe/video/canvas/CORS-image handling. E2E for each; then the milestone ritual.
 
 ## Open problems / blockers
 
