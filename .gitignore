@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# test output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# tooling caches
+.turbo/
+.eslintcache
+
+# logs
+*.log
+
+# env files (keep the example)
+.env*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
