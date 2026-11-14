@@ -19,7 +19,7 @@ function windowRoute(): string {
  *   new route is in the DOM under the overlay.
  * - Back/forward: the router's `popstate` handling is held back (the browser
  *   history itself has already moved) until the outgoing page is captured,
- *   then a `popstate` is dispatched again for the router (ADR-026).
+ *   then a `popstate` is dispatched again for the router (ADR-026, ADR-028).
  */
 export class RouteBridge {
   /** Longest wait for a render, ms (the provider's `readyTimeout`). */
@@ -111,14 +111,15 @@ export class RouteBridge {
   }
 
   /**
-   * The capture-phase `popstate` listener. Returns true when the event was
-   * held back and a transition should start.
+   * Called by the popstate gate. Returns true when the router must not see
+   * this popstate yet (the gate stops it) and a transition should start.
+   * When the router already rendered the new route (its listener ran first),
+   * the route matches and the move plays without an effect.
    */
-  holdPop(event: PopStateEvent): boolean {
+  holdPop(): boolean {
     if (this.releasing || !this.connected) return false;
     // Fragment-only history moves (and moves back to what is shown) keep the route.
     if (!this.pendingPop && windowRoute() === this.renderedRoute) return false;
-    event.stopImmediatePropagation();
     this.pendingPop = true;
     return true;
   }

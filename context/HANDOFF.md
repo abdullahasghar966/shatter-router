@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 2, after the adapter sub-task)
+- **Last updated:** 2026-11-15 (session 2, after the example + e2e sub-task)
 - **Session:** 2
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
@@ -8,7 +8,7 @@
 
 - **Current milestone:** 5 — React + React Router adapter
 - **Current branch:** `milestone/05-react-router` (from `main` at `17b79cc`)
-- **Last commit:** see `git log -1` (`feat(react): React and React Router adapters`)
+- **Last commit:** see `git log -1` (`feat(react-router): example app, e2e, popstate gate`)
 - **Latest tag:** `m04-shatter-effect` (on `17b79cc`)
 
 ## Done so far
@@ -20,11 +20,13 @@
   - Exports, tsup entries, size-limit entries (react 2.46 kB, react-router 3.35 kB, budget 6 KB each).
   - Unit tests: `test/react.test.tsx` (24), `test/react-router.test.tsx` (11: declarative, data-mode loader wait, timeout, NavLink, modifier clicks, back/forward hold, hash-only). Total 253 unit tests, green.
 
+- Milestone 5, sub-task 2: `examples/react-router` (Vite 8.3.8 + `@vitejs/plugin-react` 6.3.0, data mode via `createShatterBrowserRouter`, `?mode=declarative`, `?mode=data-plain`; port 4174, in `playwright.config.ts`). E2E `e2e/react-router/navigation.spec.ts` (9) and `transitions.spec.ts` (7). Back/forward bug found and fixed: popstate gate before the router (`src/react-router/pop-gate.ts`, `createShatterBrowserRouter`, ADR-028). Local full suite Chromium + WebKit: 105 passed, 9 skipped. Visual check done with headless screenshots (PROGRESS).
+
 ## Next 3 steps
 
-1. **`examples/react-router`** (new workspace package `@shatter-router/example-react-router`): Vite 8.3.8 + `@vitejs/plugin-react` (latest, check `npm view`), React 19.3.1, React Router 8.5.1. Data mode (`createBrowserRouter` + `RouterProvider` from `react-router/dom`), root route element = `<ShatterProvider options={…}>` + header nav with `ShatterNavLink`s + `<Outlet/>` + `<ScrollRestoration/>`. Same pages and look as `examples/vanilla` (reuse its `style.css` content; pages: `/`, `/work`, `/about`, plus `/slow` with a ~400 ms loader). Query params like vanilla (`?debug`, `?seed`, `?shards`, `?budget`, `?duration`). `?mode=declarative` renders the same routes under `BrowserRouter` instead. A button using `useShatterNavigate`. Port 4174 (`vite preview --port 4174 --strictPort`), add to `APPS` and `webServer` in `playwright.config.ts`, and to `build:examples` (it already builds `./examples/*`).
-2. **E2E `e2e/react-router/*.spec.ts`** reusing `e2e/fixtures.ts`, `e2e/hook.ts`, `e2e/seam.ts`: each route via ShatterLink ends on the right route with the effect (`end` without fallback), modifier-click (new page not opened in same tab; `ctrl+click` → popup) and middle click not intercepted, `useShatterNavigate`, loader route waits (overlay covers until the slow page is in the DOM), back/forward shatters and lands on the right route + scroll restored, first-frame seam (≤ 0.5 %), declarative mode smoke test, no console errors. Run locally: `pnpm build; pnpm build:examples; pnpm test:e2e --project=chromium --project=webkit --workers=2`.
-3. **Milestone ritual (A.5):** browser-verify with headless Playwright screenshots, update all four context files, PR `Milestone 05: React + React Router adapter`, `gh pr checks --watch`, merge `--merge`, tag `m05-react-router`, then start `milestone/06-nextjs`.
+1. **Push and watch branch CI** (Chromium-only on branch pushes): `gh run list --branch milestone/05-react-router --limit 1`, then `gh run watch <id>`. Fix anything red on this branch.
+2. **Milestone ritual (A.5):** all four context files final, then `gh pr create --base main --head milestone/05-react-router --title "Milestone 05: React + React Router adapter"` with what was built, the measurements from PROGRESS (seam, committing timings, sizes), how it was verified, known issues (ADR-028: plain `createBrowserRouter` plays no effect on back in Chromium). `gh pr checks --watch` (three engines + size). Merge with `gh pr merge --merge` (never squash/rebase/delete-branch). Tag `m05-react-router` on main and push the tag. Record PR link, merge SHA, tag in PROGRESS as the first commit of `milestone/06-nextjs`.
+3. **Start Milestone 6 (Next.js App Router):** branch `milestone/06-nextjs` from latest `main`; `npm view next version`; read the installed `next/navigation` types (`useRouter`, `usePathname`, `useSearchParams`) and `next/link`; plan `src/next/` reusing `src/react/shared.ts`, `context.ts` and the `RouteBridge` idea; handle `'use client'` in the built entries.
 
 ## Deferred (tracked, not forgotten)
 

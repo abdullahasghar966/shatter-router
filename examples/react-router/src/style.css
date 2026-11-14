@@ -1,0 +1,242 @@
+:root {
+  --bg: #0b0c0f;
+  --surface: #14161b;
+  --text: #f2f1ee;
+  --muted: #9a9ca5;
+  --accent: #ff5a36;
+  --line: rgb(255 255 255 / 0.1);
+  --display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  color-scheme: dark;
+  scrollbar-gutter: stable;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(60rem 30rem at 85% -10%, rgb(255 90 54 / 0.18), transparent 70%),
+    radial-gradient(50rem 40rem at -10% 110%, rgb(109 94 252 / 0.16), transparent 70%), var(--bg);
+  color: var(--text);
+  font: 400 1rem/1.6 var(--sans);
+}
+
+a {
+  color: inherit;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  color: #ffb199;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem clamp(1rem, 4vw, 3rem);
+  background: rgb(11 12 15 / 0.82);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  font: 600 1.05rem/1 var(--mono);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
+.brand span {
+  color: var(--accent);
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  font-size: 0.95rem;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+nav a:hover,
+nav a[aria-current='page'] {
+  color: var(--text);
+}
+
+main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 4vw, 3rem) 6rem;
+  outline: none;
+}
+
+.hero {
+  padding: clamp(4rem, 12vw, 9rem) 0 clamp(3rem, 8vw, 5rem);
+}
+
+.hero.compact {
+  padding-bottom: 2.5rem;
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  color: var(--accent);
+  font: 500 0.8rem/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font: 400 clamp(3rem, 10vw, 7.5rem) / 0.95 var(--display);
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  max-width: 40rem;
+  margin: 2rem 0 0;
+  color: var(--muted);
+  font-size: 1.15rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.85rem 1.4rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.button.ghost {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  position: relative;
+  min-height: 15rem;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(140deg, var(--from), var(--to));
+  color: #111;
+  overflow: hidden;
+}
+
+.card h3 {
+  margin: 4.5rem 0 0.25rem;
+  font: 400 2rem/1 var(--display);
+}
+
+.card p {
+  margin: 0;
+  max-width: 14rem;
+  opacity: 0.75;
+}
+
+.card-index {
+  font: 600 0.8rem/1 var(--mono);
+}
+
+.prose {
+  max-width: 40rem;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.prose li {
+  margin: 0.5rem 0;
+}
+
+.footnote {
+  margin-top: 3rem;
+  color: var(--muted);
+}
+
+.fixed-note {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font: 500 0.75rem/1 var(--mono);
+}
+
+.lab {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.lab figure {
+  margin: 0;
+}
+
+.lab iframe,
+.lab video,
+.lab canvas,
+.lab img,
+.lab-ignore {
+  display: block;
+  width: 320px;
+  height: 180px;
+  border: 0;
+  border-radius: 0.5rem;
+}
+
+.lab video {
+  background: #333333;
+  object-fit: cover;
+}
+
+.lab-cors {
+  background: #111111;
+}
+
+.lab-ignore {
+  display: grid;
+  place-items: center;
+  background: #6d5efc;
+  color: #ffffff;
+  font: 600 1.25rem/1 var(--mono);
+}
+
+.lab figcaption {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

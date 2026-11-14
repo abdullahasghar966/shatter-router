@@ -118,6 +118,15 @@ Milestone 3, **PR #3 CI (GitHub Actions ubuntu-latest)**, diff / worst block:
 
 History of the same cases while fixing them (so the causes are on record): Chromium DPR 1 with an alpha canvas 0.54 % / 0.70 % (ClearType lost, ADR-009); WebKit scrolled with a `viewBox` offset 65.4 % (ADR-008); WebKit without `zoom` 0.55 % / 0.68 % (ADR-010); Chromium DPR 2 with `zoom` 0.59 % (ADR-010).
 
+Milestone 5, React Router example (`e2e/react-router/transitions.spec.ts`), local Windows 11, 2026-11-15:
+
+| Browser | Case | DPR | Diff | Worst block |
+|---|---|---|---|---|
+| Chromium 1255 headless | first frame, top of `/` (data mode) | 1 | 0.1131 % | 4.0 % |
+| Chromium 1255 headless | back: overlay at `covered` vs the outgoing page | 1 | 0.1026 % | |
+| WebKit 2388 | first frame, top of `/` | 2 | 0.0021 % (raw 0.1095 %) | 0.0 % |
+| WebKit 2388 | back: overlay at `covered` vs the outgoing page | 2 | 0.2822 % (raw 0.6291 %) | |
+
 ### Capture time (viewport capture of the vanilla example, capturer warm)
 
 | Date | Device / browser | Viewport | DPR | Time | Notes |
@@ -167,6 +176,16 @@ Decision: below the 4 ms Worker threshold, stays on the main thread. Re-measure 
 
 Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 
+### React Router adapter (Milestone 5)
+
+| Date | Runtime | Measurement |
+|---|---|---|
+| 2026-11-15 | Headless Chromium 1255, local, 2 workers | `/slow` (400 ms loader): committing phase 410–413 ms; overlay stays up until the loaded page rendered |
+| 2026-11-15 | Playwright WebKit 2388, local | same: committing 449–450 ms |
+| 2026-11-15 | Headless Chromium, local | capture on the React Router home page: 51–124 ms (1x, parallel workers) |
+
+Visual check (headless Chromium screenshots, 1280x720, motion frozen at 450 ms): forward Home → Work shatters the Home page from the click point over the live Work page; back Work → Home shatters the Work page from the viewport centre over the live Home page. No console errors or warnings.
+
 ### Memory (section 9: 100 consecutive transitions)
 
 | Date | Runtime | Result |
@@ -186,3 +205,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4. PR #2 CI: all three engines green |
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
 | 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |
+| 5 | 254 tests in 15 files (+ `react.test.tsx` 24, `react-router.test.tsx` 12) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped |

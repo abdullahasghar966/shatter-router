@@ -14,6 +14,7 @@ import {
   Link,
   NavLink,
   UNSAFE_DataRouterNavigationContext,
+  createBrowserRouter,
   createPath,
   useLocation,
   useNavigate,
@@ -35,6 +36,21 @@ import {
   type LinkStart,
 } from '../react/shared';
 import { RouteBridge } from './bridge';
+import { installPopGate, setPopHolder } from './pop-gate';
+
+/**
+ * React Router's `createBrowserRouter`, with Shatter's back/forward gate
+ * installed first. A data router listens to `popstate` from the moment it is
+ * created; Shatter can capture the outgoing page on back/forward only if its
+ * gate was there before (ADR-028). With the plain `createBrowserRouter`,
+ * back/forward still work, without an effect in Chromium.
+ */
+export function createShatterBrowserRouter(
+  ...args: Parameters<typeof createBrowserRouter>
+): ReturnType<typeof createBrowserRouter> {
+  installPopGate();
+  return createBrowserRouter(...args);
+}
 
 const BridgeContext = createContext<RouteBridge | null>(null);
 BridgeContext.displayName = 'ShatterRouteBridge';
@@ -105,19 +121,23 @@ export function ShatterProvider({
   );
 
   // Back/forward: hold the router's popstate until the old page is captured.
-  // Registered in the capture phase on window, so it runs before the router's
-  // own (bubbling) listener whenever it was added.
+  // The gate must be on window before the router's listener (ADR-028): a
+  // layout effect of this child runs before <BrowserRouter>'s own; data
+  // routers need createShatterBrowserRouter(), which installs it earlier.
+  useLayoutEffect(() => {
+    installPopGate();
+  }, []);
   useEffect(() => {
     if (!shatter) return undefined;
-    const onPopState = (event: PopStateEvent): void => {
-      if (!bridge.holdPop(event)) return;
+    setPopHolder(() => {
+      if (!bridge.holdPop()) return false;
       bridge
         .run(shatter, { direction: 'back', commit: () => bridge.commitPop() })
         .catch(reportNavigationError);
-    };
-    window.addEventListener('popstate', onPopState, true);
+      return true;
+    });
     return () => {
-      window.removeEventListener('popstate', onPopState, true);
+      setPopHolder(null);
       bridge.releasePop();
     };
   }, [shatter, bridge]);

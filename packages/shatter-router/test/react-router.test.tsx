@@ -17,6 +17,7 @@ import {
   ShatterLink,
   ShatterNavLink,
   ShatterProvider,
+  createShatterBrowserRouter,
   useShatterNavigate,
   type ShatterNavigateFunction,
 } from '../src/react-router/index';
@@ -324,6 +325,43 @@ describe('React Router adapter, back/forward', () => {
     expect(shownAtStart).toEqual(['About']);
     expect(commitShown).toBe('Home');
     expect(heading(container)).toBe('Home');
+  });
+
+  it('data mode with createShatterBrowserRouter: back is held until captured', async () => {
+    const shatter = fakeShatter();
+    const router = createShatterBrowserRouter([
+      {
+        path: '/',
+        element: (
+          <ShatterProvider instance={shatter}>
+            <Nav />
+            <Outlet />
+          </ShatterProvider>
+        ),
+        children: [
+          { index: true, element: page('Home') },
+          { path: 'about', element: page('About') },
+        ],
+      },
+    ]);
+    const { container } = await render(<RouterProvider router={router} />);
+    await click(anchor(container, 'About'));
+    await settle();
+    expect(heading(container)).toBe('About');
+
+    const shownAtStart: string[] = [];
+    let commitShown = '';
+    shatter.transition = vi.fn(async (request: TransitionRequest) => {
+      shatter.requests.push(request);
+      shownAtStart.push(heading(container));
+      await request.commit();
+      commitShown = heading(container);
+    });
+    window.history.back();
+    await settle(50);
+    expect(shownAtStart).toEqual(['About']);
+    expect(commitShown).toBe('Home');
+    router.dispose();
   });
 
   it('ignores hash-only history moves', async () => {

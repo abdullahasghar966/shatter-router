@@ -3,6 +3,7 @@ export {
   ShatterNavLink,
   ShatterProvider,
   ShatterRouteSignal,
+  createShatterBrowserRouter,
   useShatter,
   useShatterNavigate,
 } from './components';

@@ -79,6 +79,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Firefox: setting an <img> clone's `src` does not update `currentSrc` synchronously.** modern-screenshot reads `currentSrc || src`, so it fetched the original cross-origin URL (and it succeeded only because Vite preview sends CORS headers by default; the fixture now sets `preview.cors: false`). Unfetchable images are now fresh substitute elements (ADR-023).
 - **Playwright WebKit on Linux has `captureStream` but the canvas-stream video never reaches readyState 2**; the lab test accepts the background colour when no frame arrives within 5 s.
 
+- **React Router back/forward played no effect in Chromium** (data mode). Symptom: `page.goBack()` with `pauseAt('covered')` never paused; an earlier back test passed only because it read the hook's last values, which came from the forward transition. Root cause: listener order (see Browser quirks) plus React's synchronous popstate render. Fix: popstate gate installed before the router, `createShatterBrowserRouter` (ADR-028). Lesson: assert on the lifecycle events of the navigation under test, not on "last" values.
+- **Playwright WebKit on Windows follows a Ctrl-click on a link in the same tab** (no new tab). Tests of "modifier clicks are not intercepted" check `event.defaultPrevented` at the document instead of the resulting URL.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
@@ -87,6 +90,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **CSS `zoom` (device layout grid) for Linux Chromium:** 0.97 % at 2x vs 0.82 % without; Linux Chromium needs the css grid too.
 - **A local seam check on colour differences:** Windows Chromium's ClearType-vs-grayscale header text scored 15 %, the wrapped-word bug 18 %: no margin. Luminance-based structural pixels separate them (4 % vs 16.5 %).
 - **SVG `viewBox` offset to emulate scroll:** fine in Chromium, wrong in WebKit as soon as a clone is layered (see Bugs).
+
+- **Capture-phase `popstate` listener on `window` to run before React Router's** (ADR-026 as first written): works in WebKit/Firefox, not in Chromium (registration order wins at the target).
 
 ## Browser / OS quirks
 
@@ -103,4 +108,6 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Playwright WebKit on Windows crashes the page** when a View Transition starts right after a CSP-blocked data: image (strict-CSP fallback). Plain View Transitions, and the same fallback without CSP, do not crash. Test marked `fixme` on win32 WebKit; check CI (Linux).
 - **Playwright `test.use({ option: [a, b] })`** treats an array as a fixture tuple `[value, options]`; pass a single value (we use one RegExp).
 - **Software-GL parallel runs are slow**: with 4 workers on this laptop, headless Chromium animated at ~11 fps and WebKit ~15 fps; a single worker gives ~55 fps. Functional tests must not gate on frame rate.
+- **Listener order at the `window` target differs by engine** (Playwright 1.65.1, measured with a bubble listener added before a capture listener, then a synthetic `popstate`): Chromium runs them in **registration order** (bubble first); WebKit runs the **capture listener first**. Do not rely on `capture: true` to get ahead of a listener on `window` (ADR-028).
+- **React 19.3.1 renders a transition update made during a `popstate` event synchronously** (`shouldAttemptEagerTransition` in `react-dom-client`): React Router's route is committed inside its own `popstate` listener, before later listeners run.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.
