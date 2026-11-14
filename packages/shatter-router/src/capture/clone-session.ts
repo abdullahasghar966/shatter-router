@@ -127,6 +127,39 @@ const FONT_PROPERTIES = [
   'letter-spacing',
 ] as const;
 
+/** WebKit's "standard font" keyword: resolved from browser settings, which an SVG image does not share. */
+const STANDARD_FONT = /(^|,)\s*-webkit-standard\s*(?=,|$)/g;
+
+/** Text whose width differs between common serif, sans-serif and monospace faces. */
+const PROBE_TEXT = 'mmmwwwiiil0O@Qg';
+
+/**
+ * The generic family (`serif`, `sans-serif`, `monospace`) whose glyphs the
+ * live page uses for `-webkit-standard`, measured with a detached 2D canvas
+ * (no DOM mutation). Null when none matches exactly or canvas is missing.
+ */
+function resolveStandardFont(doc: Document): string | null {
+  const context = doc.createElement('canvas').getContext('2d');
+  if (!context) return null;
+  const width = (family: string): number => {
+    context.font = `72px ${family}`;
+    return context.measureText(PROBE_TEXT).width;
+  };
+  const standard = width('-webkit-standard');
+  const matches = ['sans-serif', 'serif', 'monospace'].filter(
+    (family) => width(family) === standard,
+  );
+  return matches.length === 1 ? (matches[0] ?? null) : null;
+}
+
+/** Replaces each `-webkit-standard` entry of a `font-family` list with `generic`. */
+export function withStandardFont(family: string, generic: string): string {
+  return family.replace(
+    STANDARD_FONT,
+    (_match, lead: string) => `${lead}${lead ? ' ' : ''}${generic}`,
+  );
+}
+
 function isElement(node: Node): node is Element {
   return node.nodeType === 1;
 }
@@ -211,6 +244,8 @@ export class CloneSession {
   private bodyClone: HTMLElement | null = null;
   private rootDone = false;
   private mappingBroken = false;
+  /** What `-webkit-standard` resolves to live; undefined until first needed. */
+  private standardFont: string | null | undefined;
 
   /** Colour to paint under the rasterised page, or null when the clone paints its own. */
   fillColor: string | null = null;
@@ -284,9 +319,24 @@ export class CloneSession {
     const { layoutScale } = this.geometry;
     if (layoutScale !== 1) clonedRoot.style.setProperty('zoom', String(layoutScale));
     stripLayerNames(clonedRoot.style);
+    // The root's font is inherited by everything without an author font.
+    this.pinStandardFont(this.win.getComputedStyle(this.root).fontFamily, clonedRoot.style);
     this.applyStickyFixes();
     this.applyRootBackground(clonedRoot);
   };
+
+  /**
+   * Replaces WebKit's `-webkit-standard` in `family` with the generic family
+   * it resolves to live: inside an SVG image it resolves to the default
+   * settings' serif, which differs from the live page on Linux (ADR-029).
+   */
+  private pinStandardFont(family: string, style: CSSStyleDeclaration): void {
+    if (!family.includes('-webkit-standard')) return;
+    if (this.standardFont === undefined) this.standardFont = resolveStandardFont(this.doc);
+    const generic = this.standardFont;
+    if (generic === null) return;
+    style.setProperty('font-family', withStandardFont(family, generic));
+  }
 
   /** Sizes the SVG to the viewport, in the units the clone is laid out in. */
   readonly onCreateForeignObjectSvg = (svg: SVGSVGElement): void => {
@@ -309,6 +359,7 @@ export class CloneSession {
       for (const property of FONT_PROPERTIES) {
         style.setProperty(property, computed.getPropertyValue(property));
       }
+      this.pinStandardFont(computed.fontFamily, style);
     }
     // Text first: substitutes add children that have no live counterpart to pair with.
     this.keepSingleLines(original, cloned);

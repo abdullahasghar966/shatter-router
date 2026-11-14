@@ -296,3 +296,12 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** While a popstate is held, the bridge's scroll listener scrolls the page back to the position it had when the popstate arrived (scroll events run before the next paint, so the jump is not painted). Back/forward transitions start one frame after the popstate (`nextFrame`, rAF raced with a 120 ms timer), so the capture never reads a page the browser has just scrolled.
 - **Alternatives considered:** Navigation API `navigate` + `intercept({ scroll: 'manual' })` (changes focus and popstate semantics, availability differs per engine); not holding popstate in Firefox (no effect on back/forward).
 - **Consequences:** Back/forward capture starts ≈ 16 ms later. User scrolling (already blocked by the scroll lock for wheel, touch and keys) is also held still during that time.
+
+## ADR-032 — Resolve WebKit's `-webkit-standard` font in the copy
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-029)
+- **Context:** ADR-029 pinned the computed font of form controls, but CI WebKit (Linux) still drew the button serif. The diagnostic log showed the computed font: `600 16px -webkit-standard`. It is WebKit's "standard font" setting keyword (also the `<html>` default): the live page resolves it from browser settings (sans on the Linux runner), an SVG image document from default settings (serif). Pinning the keyword itself changes nothing.
+- **Decision:** The clone session measures, once per capture, which generic family (`sans-serif`, `serif`, `monospace`) has exactly the width of `-webkit-standard` for a probe string, with a detached 2D canvas (a canvas accepts the keyword and resolves it with the live settings; no DOM mutation). Every `-webkit-standard` entry in the `font-family` of the cloned root and of form controls is replaced with that generic. If no single generic matches, nothing changes.
+- **Alternatives considered:** a hidden measuring element (a DOM mutation that dirties pre-captures); hard-coding `sans-serif` on Linux (wrong where the setting differs).
+- **Consequences:** Pages without an author font, and unstyled form controls, keep their face in the WebKit copy. Capture chunk 11.96 → 12.31 kB. Measured on Windows WebKit: `-webkit-standard` = `serif` (646.3 px for the probe at 72 px), so nothing changes there.
