@@ -113,6 +113,20 @@ export interface CloneGeometry {
   readonly layoutScale: number;
 }
 
+/** Elements whose font comes from the platform rather than from inheritance. */
+const FORM_CONTROLS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'OPTION', 'OPTGROUP']);
+
+/** The font longhands pinned on form controls in the copy. */
+const FONT_PROPERTIES = [
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'font-stretch',
+  'line-height',
+  'letter-spacing',
+] as const;
+
 function isElement(node: Node): node is Element {
   return node.nodeType === 1;
 }
@@ -286,6 +300,16 @@ export class CloneSession {
   private repair(original: Element, cloned: HTMLElement | SVGElement): void {
     const style = cloned.style;
     stripLayerNames(style);
+    // Form controls take their font from the platform (UA `font: -webkit-small-control`
+    // and the like). The library inlines only styles that differ from its sandbox's
+    // defaults, so the font is left out, and inside an SVG image Linux WebKit
+    // resolves the control default to serif. Pin the live font (ADR-029).
+    if (FORM_CONTROLS.has(original.tagName)) {
+      const computed = this.win.getComputedStyle(original);
+      for (const property of FONT_PROPERTIES) {
+        style.setProperty(property, computed.getPropertyValue(property));
+      }
+    }
     // Text first: substitutes add children that have no live counterpart to pair with.
     this.keepSingleLines(original, cloned);
     this.insertSubstitutes(original, cloned);

@@ -82,6 +82,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **React Router back/forward played no effect in Chromium** (data mode). Symptom: `page.goBack()` with `pauseAt('covered')` never paused; an earlier back test passed only because it read the hook's last values, which came from the forward transition. Root cause: listener order (see Browser quirks) plus React's synchronous popstate render. Fix: popstate gate installed before the router, `createShatterBrowserRouter` (ADR-028). Lesson: assert on the lifecycle events of the navigation under test, not on "last" values.
 - **Playwright WebKit on Windows follows a Ctrl-click on a link in the same tab** (no new tab). Tests of "modifier clicks are not intercepted" check `event.defaultPrevented` at the document instead of the resulting URL.
 
+- **A `<button>` without an app `font-family` was serif in the copy on Linux WebKit** (PR #5 CI, worst block 15.3 %). Root cause: the platform font of form controls is not inlined by modern-screenshot (equal to its sandbox default), and an SVG image resolves the control default differently. Fix: pin the computed font longhands on form controls (ADR-029). Windows WebKit did not show it: check CI diff images, not only local numbers.
+- **Firefox warns "Loading failed for the module with source …"** when a document unload (a second `page.goto`) aborts the idle prefetch of the lazy chunks. Tests that navigate away wait for `waitForShatterReady` first.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.

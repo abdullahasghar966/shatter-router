@@ -22,11 +22,13 @@
 
 - Milestone 5, sub-task 2: `examples/react-router` (Vite 8.3.8 + `@vitejs/plugin-react` 6.3.0, data mode via `createShatterBrowserRouter`, `?mode=declarative`, `?mode=data-plain`; port 4174, in `playwright.config.ts`). E2E `e2e/react-router/navigation.spec.ts` (9) and `transitions.spec.ts` (7). Back/forward bug found and fixed: popstate gate before the router (`src/react-router/pop-gate.ts`, `createShatterBrowserRouter`, ADR-028). Local full suite Chromium + WebKit: 105 passed, 9 skipped. Visual check done with headless screenshots (PROGRESS).
 
+- PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) open. First PR CI run: Chromium green; WebKit failed the React Router first-frame seam (button font, fixed by ADR-029); Firefox failed the deep-link test (aborted prefetch warnings, test fixed) and the back/forward test (scrollY 243.9 instead of 0 after forward; not yet understood: a scroll log is printed by the test as `[scroll-log] firefox` to diagnose it on CI).
+
 ## Next 3 steps
 
-1. **Push and watch branch CI** (Chromium-only on branch pushes): `gh run list --branch milestone/05-react-router --limit 1`, then `gh run watch <id>`. Fix anything red on this branch.
-2. **Milestone ritual (A.5):** all four context files final, then `gh pr create --base main --head milestone/05-react-router --title "Milestone 05: React + React Router adapter"` with what was built, the measurements from PROGRESS (seam, committing timings, sizes), how it was verified, known issues (ADR-028: plain `createBrowserRouter` plays no effect on back in Chromium). `gh pr checks --watch` (three engines + size). Merge with `gh pr merge --merge` (never squash/rebase/delete-branch). Tag `m05-react-router` on main and push the tag. Record PR link, merge SHA, tag in PROGRESS as the first commit of `milestone/06-nextjs`.
-3. **Start Milestone 6 (Next.js App Router):** branch `milestone/06-nextjs` from latest `main`; `npm view next version`; read the installed `next/navigation` types (`useRouter`, `usePathname`, `useSearchParams`) and `next/link`; plan `src/next/` reusing `src/react/shared.ts`, `context.ts` and the `RouteBridge` idea; handle `'use client'` in the built entries.
+1. **Read the Firefox `[scroll-log]`** in the PR CI log (`gh run view <id> --log | grep -A30 "scroll-log] firefox"`). Hypothesis: Firefox applies a scroll position to the still-shown old page while the router's popstate is held, so React Router's `saveScrollPosition` stores a wrong value for the outgoing entry. Fix in the adapter (e.g. remember the rendered page's scroll in the bridge and restore it before releasing the popstate), add an ADR + LEARNINGS entry, then remove the diagnostics from the test.
+2. **Finish the ritual (A.5):** PR checks green on all three engines, `gh pr merge 5 --merge`, tag `m05-react-router` on main, record PR/merge/tag in PROGRESS as the first commit of `milestone/06-nextjs`.
+3. **Start Milestone 6 (Next.js App Router):** see the master prompt section 7; read the installed `next` types first.
 
 ## Deferred (tracked, not forgotten)
 

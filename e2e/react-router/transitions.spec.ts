@@ -66,6 +66,35 @@ test.describe('React Router example: transitions', () => {
     await expect(page.locator('h1')).toHaveText('Links that behave.');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
+    // Diagnostics: every scroll position change with the route and lifecycle
+    // events at that moment, printed at the end (CI-only Firefox issue).
+    await page.evaluate(() => {
+      const log: string[] = [];
+      (window as unknown as { __scrollLog: string[] }).__scrollLog = log;
+      const note = (what: string): void => {
+        const ev = (window as { __shatterEvents?: string[] }).__shatterEvents ?? [];
+        log.push(
+          `${performance.now().toFixed(0)} ${what} y=${window.scrollY.toFixed(1)} url=${location.pathname} h1=${document.querySelector('h1')?.textContent ?? ''} ev=${ev.join(',')} sr=${history.scrollRestoration}`,
+        );
+      };
+      window.addEventListener(
+        'scroll',
+        () => {
+          note('scroll');
+        },
+        { passive: true },
+      );
+      window.addEventListener(
+        'popstate',
+        () => {
+          note('popstate-capture');
+        },
+        true,
+      );
+      window.addEventListener('popstate', () => {
+        note('popstate-bubble');
+      });
+    });
     await clearEvents(page);
     await page.goBack();
     await expect.poll(() => events(page)).toEqual(FULL_EFFECT);
@@ -81,6 +110,10 @@ test.describe('React Router example: transitions', () => {
     await waitForIdle(page);
     await expect(page).toHaveURL(`${BASE}/about`);
     await expect(page.locator('h1')).toHaveText('Links that behave.');
+    const scrollLog = await page.evaluate(
+      () => (window as unknown as { __scrollLog: string[] }).__scrollLog,
+    );
+    console.log(`[scroll-log] ${test.info().project.name}\n${scrollLog.join('\n')}`);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect((await hookState(page)).fallback).toBeNull();
   });

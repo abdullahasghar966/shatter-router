@@ -148,9 +148,13 @@ test.describe('React Router example: links', () => {
   });
 
   test('deep links render the right route', async ({ page }) => {
-    await page.goto(`${BASE}/work`);
+    await page.goto(`${BASE}/work${QUERY}`);
     await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
-    await page.goto(`${BASE}/nowhere`);
+    // Let the idle prefetch of the lazy chunks finish: Firefox warns about
+    // module loads that a document unload aborts.
+    await waitForShatterReady(page);
+    await page.goto(`${BASE}/nowhere${QUERY}`);
     await expect(page.locator('h1')).toHaveText('Nothing here.');
+    await waitForShatterReady(page);
   });
 });
