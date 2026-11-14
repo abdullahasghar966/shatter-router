@@ -195,3 +195,48 @@ h1 {
   color: var(--muted);
   font: 500 0.75rem/1 var(--mono);
 }
+
+.lab {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.lab figure {
+  margin: 0;
+}
+
+.lab iframe,
+.lab video,
+.lab canvas,
+.lab img,
+.lab-ignore {
+  display: block;
+  width: 320px;
+  height: 180px;
+  border: 0;
+  border-radius: 0.5rem;
+}
+
+.lab video {
+  background: #333333;
+  object-fit: cover;
+}
+
+.lab-cors {
+  background: #111111;
+}
+
+.lab-ignore {
+  display: grid;
+  place-items: center;
+  background: #6d5efc;
+  color: #ffffff;
+  font: 600 1.25rem/1 var(--mono);
+}
+
+.lab figcaption {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

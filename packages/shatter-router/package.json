@@ -49,11 +49,23 @@
       "path": "dist/index.js",
       "import": "*",
       "ignore": [
+        "./runtime.js",
         "./engine.js",
         "./capture.js"
       ],
       "gzip": true,
       "limit": "6 KB"
+    },
+    {
+      "name": "runtime chunk (lazy: state machine, fallbacks, a11y)",
+      "path": "dist/runtime.js",
+      "import": "*",
+      "ignore": [
+        "./engine.js",
+        "./capture.js"
+      ],
+      "gzip": true,
+      "limit": "8 KB"
     },
     {
       "name": "engine chunk (lazy: renderer, fracture, effects)",

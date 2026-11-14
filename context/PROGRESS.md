@@ -12,8 +12,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 0   | Git, GitHub and context setup | ☑      | `main`                        | — (initial commit, no PR) | `81d68e1` | `m00-setup` |
 | 1   | Scaffold                      | ☑      | `milestone/01-scaffold`       | [#1](https://github.com/abdullahasghar966/shatter-router/pull/1) | `18f25c1` | `m01-scaffold` |
 | 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
-| 3   | Fracture + crack propagation  | ◐      | `milestone/03-fracture-crack` |     |           |             |
-| 4   | `shatter` effect (procedural) | ☐      | `milestone/04-shatter-effect` |     |           |             |
+| 3   | Fracture + crack propagation  | ☑      | `milestone/03-fracture-crack` | [#3](https://github.com/abdullahasghar966/shatter-router/pull/3) | `5523bfc` | `m03-fracture-crack` |
+| 4   | `shatter` effect (procedural) | ◐      | `milestone/04-shatter-effect` |     |           |             |
 | 5   | React + React Router adapter  | ☐      | `milestone/05-react-router`   |     |           |             |
 | 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
 | 7   | Remaining effects             | ☐      | `milestone/07-effects`        |     |           |             |
@@ -70,6 +70,10 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-14 | core `dist/index.js` | 2.66 kB | 6 KB | Milestone 3: + fracture/crack options, debug hook |
 | 2026-11-14 | engine `dist/engine.js` (lazy) | 13.92 kB | 22 KB | Milestone 3: + d3-delaunay 6.0.6, fracture, crack shader |
 | 2026-11-14 | capture `dist/capture.js` (lazy) | 11.06 kB | 16 KB | Milestone 3: + single-line text guard |
+| 2026-11-15 | core `dist/index.js` | 1.77 kB | 6 KB | Milestone 4: facade only (ADR-020); was 6.45 kB before the split |
+| 2026-11-15 | runtime `dist/runtime.js` (lazy) | 6.56 kB | 8 KB (own) | Milestone 4: state machine, fallbacks, a11y, scroll lock, pre-capture |
+| 2026-11-15 | engine `dist/engine.js` (lazy) | 16.82 kB | 22 KB | Milestone 4: + effect programs, shard data texture, frame loop, `shatter` effect |
+| 2026-11-15 | capture `dist/capture.js` (lazy) | 11.94 kB | 16 KB | Milestone 4: + substitutes for iframe/video/ignored, CORS image rule |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
 
@@ -99,6 +103,14 @@ Milestone 3, local Windows 11 (with the single-line text guard and the worst-blo
 | 2026-11-14 | WebKit 2388 | intact quad top / scrolled; fractured mesh | 2 | 0.0021 / 0.0000 / 0.0021 % (raw 0.0975 / 0.2358 / 0.0975 %) | 0.0 % |
 | 2026-11-14 | Chromium / WebKit | fully cracked frame (expected to differ: lines) | 1 / 2 | 4.81 % / 3.92 % | 12.2 % / 25.3 % |
 
+Milestone 3, **PR #3 CI (GitHub Actions ubuntu-latest)**, diff / worst block:
+
+| Date | Browser | top | scrolled | 2x | fractured 1x | fractured 2x |
+|---|---|---|---|---|---|---|
+| 2026-11-14 | Chromium headless | 0.1401 % / 4.0 % | 0.2240 % / 4.2 % | 0.5247 % (raw 0.8217) / 5.8 % | 0.1398 % / 4.0 % | 0.5275 % (raw 0.8230) / 5.8 % |
+| 2026-11-14 | Firefox headed (xvfb, Mesa) | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % | 0.0000 % / 0.0 % |
+| 2026-11-14 | WebKit (all at 2x) | 0.1495 % (raw 0.3157) / 0.0 % | 0.0023 % / 0.0 % | 0.1495 % / 0.0 % | 0.1495 % / 0.0 % | 0.1495 % / 0.0 % |
+
 History of the same cases while fixing them (so the causes are on record): Chromium DPR 1 with an alpha canvas 0.54 % / 0.70 % (ClearType lost, ADR-009); WebKit scrolled with a `viewBox` offset 65.4 % (ADR-008); WebKit without `zoom` 0.55 % / 0.68 % (ADR-010); Chromium DPR 2 with `zoom` 0.59 % (ADR-010).
 
 ### Capture time (viewport capture of the vanilla example, capturer warm)
@@ -125,6 +137,9 @@ The section 8 target (≤ 120 ms on the docs landing page at 1440x900) is measur
 | 2026-11-14 | Headless Chromium 1255, same machine | 1440x900 | 0.20 ms | 0.40 ms | **0.60 ms** (p95 1.00) | 1.40 ms (p95 2.20) |
 | 2026-11-14 | Playwright WebKit 2388, same machine (1 ms timer) | 1440x900 | 0–1 ms | 0–1 ms | ≤ 1 ms | 1 ms (p95 2) |
 | 2026-11-14 | Claude desktop browser pane (throttled, not representative) | 1024x768 | 0.6 ms | | 3.4–3.6 ms (p95 5.5) | 8.0 ms |
+| 2026-11-14 | GitHub Actions ubuntu-latest, headless Chromium (PR #3) | 1440x900 | 0.20 ms | 0.50 ms | 0.90 ms (p95 2.30) | 2.20 ms (p95 4.10) |
+| 2026-11-14 | GitHub Actions, Firefox headed (1 ms timer) | 1440x900 | 0 ms | 1 ms | 1 ms (p95 2) | 3 ms (p95 4) |
+| 2026-11-14 | GitHub Actions, WebKit (1 ms timer) | 1440x900 | 0 ms | 0 ms | 1 ms (p95 1) | 2 ms (p95 3) |
 
 Decision: below the 4 ms Worker threshold, stays on the main thread. Re-measure on a mid-range laptop in Milestone 10.
 
@@ -134,9 +149,25 @@ Decision: below the 4 ms Worker threshold, stays on the main thread. Re-measure 
 |---|---|---|---|---|
 | 2026-11-14 | 112–141 ms | 338–404 ms | 32–57 ms | Milestone 3 pipeline (no shard motion yet); 60 fps frames; ~80 ms between capture and overlay = texture upload under software GL |
 
+### Shard motion (Milestone 4, vanilla example, 160 shards, 1000 ms motion)
+
+| Date | Runtime | Viewport | Frames / duration | FPS | Worst frame | Notes |
+|---|---|---|---|---|---|---|
+| 2026-11-15 | Headless Chromium, single run, same laptop | 1280x720 | 56 frames / 1004 ms | 54.8 | 37.6 ms | software GL; one draw call per frame |
+| 2026-11-15 | Headless Chromium, 4 parallel workers | 1280x720 | 12 / 1042 ms | 10.6 | 258 ms | CPU contention, not representative |
+| 2026-11-15 | Playwright WebKit, single run | 1280x720 | 17 / 1053 ms | 15.2 | 70 ms | software GL |
+
+Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
+
+### Memory (section 9: 100 consecutive transitions)
+
+| Date | Runtime | Result |
+|---|---|---|
+| 2026-11-15 | Headless Chromium (CDP heap after forced GC), 40 shards, 60 ms motion | heap 3.02 MB → 3.14 MB (+119 kB) after 100 transitions (10 warm-up first); live GPU textures after every transition: 0 |
+
 ### Not measured yet
 
-FPS during shard motion, draw calls under motion, Lighthouse, 100-transition memory test: later milestones.
+Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later milestones.
 
 ## Test counts
 
@@ -145,3 +176,4 @@ FPS during shard motion, draw calls under motion, Lighthouse, 100-transition mem
 | 1 | 39 tests in 4 files | 6 tests per engine (vanilla navigation). PR #1 CI: Chromium, Firefox, WebKit all green (Linux). Local Windows 11: Chromium + WebKit green, Firefox cannot launch (see LEARNINGS) |
 | 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4. PR #2 CI: all three engines green |
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
+| 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 72 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit |
