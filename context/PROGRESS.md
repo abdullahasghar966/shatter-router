@@ -127,6 +127,16 @@ Milestone 5, React Router example (`e2e/react-router/transitions.spec.ts`), loca
 | WebKit 2388 | first frame, top of `/` | 2 | 0.0021 % (raw 0.1095 %) | 0.0 % |
 | WebKit 2388 | back: overlay at `covered` vs the outgoing page | 2 | 0.2822 % (raw 0.6291 %) | |
 
+Milestone 5, **PR #5 CI (GitHub Actions ubuntu-latest)**, React Router example, 2026-11-15:
+
+| Browser | First frame, top of `/` | Back: overlay vs outgoing page | Committing with a 400 ms loader |
+|---|---|---|---|
+| Chromium headless (1x) | 0.1566 % / worst block 4.0 % | 0.1347 % | 407 ms |
+| Firefox headed (xvfb, Mesa) | 0.0000 % / 0.0 % | 0.0000 % | 407 ms |
+| WebKit (2x) | 0.1335 % (raw 0.3096 %) / 2.4 % | 0.0345 % (raw 0.1834 %) | 416 ms |
+
+Before ADR-033 the WebKit first frame had a worst block of 15.3 % (button drawn serif in the copy).
+
 ### Capture time (viewport capture of the vanilla example, capturer warm)
 
 | Date | Device / browser | Viewport | DPR | Time | Notes |
@@ -205,4 +215,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4. PR #2 CI: all three engines green |
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
 | 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |
-| 5 | 254 tests in 15 files (+ `react.test.tsx` 24, `react-router.test.tsx` 12) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped |
+| 5 | 257 tests in 16 files (+ `react.test.tsx` 24, `react-router.test.tsx` 13, `standard-font.test.ts` 2) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped. PR #5 CI: Chromium 57 passed, Firefox 49 passed, WebKit 49 passed (engine-specific skips) |

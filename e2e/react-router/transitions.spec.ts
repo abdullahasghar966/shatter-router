@@ -66,35 +66,6 @@ test.describe('React Router example: transitions', () => {
     await expect(page.locator('h1')).toHaveText('Links that behave.');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
-    // Diagnostics: every scroll position change with the route and lifecycle
-    // events at that moment, printed at the end (CI-only Firefox issue).
-    await page.evaluate(() => {
-      const log: string[] = [];
-      (window as unknown as { __scrollLog: string[] }).__scrollLog = log;
-      const note = (what: string): void => {
-        const ev = (window as { __shatterEvents?: string[] }).__shatterEvents ?? [];
-        log.push(
-          `${performance.now().toFixed(0)} ${what} y=${window.scrollY.toFixed(1)} url=${location.pathname} h1=${document.querySelector('h1')?.textContent ?? ''} ev=${ev.join(',')} sr=${history.scrollRestoration}`,
-        );
-      };
-      window.addEventListener(
-        'scroll',
-        () => {
-          note('scroll');
-        },
-        { passive: true },
-      );
-      window.addEventListener(
-        'popstate',
-        () => {
-          note('popstate-capture');
-        },
-        true,
-      );
-      window.addEventListener('popstate', () => {
-        note('popstate-bubble');
-      });
-    });
     await clearEvents(page);
     await page.goBack();
     await expect.poll(() => events(page)).toEqual(FULL_EFFECT);
@@ -110,10 +81,6 @@ test.describe('React Router example: transitions', () => {
     await waitForIdle(page);
     await expect(page).toHaveURL(`${BASE}/about`);
     await expect(page.locator('h1')).toHaveText('Links that behave.');
-    const scrollLog = await page.evaluate(
-      () => (window as unknown as { __scrollLog: string[] }).__scrollLog,
-    );
-    console.log(`[scroll-log] ${test.info().project.name}\n${scrollLog.join('\n')}`);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect((await hookState(page)).fallback).toBeNull();
   });
@@ -191,28 +158,6 @@ test.describe('React Router example: transitions', () => {
 });
 
 async function firstFrameSeam(page: Page, testInfo: TestInfo, name: string): Promise<void> {
-  // Diagnostics for the platform font of form controls (ADR-029), CI only.
-  const buttonFont = await page.evaluate(() => {
-    const button = document.querySelector('button');
-    const families = ['-webkit-standard', 'sans-serif', 'serif', 'monospace', 'system-ui'];
-    const context = document.createElement('canvas').getContext('2d');
-    const canvas = families.map((family) => {
-      if (!context) return `${family}=?`;
-      context.font = `72px ${family}`;
-      return `${family}=${context.measureText('mmmwwwiiil0O@Qg').width.toFixed(2)}(${context.font})`;
-    });
-    const dom = families.map((family) => {
-      const span = document.createElement('span');
-      span.style.cssText = `position:absolute;visibility:hidden;font:72px ${family};white-space:nowrap`;
-      span.textContent = 'mmmwwwiiil0O@Qg';
-      document.body.append(span);
-      const width = span.getBoundingClientRect().width;
-      span.remove();
-      return `${family}=${width.toFixed(2)}`;
-    });
-    return `${button ? getComputedStyle(button).font : 'no button'} | canvas ${canvas.join(' ')} | dom ${dom.join(' ')}`;
-  });
-  console.log(`[button-font] ${testInfo.project.name}: ${buttonFont}`);
   const link = page.getByRole('link', { name: 'Work', exact: true });
   await link.hover();
   const live = await page.screenshot();

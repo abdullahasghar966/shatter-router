@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 2, after the example + e2e sub-task)
+- **Last updated:** 2026-11-15 (session 2, Milestone 5 ready to merge)
 - **Session:** 2
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
@@ -8,27 +8,23 @@
 
 - **Current milestone:** 5 — React + React Router adapter
 - **Current branch:** `milestone/05-react-router` (from `main` at `17b79cc`)
-- **Last commit:** see `git log -1` (`feat(react-router): example app, e2e, popstate gate`)
+- **Last commit:** see `git log -1` (`docs(context): milestone 5 complete`)
 - **Latest tag:** `m04-shatter-effect` (on `17b79cc`)
 
 ## Done so far
 
 - Milestones 0–4 merged and tagged (see `PROGRESS.md`; ADR-001..025).
-- Milestone 5, sub-task 1 (this session): React 19.3.1 + React Router 8.5.1 installed as dev + optional peer deps; APIs verified from `node_modules` (LEARNINGS, "react-router 8.5.1").
-  - `src/react/` → `shatter-router/react`: `ShatterProvider` (router-agnostic, `navigate` prop, `instance` prop), `ShatterLink`, `useShatter`, `useShatterNavigate`. Shared internals in `src/react/shared.ts` (`useShatterClick`, `useShatterInstance`, `boundedCommit`).
-  - `src/react-router/` → `shatter-router/react-router`: `ShatterProvider` (inside the router), `ShatterLink`, `ShatterNavLink`, `useShatterNavigate`, `useShatter`, `ShatterRouteSignal`. `bridge.ts` (`RouteBridge`) resolves commits on render and holds the router's popstate for back/forward (ADR-026, ADR-027).
-  - Exports, tsup entries, size-limit entries (react 2.46 kB, react-router 3.35 kB, budget 6 KB each).
-  - Unit tests: `test/react.test.tsx` (24), `test/react-router.test.tsx` (11: declarative, data-mode loader wait, timeout, NavLink, modifier clicks, back/forward hold, hash-only). Total 253 unit tests, green.
-
-- Milestone 5, sub-task 2: `examples/react-router` (Vite 8.3.8 + `@vitejs/plugin-react` 6.3.0, data mode via `createShatterBrowserRouter`, `?mode=declarative`, `?mode=data-plain`; port 4174, in `playwright.config.ts`). E2E `e2e/react-router/navigation.spec.ts` (9) and `transitions.spec.ts` (7). Back/forward bug found and fixed: popstate gate before the router (`src/react-router/pop-gate.ts`, `createShatterBrowserRouter`, ADR-028). Local full suite Chromium + WebKit: 105 passed, 9 skipped. Visual check done with headless screenshots (PROGRESS).
-
-- PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) open. First PR CI run: Chromium green; WebKit failed the React Router first-frame seam (button font, fixed by ADR-029); Firefox failed the deep-link test (aborted prefetch warnings, test fixed) and the back/forward test (scrollY 243.9 instead of 0 after forward). The scroll log printed by the test showed Firefox scrolling the held old page (entry in `auto` scroll restoration): ADR-030 (bridge keeps entries `manual`, restores positions itself) was not enough: Firefox scrolls after the real popstate, while it is held; ADR-031 holds the page still and starts the capture a frame later. Firefox went green with ADR-031. WebKit (Linux) still had the serif button after ADR-029: the computed font is `-webkit-standard` but the painted font is the system sans; ADR-033 measures the painted text run. Waiting for the PR CI run. Once all three engines are green, remove the `[scroll-log]` and `[button-font]` diagnostics from `e2e/react-router/transitions.spec.ts` (one `test:` commit), then finish the ritual.
+- Milestone 5 complete on this branch, PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) green on all three engines:
+  - `shatter-router/react` (router-agnostic provider, link, hooks) and `shatter-router/react-router` (provider inside the router, `ShatterLink`, `ShatterNavLink`, `useShatterNavigate`, `ShatterRouteSignal`, `createShatterBrowserRouter`). ADR-026..028, 030, 031.
+  - Capture fixes found by the React Router example on CI: form-control fonts (ADR-029, 032, 033).
+  - `examples/react-router` (port 4174) with e2e `e2e/react-router/*` (16 per engine).
+  - Unit 257 tests. Measurements in PROGRESS.
 
 ## Next 3 steps
 
-1. **Check PR #5 CI** (`gh pr checks 5`). If Firefox is green, remove the `[scroll-log]` diagnostics from `e2e/react-router/transitions.spec.ts` in a small `test:` commit. If not, read `gh run view <id> --log | grep -A30 "scroll-log] firefox"`.
-2. **Finish the ritual (A.5):** PR checks green on all three engines, `gh pr merge 5 --merge`, tag `m05-react-router` on main, record PR/merge/tag in PROGRESS as the first commit of `milestone/06-nextjs`.
-3. **Start Milestone 6 (Next.js App Router):** see the master prompt section 7; read the installed `next` types first.
+1. **Merge PR #5** once `gh pr checks 5` is green for the last push: `gh pr merge 5 --merge` (never squash/rebase/delete-branch). Then `git switch main; git pull --ff-only; git tag -a m05-react-router -m "Milestone 05 complete"; git push origin m05-react-router`.
+2. **Start `milestone/06-nextjs`** from `main` and, as its first commit, record PR #5, the merge SHA and the tag in PROGRESS (row 5 ☑) and refresh HANDOFF.
+3. **Milestone 6 (Next.js App Router):** `npm view next version`; read the installed `next/navigation` (`useRouter`, `usePathname`, `useSearchParams`) and `next/link` types; plan `src/next/` reusing `src/react/shared.ts`, `src/react/context.ts`, and the `RouteBridge` / pop-gate ideas (Next's own popstate handling must be checked the same way: who registers first, does React render it synchronously); handle `'use client'` in built entries; `loading.tsx` with `waitFor: 'settled'`.
 
 ## Deferred (tracked, not forgotten)
 
