@@ -46,17 +46,22 @@ test.describe('vanilla example: hard-to-capture content (section 9)', () => {
   test('every case is captured without tainting, errors or a fallback', async ({ page }) => {
     await page.goto(`${BASE}/lab${QUERY}`);
     await waitForShatterReady(page);
-    // Let the canvas-stream video produce frames, where the browser can stream a
-    // canvas (Playwright's Windows WebKit has no captureStream: the video stays empty).
-    const streams = await page.evaluate(
-      () => typeof HTMLCanvasElement.prototype.captureStream === 'function',
-    );
-    if (streams) {
-      await page.waitForFunction(() => {
-        const video = document.querySelector<HTMLVideoElement>('#lab-video');
-        return video !== null && video.readyState >= 2;
-      });
-    }
+    // Let the canvas-stream video produce frames where the browser can (Playwright's
+    // Windows WebKit has no captureStream; Linux WebKit has it but never delivers a
+    // frame). Without a frame the substitute shows the video's background colour.
+    const streams = await page
+      .waitForFunction(
+        () => {
+          const video = document.querySelector<HTMLVideoElement>('#lab-video');
+          return video !== null && video.readyState >= 2;
+        },
+        undefined,
+        { timeout: 5000 },
+      )
+      .then(
+        () => true,
+        () => false,
+      );
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
     await page.getByRole('link', { name: 'Back home' }).hover();

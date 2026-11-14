@@ -224,7 +224,8 @@ export class CloneSession {
       if (node.id.startsWith('__SANDBOX__')) return false;
       if (
         SUBSTITUTED_TAGS.has(node.tagName.toUpperCase()) ||
-        node.hasAttribute('data-shatter-ignore')
+        node.hasAttribute('data-shatter-ignore') ||
+        this.isUnfetchableImage(node)
       ) {
         this.substituted.add(node);
         return false;
@@ -293,18 +294,8 @@ export class CloneSession {
     }
 
     // Do not fetch and inline pixels nobody can see.
-    if (
-      cloned instanceof this.win.HTMLImageElement &&
-      original instanceof this.win.HTMLImageElement
-    ) {
-      // Off-screen images are not fetched. Cross-origin images loaded without
-      // CORS cannot be read: the fetch would fail (and log a CORS error), so
-      // they get the capture library's transparent placeholder straight away.
-      if (!this.isVisible(original.getBoundingClientRect()) || !this.isReadable(original)) {
-        cloned.removeAttribute('srcset');
-        cloned.src = BLANK_IMAGE;
-      }
-    } else if (style.backgroundImage.includes('url(')) {
+    // (Images that must not be fetched never reach this point: see isUnfetchableImage.)
+    if (!(cloned instanceof this.win.HTMLImageElement) && style.backgroundImage.includes('url(')) {
       if (!this.isVisible(original.getBoundingClientRect())) style.backgroundImage = 'none';
     }
 
@@ -392,13 +383,15 @@ export class CloneSession {
   /**
    * A box with the original's size, position and background. Videos show
    * their current frame when it can be read without tainting, else the poster,
-   * else the background colour. Iframes, plugins and `data-shatter-ignore`
-   * elements show their computed background colour.
+   * else the background colour. Unfetchable images become a transparent image.
+   * Iframes, plugins and `data-shatter-ignore` elements show their computed
+   * background colour.
    */
   private substitute(live: Element): HTMLElement {
     const computed = this.win.getComputedStyle(live);
     const video = live instanceof this.win.HTMLVideoElement ? live : null;
-    const box = this.doc.createElement(video ? 'img' : 'div');
+    const image = live instanceof this.win.HTMLImageElement;
+    const box = this.doc.createElement(video || image ? 'img' : 'div');
     for (const property of BOX_PROPERTIES) {
       box.style.setProperty(property, computed.getPropertyValue(property));
     }
@@ -409,10 +402,25 @@ export class CloneSession {
       box.style.width = `${rect.width}px`;
       box.style.height = `${rect.height}px`;
     }
-    if (video && box instanceof this.win.HTMLImageElement) {
-      box.src = this.videoFrame(video) ?? this.posterOf(video) ?? BLANK_IMAGE;
+    if (box instanceof this.win.HTMLImageElement) {
+      box.alt = '';
+      const picture = video ? (this.videoFrame(video) ?? this.posterOf(video)) : null;
+      box.src = picture ?? BLANK_IMAGE;
     }
     return box;
+  }
+
+  /**
+   * Off-screen images, and cross-origin images loaded without CORS, must not
+   * be fetched: the first would waste the capture budget, the second would
+   * fail and log a CORS error. They become substitutes (a fresh transparent
+   * image: the capture library's placeholder behaviour), because rewriting
+   * the clone's \`src\` is not enough: Firefox keeps the old \`currentSrc\`,
+   * which the library reads first.
+   */
+  private isUnfetchableImage(node: Element): boolean {
+    if (!(node instanceof this.win.HTMLImageElement)) return false;
+    return !this.isVisible(node.getBoundingClientRect()) || !this.isReadable(node);
   }
 
   /** The current frame as a data URL, or null when there is none or reading it would taint. */

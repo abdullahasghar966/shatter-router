@@ -66,6 +66,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Pre-capture was always "dirty"**: modern-screenshot sets `srcdoc` on its sandbox iframe after inserting it, an attribute mutation our observer counted. Mutations inside `#__SANDBOX__*` now count as our own.
 - **View Transition `ready` rejects when the transition is skipped** (hidden tab, "Transition was aborted because of timeout in DOM update"); unhandled, it shows up as an uncaught promise rejection. `crossfade.ts` attaches a catch.
 
+- **Firefox: setting an <img> clone's `src` does not update `currentSrc` synchronously.** modern-screenshot reads `currentSrc || src`, so it fetched the original cross-origin URL (and it succeeded only because Vite preview sends CORS headers by default; the fixture now sets `preview.cors: false`). Unfetchable images are now fresh substitute elements (ADR-023).
+- **Playwright WebKit on Linux has `captureStream` but the canvas-stream video never reaches readyState 2**; the lab test accepts the background colour when no frame arrives within 5 s.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
