@@ -67,6 +67,9 @@ jobs:
       - name: Install Playwright system dependencies
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps ${{ matrix.browser }}
+      - name: Software OpenGL for Firefox WebGL
+        if: matrix.browser == 'firefox'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1-mesa-dri libegl1 libegl-mesa0 libglx-mesa0
       - run: pnpm build
       - run: pnpm build:examples
       - run: pnpm test:e2e --project=${{ matrix.browser }}

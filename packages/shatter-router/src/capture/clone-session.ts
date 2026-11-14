@@ -210,6 +210,8 @@ export class CloneSession {
     // snapping matches the live page.
     const { layoutScale } = this.geometry;
     if (layoutScale !== 1) clonedRoot.style.setProperty('zoom', String(layoutScale));
+    const geo = (this.win as unknown as { __SPIKE_GEO__?: boolean }).__SPIKE_GEO__;
+    if (geo) clonedRoot.style.setProperty('text-rendering', 'geometricPrecision');
     stripLayerNames(clonedRoot.style);
     this.applyStickyFixes();
     this.applyRootBackground(clonedRoot);
