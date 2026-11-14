@@ -49,7 +49,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Transitions hung in an unpainted browser pane.** Root cause: `requestAnimationFrame` does not fire while the page is not being painted. Fix: `nextFrame()` races rAF against a 120 ms timer (`src/core/frame.ts`).
 
 - **Linux CI Chromium at 2x: 0.82 % seam diff on text only.** Glyphs a fraction of a device pixel apart between live paint and the SVG copy. Neither layout grid fixes it (spike/linux-layout-grid: css 0.82 %, device 0.97 %). Handled in the metric (ADR-014).
-- **Firefox on Linux CI had no WebGL2** (headless, no GPU). Fixed with the pref webgl.force-enabled (ADR-015).
+- **Firefox on Linux CI had no WebGL2.** Headless: `AllowWebgl2:false`; with `webgl.force-enabled`: `FEATURE_FAILURE_WEBGL_EXHAUSTED_DRIVERS`, even with Mesa installed. Headed under `xvfb-run` with Mesa: works, 0.0000 % seam (ADR-015).
+- **Linux CI Chromium at 2x after the shift-tolerant metric: 0.5247 %.** Remaining pixels are text lines one device pixel lower in the copy on fractional line heights; `text-rendering: geometricPrecision` did not help (0.80 % / 0.98 %). Measured ceiling 0.6 % (ADR-016).
 
 ## Approaches that did not work
 

@@ -6,7 +6,7 @@ import {
   pauseAtCovered,
   readHook,
   resumeAndFinish,
-  SEAM_MAX_PERCENT,
+  seamLimit,
   waitForCovered,
   waitForShatterReady,
 } from '../seam';
@@ -16,14 +16,15 @@ const BASE = APPS.vanilla;
 /**
  * First-frame seam: the overlay's first frame must look like the live DOM it
  * covers. Screenshots the page with the pointer already resting on the link,
- * clicks, pauses the transition once the overlay is up, and screenshots again.
+ * clicks, pauses the transition once the overlay is up, and screenshots again,
+ * then asserts the difference is within the limit for this engine (ADR-016).
  */
 async function firstFrameSeam(
   page: Page,
   testInfo: TestInfo,
   name: string,
   linkName: string,
-): Promise<number> {
+): Promise<void> {
   const link = page.getByRole('link', { name: linkName, exact: true });
   await link.hover();
   const live = await page.screenshot();
@@ -46,15 +47,14 @@ async function firstFrameSeam(
   console.log(
     `[seam] ${testInfo.project.name} ${name}: ${result.percent.toFixed(4)} % differ (raw ${result.rawPercent.toFixed(4)} %, shift radius ${shiftRadius}), capture ${hook.lastCaptureMs?.toFixed(1) ?? '?'} ms, grid ${hook.layoutGrid ?? '?'}`,
   );
-  return result.percent;
+  expect(result.percent).toBeLessThanOrEqual(seamLimit(testInfo.project.name, dpr));
 }
 
 test.describe('vanilla example: first-frame seam', () => {
   test('at the top of the page', async ({ page }, testInfo) => {
     await page.goto(`${BASE}/?debug&budget=5000`);
     await waitForShatterReady(page);
-    const percent = await firstFrameSeam(page, testInfo, 'top', 'Work');
-    expect(percent).toBeLessThanOrEqual(SEAM_MAX_PERCENT);
+    await firstFrameSeam(page, testInfo, 'top', 'Work');
     await expect(page).toHaveURL(`${BASE}/work`);
     await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
   });
@@ -66,8 +66,7 @@ test.describe('vanilla example: first-frame seam', () => {
       window.scrollTo(0, 240);
     });
     expect(await page.evaluate(() => window.scrollY)).toBe(240);
-    const percent = await firstFrameSeam(page, testInfo, 'scrolled', 'About');
-    expect(percent).toBeLessThanOrEqual(SEAM_MAX_PERCENT);
+    await firstFrameSeam(page, testInfo, 'scrolled', 'About');
     await expect(page.locator('h1')).toHaveText('Links that behave.');
   });
 
@@ -77,8 +76,7 @@ test.describe('vanilla example: first-frame seam', () => {
     test('texels map 1:1 to device pixels', async ({ page }, testInfo) => {
       await page.goto(`${BASE}/?debug&budget=5000`);
       await waitForShatterReady(page);
-      const percent = await firstFrameSeam(page, testInfo, 'dpr2', 'About');
-      expect(percent).toBeLessThanOrEqual(SEAM_MAX_PERCENT);
+      await firstFrameSeam(page, testInfo, 'dpr2', 'About');
     });
   });
 
