@@ -13,8 +13,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 1   | Scaffold                      | ☑      | `milestone/01-scaffold`       | [#1](https://github.com/abdullahasghar966/shatter-router/pull/1) | `18f25c1` | `m01-scaffold` |
 | 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
 | 3   | Fracture + crack propagation  | ☑      | `milestone/03-fracture-crack` | [#3](https://github.com/abdullahasghar966/shatter-router/pull/3) | `5523bfc` | `m03-fracture-crack` |
-| 4   | `shatter` effect (procedural) | ◐      | `milestone/04-shatter-effect` |     |           |             |
-| 5   | React + React Router adapter  | ☐      | `milestone/05-react-router`   |     |           |             |
+| 4   | `shatter` effect (procedural) | ☑      | `milestone/04-shatter-effect` | [#4](https://github.com/abdullahasghar966/shatter-router/pull/4) | `17b79cc` | `m04-shatter-effect` |
+| 5   | React + React Router adapter  | ◐      | `milestone/05-react-router`   |     |           |             |
 | 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
 | 7   | Remaining effects             | ☐      | `milestone/07-effects`        |     |           |             |
 | 8   | Rapier mode                   | ☐      | `milestone/08-rapier`         |     |           |             |
@@ -156,6 +156,9 @@ Decision: below the 4 ms Worker threshold, stays on the main thread. Re-measure 
 | 2026-11-15 | Headless Chromium, single run, same laptop | 1280x720 | 56 frames / 1004 ms | 54.8 | 37.6 ms | software GL; one draw call per frame |
 | 2026-11-15 | Headless Chromium, 4 parallel workers | 1280x720 | 12 / 1042 ms | 10.6 | 258 ms | CPU contention, not representative |
 | 2026-11-15 | Playwright WebKit, single run | 1280x720 | 17 / 1053 ms | 15.2 | 70 ms | software GL |
+| 2026-11-15 | PR #4 CI ubuntu-latest, headless Chromium | 1280x720 | 21 / 1009 ms | 19.8 | 142 ms | parallel workers, software GL; capture 76 ms |
+| 2026-11-15 | PR #4 CI, Firefox headed (xvfb, Mesa) | 1280x720 | 26 / 1020 ms | 24.5 | 214 ms | capture 173 ms |
+| 2026-11-15 | PR #4 CI, WebKit | 1280x720 | 10 / 1104 ms | 8.2 | 256 ms | capture 214 ms |
 
 Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 
@@ -164,6 +167,7 @@ Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 | Date | Runtime | Result |
 |---|---|---|
 | 2026-11-15 | Headless Chromium (CDP heap after forced GC), 40 shards, 60 ms motion | heap 3.02 MB → 3.14 MB (+119 kB) after 100 transitions (10 warm-up first); live GPU textures after every transition: 0 |
+| 2026-11-15 | PR #4 CI (ubuntu-latest), same test | heap 3.02 MB → 3.13 MB (+117 kB); textures 0 |
 
 ### Not measured yet
 
@@ -176,4 +180,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 1 | 39 tests in 4 files | 6 tests per engine (vanilla navigation). PR #1 CI: Chromium, Firefox, WebKit all green (Linux). Local Windows 11: Chromium + WebKit green, Firefox cannot launch (see LEARNINGS) |
 | 2 | 68 tests in 7 files | 10 tests per engine (6 navigation + 4 seam/overlay) + 4 seam-metric tests (Chromium project). Local: Chromium + WebKit 20/20 + 4/4. PR #2 CI: all three engines green |
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
-| 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 72 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit |
+| 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |

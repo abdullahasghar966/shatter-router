@@ -1,48 +1,39 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 1)
-- **Session:** 1
+- **Last updated:** 2026-11-15 (end of session 1, full hand-off B.3)
+- **Session:** 1 (the next session is 2)
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 4 — `shatter` effect, state machine, fallbacks, accessibility (code complete, local checks green, PR being opened)
-- **Current branch:** `milestone/04-shatter-effect`
-- **Last commit:** see `git log -1` (this file is committed with the code it describes)
-- **Latest tag:** `m03-fracture-crack` (on `5523bfc`)
+- **Current milestone:** 5 — React + React Router adapter (branch created, no code yet)
+- **Current branch:** `milestone/05-react-router` (from `main` at `17b79cc`)
+- **Last commit:** see `git log -1` (`docs(context): session 1 handoff`)
+- **Latest tag:** `m04-shatter-effect` (on `17b79cc`)
 
-## Done in this milestone
+## Done so far (milestones 0–4, all merged with green three-engine CI and tagged)
 
-- Public effect interface `src/core/effect.ts` (ADR-021) and the `shatter` effect `src/engine/effects/shatter.ts` (closed-form motion in GLSL, early completion when all shards are off-screen).
-- Engine: per-effect programs, RGBA32F shard-data texture, allocation-free `FrameLoop` with a watchdog timer, blended motion over the live page, `setMotionTime` debug freeze.
-- Core split (ADR-020): `src/core/shatter.ts` facade (options, events, effect registry, intent listeners) + lazy `src/runtime/index.ts` (typed FSM `src/core/machine.ts`, interruption rules ADR-022, waiting phase `ready.ts`, fallback chain `crossfade.ts`, focus/announce `a11y.ts`, scroll lock, pre-capture `precapture.ts`).
-- Capture: substitutes for iframe/video/object/embed/`data-shatter-ignore`, CORS image rule (ADR-023); pre-capture budget rule (ADR-024).
-- Example: `/lab` page (hard content), `csp.html` (strict CSP), back/forward with scroll restoration, `?duration=`/`?shards=`/`?seed=`/`?budget=`.
-- Tests: 218 unit; e2e effect, interruptions, fallbacks, history, lab, memory (100 transitions: +119 kB heap, 0 textures).
+- M0 setup (`m00-setup`), M1 scaffold (PR #1), M2 renderer + first-frame seam (PR #2), M3 fracture + crack (PR #3), M4 `shatter` effect + state machine + fallbacks + a11y (PR #4). Details, numbers and versions: `PROGRESS.md`; reasoning: ADR-001..025.
+- What works today, in `examples/vanilla`: a click captures the viewport (pixel-matched), cracks from the click point, shards tumble and fall over the live new page, focus moves and the title is announced; reduced motion crossfades; every failure path still navigates; back/forward shatter too.
 
-## In progress
+## Next 3 steps (Milestone 5)
 
-- Milestone end ritual (A.5): PR `Milestone 04: shatter effect, state machine, fallbacks`, three-engine CI, merge, tag `m04-shatter-effect`.
-
-## Next 3 steps
-
-1. Open the PR and watch CI. New risks on Linux CI: the strict-CSP WebKit test (marked `fixme` only on Windows; if Linux WebKit also crashes, mark it on Linux too and record it), Firefox (headed/xvfb) on the motion and lab tests, the history test under load.
-2. Merge with `gh pr merge --merge`, tag `m04-shatter-effect`, record PR/merge/tag in `PROGRESS.md` as the first commit of `milestone/05-react-router`.
-3. Milestone 5: `shatter-router/react` (`ShatterProvider`, `ShatterLink`, `useShatter`, `useShatterNavigate`) and `shatter-router/react-router` (`ShatterRouteSignal`, POP handling via the Navigation API `navigate` event, data-mode `useNavigation` idle), React Router example app under `examples/react-router`, e2e. Read React Router's installed types first (rule 3). Add the subpath exports, tsup entries and size-limit checks (ADR-004).
+1. **Read the installed APIs first (rule 3):** `pnpm add react react-dom react-router` (latest stable; React Router's peer range needs React ≥ 19.2.7) and `@types/react @types/react-dom` in `packages/shatter-router` as dev + optional peer deps (`peerDependenciesMeta`). Read `node_modules/react-router/dist/**/index.d.ts` for `Link`, `useNavigate`, `useLocation`, `useNavigationType`, `useNavigation` (data mode only), `NavigationType`. Record facts in `LEARNINGS.md`.
+2. **Build `src/react/index.ts`** (`'use client'` not needed here; Next gets its own entry in M6): `ShatterProvider` (creates one `createShatter(options)`, destroys on unmount, context), `useShatter()`, `useShatterNavigate()` (`navigate(to, { effect, origin })`), `ShatterLink` (renders a real `<a href>`; uses `classifyLinkClick` so modifier/middle clicks, `target`, `download`, external links keep native behaviour; origin from the pointer or the link centre for keyboard). Then **`src/react-router/index.ts`**: `ShatterLink` wrapping React Router's `Link`, `ShatterRouteSignal` (inside the router: resolves the pending commit when `useLocation().key` changes in `useLayoutEffect` and, in data mode, `useNavigation().state === 'idle'`), a provider that includes the signal, and POP handling: listen to the Navigation API `navigate` event (feature-detected) to capture before React Router re-renders; without it, no effect on POP. Treat a resolved-but-not-committed `transition()` as superseded (ADR-022). Add subpath exports, tsup entries, size-limit entries (ADR-004).
+3. **`examples/react-router`** (Vite + React Router, same pages/styling as vanilla, port 4174 in `playwright.config.ts` APPS) + e2e: each route via ShatterLink, modifier-click and middle-click not intercepted, `useShatterNavigate`, a loader-delayed route (data mode) waits for idle, back/forward, seam test reuse (`e2e/seam.ts`). Unit tests for ShatterLink click rules with `@testing-library/react` or plain `react-dom/client` + happy-dom. Then the milestone ritual (A.5).
 
 ## Deferred (tracked, not forgotten)
 
 - `backForward: 'reverse'` → Milestone 7 with `assemble` (ADR-025).
-- Debug panel (section 10) → Milestone 10 (ADR-025); all data already on the debug hook.
-- `physics: 'rapier'` → Milestone 8. `glassTint`, `chromatic`, lighting fade-in → Milestone 9.
-- README: document `scrollbar-gutter: stable`, CSP directives → Milestone 12.
+- Debug panel (section 10) → Milestone 10 (ADR-025); its data is already on the debug hook.
+- `physics: 'rapier'` → M8. `glassTint`, `chromatic`, lighting fade-in → M9. README items (`scrollbar-gutter: stable`, CSP directives, browser support incl. ADR-016) → M12.
 
 ## Open problems / blockers
 
-- Local Firefox cannot launch (LEARNINGS, Environment); CI runs Firefox headed under xvfb.
-- Playwright WebKit on Windows crashes on a View Transition right after a CSP-blocked image (strict-CSP test `fixme` there).
-- Under heavy parallel load (Chromium + WebKit together locally) the history test once timed out; passes alone and with WebKit only.
-- The Claude desktop browser pane does not paint when the app window is behind others: use headless Playwright for visual checks.
+- Local Firefox cannot launch on this machine (LEARNINGS, Environment); CI runs Firefox headed under xvfb with Mesa (ADR-015).
+- Playwright's Windows WebKit build crashes on a View Transition right after a CSP-blocked image: that one test is `fixme` on win32 only; it passes on Linux CI.
+- The Claude desktop browser pane throttles frames and stops painting when the app window is behind others: use headless Playwright scripts for visual checks and numbers.
+- Running Chromium + WebKit e2e together locally (4 workers) is slow under software GL; use `--workers=2` if a timing-sensitive test flakes.
 
 ## Questions waiting on the user
 
@@ -50,7 +41,7 @@
 
 ## Working tree
 
-- Clean, everything pushed.
+- Clean, everything pushed (verified with `git status` and `git rev-parse HEAD` = `git rev-parse @{u}` before ending the session).
 
 ## Resume commands (PowerShell)
 
@@ -58,6 +49,7 @@
 cd "D:\Shatter Router"
 git fetch --all --tags
 git status
+git switch milestone/05-react-router
 pnpm install
 pnpm build
 pnpm build:examples
@@ -65,7 +57,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm exec playwright install   # once per machine
-pnpm test:e2e --project=chromium --project=webkit   # Firefox cannot launch on this machine
+pnpm test:e2e --project=chromium --project=webkit --workers=2   # Firefox cannot launch on this machine
 pnpm size
 # a fresh clone needs a repo-local identity (ADR-002):
 # git config user.name "Abdullah Asghar"; git config user.email "203540047+abdullahasghar966@users.noreply.github.com"
@@ -73,7 +65,8 @@ pnpm size
 
 ## Read first
 
-- `SHATTER_ROUTER_MASTER_PROMPT.md` sections 6–7 for Milestone 5 (the spec, never edit)
-- `context/PROGRESS.md`, `context/DECISIONS.md` (ADR-020 to ADR-025 for this milestone), `context/LEARNINGS.md`
-- `packages/shatter-router/src/core/shatter.ts`, `src/runtime/index.ts`, `src/core/types.ts`, `src/core/effect.ts`
+- `SHATTER_ROUTER_MASTER_PROMPT.md` sections 6–7 (React and React Router APIs) and A.5 (milestone ritual)
+- `context/PROGRESS.md`, `context/DECISIONS.md` (ADR-020 facade/runtime split, ADR-022 interruption semantics are the most relevant), `context/LEARNINGS.md`
+- `packages/shatter-router/src/core/shatter.ts` (facade), `src/core/types.ts` (public options/events/request), `src/core/links.ts` (click rules to reuse in `ShatterLink`)
 - `examples/vanilla/src/main.ts` (how a router integrates: commit, origin, direction, scroll)
+- `playwright.config.ts`, `e2e/fixtures.ts`, `e2e/seam.ts`, `e2e/hook.ts` (test helpers to reuse)
