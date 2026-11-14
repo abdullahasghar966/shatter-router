@@ -1,0 +1,62 @@
+{
+  "name": "shatter-router",
+  "version": "0.0.0",
+  "description": "Physically convincing WebGL2 glass-shatter page transitions for single-page apps.",
+  "keywords": [
+    "page-transition",
+    "route-transition",
+    "webgl",
+    "webgl2",
+    "shatter",
+    "glass",
+    "voronoi",
+    "react",
+    "nextjs",
+    "react-router"
+  ],
+  "license": "MIT",
+  "author": "Abdullah Asghar",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abdullahasghar966/shatter-router.git",
+    "directory": "packages/shatter-router"
+  },
+  "homepage": "https://github.com/abdullahasghar966/shatter-router#readme",
+  "bugs": "https://github.com/abdullahasghar966/shatter-router/issues",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "size": "size-limit"
+  },
+  "size-limit": [
+    {
+      "name": "core (shatter-router)",
+      "path": "dist/index.js",
+      "import": "*",
+      "limit": "6 KB",
+      "gzip": true
+    }
+  ],
+  "devDependencies": {
+    "@size-limit/preset-small-lib": "14.3.0",
+    "happy-dom": "21.0.4",
+    "size-limit": "14.3.0",
+    "tsup": "9.0.0",
+    "vitest": "5.1.0"
+  }
+}
