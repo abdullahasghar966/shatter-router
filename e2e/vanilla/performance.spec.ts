@@ -30,6 +30,8 @@ const EFFECTS = ['shatter', 'explode', 'implode', 'flip', 'assemble'] as const;
 const LOOP_CHUNKS = /\/assets\/(engine|runtime|rapier-backend)-[\w-]+\.js$/;
 /** Section 8: no long task over 50 ms outside the capture step. */
 const LONG_TASK_MS = 50;
+/** Waits for a whole transition: CI software GL can draw 2 fps (`flip`, 3 s of motion). */
+const SLOW_MS = 30_000;
 
 test.use({ viewport: { width: 1440, height: 900 } });
 if (PERF) {
@@ -127,8 +129,8 @@ async function gpuName(page: Page, browserName: string): Promise<string> {
 async function playEffect(page: Page, effect: string): Promise<void> {
   await clearLifecycleEvents(page);
   await page.getByRole('link', { name: effect, exact: true }).click();
-  await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
-  await waitForIdle(page);
+  await expect.poll(() => lifecycleEvents(page), { timeout: SLOW_MS }).toEqual(FULL_EFFECT);
+  await waitForIdle(page, SLOW_MS);
 }
 
 /**
@@ -140,8 +142,8 @@ async function warmUp(page: Page, effect: string): Promise<void> {
   await playEffect(page, effect);
   await clearLifecycleEvents(page);
   await page.goBack();
-  await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
-  await waitForIdle(page);
+  await expect.poll(() => lifecycleEvents(page), { timeout: SLOW_MS }).toEqual(FULL_EFFECT);
+  await waitForIdle(page, SLOW_MS);
   await expect(page).toHaveURL(/\/effects\?/);
 }
 
@@ -151,7 +153,7 @@ test.describe('vanilla example: performance (section 8)', () => {
       page,
       browserName,
     }, testInfo) => {
-      test.setTimeout(60_000);
+      test.setTimeout(150_000);
       await instrument(page);
       await page.goto(`${BASE}/effects${QUERY}`);
       await waitForShatterReady(page);
@@ -219,7 +221,7 @@ test.describe('vanilla example: performance (section 8)', () => {
         browserName !== 'chromium',
         'allocation sampling uses the Chrome DevTools Protocol',
       );
-      test.setTimeout(60_000);
+      test.setTimeout(150_000);
       // 3 s of motion: even software GL in CI draws well over 10 frames.
       await page.goto(`${BASE}/effects${query}&duration=3000`);
       await waitForShatterReady(page);
@@ -235,7 +237,7 @@ test.describe('vanilla example: performance (section 8)', () => {
       await page.evaluate(() => {
         (window as { __SHATTER_TEST__?: { resume(): void } }).__SHATTER_TEST__?.resume();
       });
-      await waitForIdle(page);
+      await waitForIdle(page, SLOW_MS);
       const { profile } = await cdp.send('HeapProfiler.stopSampling');
       const state = await hookState(page);
       const frames = state.animation?.frames ?? 0;
