@@ -1,32 +1,26 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 2, Milestone 6 merged, Milestone 7 branch created)
+- **Last updated:** 2026-11-15 (session 2, Milestone 7 merged, Milestone 8 branch created)
 - **Session:** 2
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 7 — Remaining effects (complete; PR #7 green, merge next)
-- **Current branch:** `milestone/07-effects` (from `main` at `99f7e26`)
-- **Last commit:** see `git log -1` (`docs(context): milestone 7 complete`)
-- **Latest tag:** `m06-nextjs` (on `99f7e26`)
+- **Current milestone:** 8 — Rapier mode (branch created, no code yet)
+- **Current branch:** `milestone/08-rapier` (from `main` at `d6054ae`)
+- **Last commit:** see `git log -1` (`docs(context): record milestone 7 merge and start milestone 8`)
+- **Latest tag:** `m07-effects` (on `d6054ae`)
 
 ## Done so far
 
-- Milestones 0–6 merged and tagged (see `PROGRESS.md`; ADR-001..035). Latest: M5 React + React Router (PR #5, `0d4d85f`, `m05-react-router`), M6 Next.js App Router (PR #6, `99f7e26`, `m06-nextjs`), all three engines green.
-- What works: `shatter-router` (core), `shatter-router/react`, `shatter-router/react-router` (use `createShatterBrowserRouter` in data mode), `shatter-router/next` (`waitFor`, `data-shatter-pending`). Examples: `examples/vanilla` (4173), `examples/react-router` (4174), `examples/next` (4175, build needs `NEXT_TELEMETRY_DISABLED=1` locally). Back/forward shatter in all of them; the adapters take over scroll restoration for history moves (ADR-030, 031, 035).
+- Milestones 0–7 merged and tagged (see `PROGRESS.md`; ADR-001..036). Latest: M7 Remaining effects (PR #7, `d6054ae`, `m07-effects`): `explode`, `implode`, `flip`, `assemble`, the incoming-page capture, `backForward`, all three engines green.
+- What works: core + `shatter-router/react`, `/react-router` (`createShatterBrowserRouter` in data mode), `/next` (`waitFor`, `data-shatter-pending`); five effects with first- and last-frame seam tests; back/forward effects with scroll restoration. Examples: vanilla (4173, `/effects` page), react-router (4174), next (4175; `NEXT_TELEMETRY_DISABLED=1` locally).
 
-- Follow-up fixes (start of Milestone 7): the vanilla back/forward test now checks the lifecycle events of each history move (`window.__shatterEvents` in the vanilla example, shared helpers `lifecycleEvents`/`clearLifecycleEvents`/`FULL_EFFECT` in `e2e/hook.ts`) instead of the hook's last values; `test/route-bridge.test.ts` covers the ADR-035 clamp rule (mutation-checked), an app scroll winning, the same-URL fast path and fragment scrolling; `shatter-router/react` links and `useShatterNavigate` scroll to a `#fragment` like the router adapters (`scrollToFragment` moved to `src/react/shared.ts`). 272 unit tests; local e2e 139 passed, 9 skipped.
+## Next 3 steps (Milestone 8)
 
-- Milestone 7 implemented on this branch: `explode`, `implode`, `flip`, `assemble` (`src/engine/effects/`), `core/spring.ts` (`settle`), interface refinements (layers, `uThickness`, `uIncoming`, `settle()`, fragment hook on all faces), incoming capture with `shatter` as substitute, final rest frame + `settled` pause, `backForward` (ADR-036). Vanilla example `/effects` page. 301 unit tests; local e2e 165 passed, 9 skipped. Visual check done.
-
-- PR [#7](https://github.com/abdullahasghar966/shatter-router/pull/7) green on all three engines on the first run (numbers in PROGRESS).
-
-## Next 3 steps
-
-1. **Merge PR #7** once the last push is green: `gh pr merge 7 --merge`; tag `m07-effects` on main and push it.
-2. Create `milestone/08-rapier` from main; first commit records PR #7, merge SHA and tag in PROGRESS and refreshes HANDOFF.
-3. **Milestone 8:** `physics: 'rapier'` as an optional lazy chunk (`shatter-router/rapier`), `@dimforge/rapier3d-compat` optional peer loaded with dynamic `import()` and `await RAPIER.init()`, convex-hull colliders from the extruded cells (cuboid when `convexHull()` returns null), `floor: true`, 100 px = 1 m, fixed 1/60 s step with an accumulator, per-shard mat4 written to a float texture read with `texelFetch` (one draw call), initial impulses from the procedural formula. Read the installed rapier types first.
+1. **Read the installed APIs first (rule 3):** `npm view @dimforge/rapier3d-compat version`; add it as a dev + optional peer dependency; read its `.d.ts` for `init()`, `World`, `RigidBodyDesc.dynamic()`, `ColliderDesc.convexHull()` (may return null), `ColliderDesc.cuboid()`, `world.step()`, `world.timestep`, body `translation()`/`rotation()`, `applyImpulse`/`setLinvel`/`setAngvel`, `free()`. Check the WASM loading under CSP (`'wasm-unsafe-eval'`, section 9). Record in LEARNINGS.
+2. **Design (ADR):** `shatter-router/rapier` exports a physics plugin (e.g. `rapierPhysics()`), passed in options (`physics: 'rapier'` resolves it lazily with `import()`), so the core never imports rapier. Engine: a second motion path where per-shard transforms (mat4 = 4 RGBA32F texels per shard) come from a texture updated each frame, read with `texelFetch` in the vertex shader; still one draw call; procedural initial impulses (same formula as `shatter`); 100 px = 1 m; fixed 1/60 s step with accumulator; optional floor collider at the viewport bottom (`floor: true`); fade; free the world after `end`. Size budget for the rapier chunk (rapier itself is a peer).
+3. Example toggle (`?physics=rapier`, `?floor`), unit tests (integrator/accumulator, transform packing), e2e (rapier transition completes, no console errors, strict CSP falls back), measurements (step time per frame at 160 shards). Then the ritual and tag `m08-rapier`.
 
 ## Deferred (tracked, not forgotten)
 
