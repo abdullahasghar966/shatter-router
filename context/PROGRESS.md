@@ -18,8 +18,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 6   | Next.js App Router adapter    | ☑      | `milestone/06-nextjs`         | [#6](https://github.com/abdullahasghar966/shatter-router/pull/6) | `99f7e26` | `m06-nextjs` |
 | 7   | Remaining effects             | ☑      | `milestone/07-effects`        | [#7](https://github.com/abdullahasghar966/shatter-router/pull/7) | `d6054ae` | `m07-effects` |
 | 8   | Rapier mode                   | ☑      | `milestone/08-rapier`         | [#8](https://github.com/abdullahasghar966/shatter-router/pull/8) | `13d4fb6` | `m08-rapier` |
-| 9   | Glass shading polish          | ◐      | `milestone/09-glass-shading`  |     |           |             |
-| 10  | Performance pass              | ☐      | `milestone/10-performance`    |     |           |             |
+| 9   | Glass shading polish          | ☑      | `milestone/09-glass-shading`  | [#9](https://github.com/abdullahasghar966/shatter-router/pull/9) | `48476d2` | `m09-glass-shading` |
+| 10  | Performance pass              | ◐      | `milestone/10-performance`    |     |           |             |
 | 11  | Docs site                     | ☐      | `milestone/11-docs-site`      |     |           |             |
 | 12  | Release readiness             | ☐      | `milestone/12-release`        |     |           |             |
 
@@ -81,6 +81,8 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | capture `dist/capture.js` (lazy) | 11.94 kB | 16 KB | Milestone 4: + substitutes for iframe/video/ignored, CORS image rule |
 | 2026-11-15 | `shatter-router/react` (`dist/react.js`, incl. core) | 2.46 kB | 6 KB (ADR-027) | Milestone 5; react, react-dom excluded (peers) |
 | 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
+| 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
+| 2026-11-15 | debug `dist/debug.js` (lazy, debug mode only) | 3.44 kB | 5 KB (own) | Milestone 10: debug panel and seam check (ADR-041). Runtime 7.55 kB of 8 KB (+0.32: panel loading, `exclusive()`, draw stats); engine 19.76 kB |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
 
@@ -232,6 +234,15 @@ Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 
 Visual check (headless Chromium screenshots, 1280x720, motion frozen at 450 ms): forward Home → Work shatters the Home page from the click point over the live Work page; back Work → Home shatters the Work page from the viewport centre over the live Home page. No console errors or warnings.
 
+### Debug panel (Milestone 10, section 10, ADR-041)
+
+Screenshot: `context/screenshots/m10-debug-panel.jpg` (installed Chrome headed, RTX 4050, after a `shatter` transition with 160 shards and a tab-capture seam check). The panel showed capture 9 ms, cover 78 ms, wait 25 ms, animate 1201 ms, 160 shards (5.3 ms), tier high, 60.0 fps (worst 17 ms), draw calls 1.00 per frame, textures 0.
+
+| Seam check mode | Where | Result |
+|---|---|---|
+| capture vs overlay (no screen capture) | headless Chromium, WebKit (e2e) | 0.000 % |
+| tab capture (`getDisplayMedia`, auto-accepted with `--auto-accept-this-tab-capture`) | Chrome headed, Windows 11, window 1440x870 after the sharing bar, stream 1788x1080 | 1.131 %, all on text edges (ClearType live vs grayscale capture, ADR-009, plus the stream's scaling) |
+
 ### Glass shading review (Milestone 9)
 
 Same frames before (commit `f7a764d`) and after, headless Chromium 1255, 1280x720, `/effects?seed=7&shards=90&duration=1000`, same click point, motion frozen with `setMotionTime` (script `coverage/m9/shading-shots.mjs`, not in the repo):
@@ -263,9 +274,27 @@ Visual check (headless Chromium): without a floor, shards tumble and collide whi
 | 2026-11-15 | Headless Chromium (CDP heap after forced GC), 40 shards, 60 ms motion | heap 3.02 MB → 3.14 MB (+119 kB) after 100 transitions (10 warm-up first); live GPU textures after every transition: 0 |
 | 2026-11-15 | PR #4 CI (ubuntu-latest), same test | heap 3.02 MB → 3.13 MB (+117 kB); textures 0 |
 
+### Performance budgets (Milestone 10, section 8; `e2e/vanilla/performance.spec.ts`, ADR-040)
+
+Real GPU: `SHATTER_PERF=1 npx playwright test e2e/vanilla/performance.spec.ts --project=chromium --workers=1` runs installed Google Chrome headed (`channel: 'chrome'`). Renderer: `ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11 vs_5_0 ps_5_0, D3D11)`, Windows 11, 1440x900, `/effects`, 160 shards, `seed=7`, second run after an in-document warm-up (2026-11-15):
+
+| Effect | Frames / ms | fps | Worst frame | Capture | start→covered | covered→animating | Draw calls per frame | Long tasks outside capture |
+|---|---|---|---|---|---|---|---|---|
+| shatter | 62 / 1016 | 60.0 | 17.1 ms | 22.7 ms | 55 ms | 34 ms | 1 (76 frames) | none |
+| explode | 68 / 1116 | 60.0 | 17.1 ms | 22.0 ms | 55 ms | 33 ms | 1 (82 frames) | none |
+| implode | 61 / 1000 | 60.0 | 17.0 ms | 23.5 ms | 55 ms | 33 ms | 1 (75 frames) | none |
+| flip | 63 / 1033 | 60.0 | 17.0 ms | 21.4 ms | 55 ms | 91 ms (incoming capture) | 1 (79 frames) | none |
+| assemble | 75 / 1233 | 60.0 | 17.0 ms | 20.7 ms | 53 ms | 88 ms (incoming capture) | 1 (90 frames) | none |
+
+- **Draw calls:** every `clear` is followed by exactly one draw call, from the intact quad and the crack to the last shard frame, on Chromium, WebKit (and Firefox in CI).
+- **Allocations per frame** (exact CDP allocation tracking, `e2e/alloc.ts`, ADR-040; headless Chromium, 3 runs × 5 effects, 3 s motion): **0 B beyond boxed numbers** for `shatter`, `implode`, `flip`, `assemble` in every run. `explode` measured 0, 176 and 576 B over 31–57 frames (padding noise in its offset maths, ≤ 15 B per frame). A planted 44 B object per frame measured 1072–1664 B (31–32 B per frame) and failed. The first attempt, the sampling profiler, had reported 0 samples while two per-frame allocations existed in unoptimised code. Both are fixed: the array destructuring in `draw()` (35 B per frame) and `for...of` plus a tuple per shard in the effects' `isComplete`. Rapier mode: our simulation allocates nothing (indexed loops since M10), but Rapier 0.21's getters and `World.step` do: Node probe, 160 shards: 20 000 `write()` calls → 25 scavenges, the same as the 3.2 M `translation`/`rotation`/`linvel` calls they make (9 + 12 + 6); 2 000 `world.step()` → 12.
+- **Textures:** `textureCount()` 0 after every `end` (also the 100-transition memory test).
+- **Capture:** 20.7–23.5 ms on `/effects` at 1440x900 (budget 120 ms on the docs landing page: re-measure in M11).
+- Headless Chromium (SwiftShader) for comparison: 31–34 fps for the falling effects, 13–15 fps for `flip`/`assemble`, long tasks 51–108 ms (software rasterising), draw calls still 1 per frame. Headless WebKit: 10.6–11.1 fps, no long tasks reported. These are environment limits, so CI prints the numbers without enforcing them.
+
 ### Not measured yet
 
-Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later milestones.
+Lighthouse, and capture on the docs landing page (M11).
 
 ## Test counts
 
@@ -280,3 +309,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped. PR #7 CI: Chromium 87 passed, Firefox 79, WebKit 79 |
 | 8 | 311 tests in 22 files (+ `rapier.test.ts` 8 with the real Rapier WASM, `rapier.bench.test.ts` 2) | + `e2e/vanilla/rapier.spec.ts` 4 per engine (Rapier shatter, floor pile, flip stays procedural, CSP without wasm-unsafe-eval stays procedural). Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #8 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
 | 9 | 318 tests in 23 files (+ `shading.test.ts` 7: tint parsing, fade-in, aberration, shader gates, options) | unchanged suites; every first/last-frame seam identical to M7. Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #9 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
+| 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged |

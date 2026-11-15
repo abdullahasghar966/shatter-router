@@ -41,7 +41,7 @@ function EventLog({ enabled }: { enabled: boolean }): null {
 function Layout({ options, dataMode }: { options: ShatterOptions; dataMode: boolean }): ReactNode {
   return (
     <ShatterProvider options={options}>
-      <EventLog enabled={options.debug === true} />
+      <EventLog enabled={Boolean(options.debug)} />
       <header className="site-header">
         <ShatterLink className="brand" to="/">
           Shatter<span>/</span>Router

@@ -148,10 +148,18 @@
       "import": "*",
       "ignore": [
         "./engine.js",
-        "./capture.js"
+        "./capture.js",
+        "./debug.js"
       ],
       "gzip": true,
       "limit": "8 KB"
+    },
+    {
+      "name": "debug chunk (lazy: debug panel and seam check, debug mode only)",
+      "path": "dist/debug.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "5 KB"
     },
     {
       "name": "engine chunk (lazy: renderer, fracture, effects)",

@@ -106,6 +106,8 @@ export class FakeWorld {
       overlayElement: world.overlay,
       wireframe: false,
       lastLoopStats: { frames: 61, durationMs: 1000, worstFrameMs: 17 },
+      drawStats: { calls: 0, frames: 0 },
+      readPixels: () => ({ width: 2, height: 1, data: new Uint8Array(8) }),
       resolveEffect(
         effect: string | ShatterEffect,
         registered: ReadonlyMap<string, ShatterEffect>,
@@ -157,6 +159,11 @@ export class FakeWorld {
         await untilOpenOrAborted(world.animateGate, options.signal);
         if (world.animateError) throw world.animateError;
         world.calls.push(options.signal?.aborted ? 'animate:skipped' : 'animate:done');
+        const { frames } = engine.lastLoopStats;
+        engine.drawStats = {
+          calls: engine.drawStats.calls + frames,
+          frames: engine.drawStats.frames + frames,
+        };
         return engine.lastLoopStats;
       },
       setCrack: () => undefined,

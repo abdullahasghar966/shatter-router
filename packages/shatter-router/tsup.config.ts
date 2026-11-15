@@ -1,5 +1,20 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { defineConfig } from 'tsup';
+import { defineConfig, type Options } from 'tsup';
+import { minifyGlslTemplates } from './build/glsl';
+
+type EsbuildPlugin = NonNullable<Options['esbuildPlugins']>[number];
+
+/** Strips comments and indentation from `/* glsl *\/` templates (ADR-039). */
+const glslMinify: EsbuildPlugin = {
+  name: 'glsl-minify',
+  setup(build) {
+    build.onLoad({ filter: /[\\/]src[\\/].*\.ts$/ }, async (args) => {
+      const source = await readFile(args.path, 'utf8');
+      if (!source.includes('/* glsl */')) return undefined;
+      return { contents: minifyGlslTemplates(source), loader: 'ts' };
+    });
+  },
+};
 
 /**
  * Entries that export React components. esbuild drops module directives when
@@ -24,10 +39,12 @@ export default defineConfig({
     engine: 'src/engine/index.ts',
     capture: 'src/capture/index.ts',
     'rapier-backend': 'src/rapier/backend.ts',
+    debug: 'src/debug/index.ts',
   },
   // Optional peers stay external. tsup's automatic peer handling missed this
   // scoped one and inlined 4.2 MB of Rapier (LEARNINGS).
   external: ['@dimforge/rapier3d-compat'],
+  esbuildPlugins: [glslMinify],
   format: ['esm'],
   target: 'es2022',
   platform: 'browser',

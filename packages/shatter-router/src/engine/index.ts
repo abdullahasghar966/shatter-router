@@ -148,6 +148,7 @@ export class Engine {
   private flash = 0;
   private time = 0;
   private drawCalls = 0;
+  private drawnFrames = 0;
 
   constructor(doc: Document) {
     const win = doc.defaultView;
@@ -180,9 +181,9 @@ export class Engine {
     return this.device.textureCount;
   }
 
-  /** Draw calls issued for the most recent frame. */
-  get lastFrameDrawCalls(): number {
-    return this.drawCalls;
+  /** GL draw calls and drawn frames since the engine was created (debug panel). */
+  get drawStats(): { readonly calls: number; readonly frames: number } {
+    return { calls: this.drawCalls, frames: this.drawnFrames };
   }
 
   /** Frame statistics of the most recent crack or motion phase. */
@@ -586,8 +587,10 @@ export class Engine {
       // Lighting is exactly 0 until the motion starts and fades in over 60 ms.
       gl.uniform1f(program.uniform('uLight'), this.moving ? lightFade(this.time) : 0);
       gl.uniform1f(program.uniform('uChromatic'), this.shading.chromatic ? 1 : 0);
-      const [r, g, b] = this.shading.tint;
-      gl.uniform3f(program.uniform('uTint'), r, g, b);
+      // Indexed, not destructured: array destructuring creates an iterator
+      // per frame in unoptimised code (ADR-040).
+      const tint = this.shading.tint;
+      gl.uniform3f(program.uniform('uTint'), tint[0], tint[1], tint[2]);
       gl.uniform1f(program.uniform('uMoving'), this.moving ? 1 : 0);
       gl.uniform1f(program.uniform('uDuration'), state ? state.duration / 1000 : 1);
       gl.uniform1f(program.uniform('uGravity'), state ? state.gravity : 0);
@@ -617,7 +620,9 @@ export class Engine {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
     gl.bindVertexArray(null);
-    this.drawCalls = 1;
+    // Either branch above issues exactly one draw call.
+    this.drawCalls += 1;
+    this.drawnFrames += 1;
   }
 
   /**

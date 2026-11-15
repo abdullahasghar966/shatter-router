@@ -4,5 +4,5 @@
     "types": [],
     "jsx": "react-jsx"
   },
-  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts"]
+  "include": ["src", "test", "build", "tsup.config.ts", "vitest.config.ts"]
 }

@@ -4,6 +4,7 @@ export type {
   PausePoint,
   Point,
   Shatter,
+  ShatterDebugOptions,
   ShatterEventHandler,
   ShatterEventMap,
   ShatterEventName,

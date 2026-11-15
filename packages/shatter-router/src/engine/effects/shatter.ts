@@ -96,7 +96,11 @@ void shardMotion(Shard shard, inout Pose pose) {
     // Done early once every shard has fallen below the viewport.
     const seconds = t / 1000;
     const data = ctx.attributes;
-    for (const shard of ctx.shards) {
+    const { shards } = ctx;
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this runs every frame (ADR-040)
+    for (let i = 0; i < shards.length; i++) {
+      const shard = shards[i];
+      if (!shard) continue;
       const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
       const local = Math.max(0, seconds - (data[o + 3] ?? 0));
       const y = shard.centroid.y + (data[o + 1] ?? 0) * local + 0.5 * ctx.gravity * local * local;

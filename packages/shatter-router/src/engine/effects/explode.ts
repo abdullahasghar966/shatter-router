@@ -17,18 +17,17 @@ const MAX_STRETCH = 0.6;
 const FADE_START = 0.55;
 
 /** Screen-plane position offset of a shard at `t` s (the shader's formula, for completion checks). */
-function offsetAt(
-  vx: number,
-  vy: number,
-  delay: number,
-  gravity: number,
-  t: number,
-): [number, number] {
+function offsetAt(vx: number, vy: number, delay: number, gravity: number, t: number): Float64Array {
   const local = Math.max(0, t - delay);
   const travel = (1 - Math.exp(-DRAG * local)) / DRAG;
   const fall = Math.max(0, local - GRAVITY_DELAY);
-  return [vx * travel, vy * travel + 0.5 * gravity * fall * fall];
+  OFFSET[0] = vx * travel;
+  OFFSET[1] = vy * travel + 0.5 * gravity * fall * fall;
+  return OFFSET;
 }
+
+/** `offsetAt`'s result, reused: `isComplete` runs every frame and must not allocate (ADR-040). */
+const OFFSET = new Float64Array(2);
 
 /**
  * `explode`: a violent radial blast from the impact point with no gravity at
@@ -101,17 +100,21 @@ void shardMotion(Shard shard, inout Pose pose) {
     // Done early once every shard is outside the viewport (generous margin).
     const seconds = t / 1000;
     const data = ctx.attributes;
-    for (const shard of ctx.shards) {
+    const { shards } = ctx;
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this runs every frame (ADR-040)
+    for (let i = 0; i < shards.length; i++) {
+      const shard = shards[i];
+      if (!shard) continue;
       const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
-      const [dx, dy] = offsetAt(
+      const offset = offsetAt(
         data[o] ?? 0,
         data[o + 1] ?? 0,
         data[o + 3] ?? 0,
         ctx.gravity,
         seconds,
       );
-      const x = shard.centroid.x + dx;
-      const y = shard.centroid.y + dy;
+      const x = shard.centroid.x + (offset[0] ?? 0);
+      const y = shard.centroid.y + (offset[1] ?? 0);
       const reach = Math.sqrt(shard.area) * (2 + MAX_STRETCH);
       const inside =
         x + reach > -ctx.width * 0.5 &&
