@@ -1,43 +1,32 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 2, Milestone 5 merged, Milestone 6 branch created)
+- **Last updated:** 2026-11-15 (session 2, Milestone 6 merged, Milestone 7 branch created)
 - **Session:** 2
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 6 — Next.js App Router adapter (complete; PR #6 green, merge next)
-- **Current branch:** `milestone/06-nextjs` (from `main` at `0d4d85f`)
-- **Last commit:** see `git log -1` (`docs(context): milestone 6 complete`)
-- **Latest tag:** `m05-react-router` (on `0d4d85f`)
+- **Current milestone:** 7 — Remaining effects (branch created, no code yet)
+- **Current branch:** `milestone/07-effects` (from `main` at `99f7e26`)
+- **Last commit:** see `git log -1` (`docs(context): record milestone 6 merge and start milestone 7`)
+- **Latest tag:** `m06-nextjs` (on `99f7e26`)
 
 ## Done so far
 
-- Milestones 0–4 merged and tagged (see `PROGRESS.md`; ADR-001..025).
-- Milestone 5 merged: PR [#5](https://github.com/abdullahasghar966/shatter-router/pull/5), merge `0d4d85f`, tag `m05-react-router`, all three engines green:
-  - `shatter-router/react` (router-agnostic provider, link, hooks) and `shatter-router/react-router` (provider inside the router, `ShatterLink`, `ShatterNavLink`, `useShatterNavigate`, `ShatterRouteSignal`, `createShatterBrowserRouter`). ADR-026..028, 030, 031.
-  - Capture fixes found by the React Router example on CI: form-control fonts (ADR-029, 032, 033).
-  - `examples/react-router` (port 4174) with e2e `e2e/react-router/*` (16 per engine).
-  - Unit 257 tests. Measurements in PROGRESS.
+- Milestones 0–6 merged and tagged (see `PROGRESS.md`; ADR-001..035). Latest: M5 React + React Router (PR #5, `0d4d85f`, `m05-react-router`), M6 Next.js App Router (PR #6, `99f7e26`, `m06-nextjs`), all three engines green.
+- What works: `shatter-router` (core), `shatter-router/react`, `shatter-router/react-router` (use `createShatterBrowserRouter` in data mode), `shatter-router/next` (`waitFor`, `data-shatter-pending`). Examples: `examples/vanilla` (4173), `examples/react-router` (4174), `examples/next` (4175, build needs `NEXT_TELEMETRY_DISABLED=1` locally). Back/forward shatter in all of them; the adapters take over scroll restoration for history moves (ADR-030, 031, 035).
 
-- Milestone 6, sub-task 1: next 16.4.6 installed and read (LEARNINGS); `src/next/` builds `shatter-router/next` (`ShatterProvider` with `waitFor`, `ShatterLink`, `useShatterNavigate`, `useShatter`, `PENDING_ATTRIBUTE`); bridge and pop gate moved to `src/react/` and shared (ADR-034); `"use client"` added to built client entries; 9 unit tests in `test/next.test.tsx` (266 total).
+## Next 3 steps (Milestone 7)
 
-- Milestone 6, sub-task 2: `examples/next` (next 16.4.6, port 4175: root layout + client `Providers`, header of `ShatterLink`s, `/`, `/work`, `/about`, `/slow` with a 400 ms server component and `loading.tsx` marked `data-shatter-pending`, not-found, "Navigate in code"); e2e `e2e/next/navigation.spec.ts` (11) and `transitions.spec.ts` (6); ADR-035 (clamped scroll is not an app scroll). Local full suite Chromium + WebKit: 139 passed, 9 skipped. Visual check done (PROGRESS).
-
-- PR [#6](https://github.com/abdullahasghar966/shatter-router/pull/6) open; all three engines green on the first CI run (numbers in PROGRESS).
-
-## Next 3 steps
-
-1. **Merge PR #6** once the checks of the last push are green: `gh pr merge 6 --merge`; then on main `git tag -a m06-nextjs -m "Milestone 06 complete"` and push the tag.
-2. Create `milestone/07-effects` from main; first commit records PR #6, merge SHA and tag in PROGRESS (row 6 done, row 7 in progress) and refreshes HANDOFF.
-3. **Milestone 7:** `explode`, `implode`, `flip`, `assemble` written only against the public `ShatterEffect` interface (`src/core/effect.ts`, `src/engine/effects/`), incoming snapshot for `flip`/`assemble` (`needsIncomingSnapshot`), critically damped spring settle, last-frame seam tests, plugin interface docs, and `backForward: 'reverse'` (ADR-025).
+1. **Read the effect plumbing first:** `packages/shatter-router/src/core/effect.ts` (public `ShatterEffect`, `EffectContext`, `ShardAttributes`, GLSL hook docs), `src/engine/effects/` (the `shatter` effect written against it), `src/engine/index.ts` (`resolveEffect`, `prepareMotion`, `animate`), `src/runtime/index.ts` (pipeline; `needsIncomingSnapshot` is not wired yet: capture the new viewport under the overlay after the waiting phase, section 4.7). ADR-018, 021, 025.
+2. **Implement `explode` and `implode`** (no incoming snapshot) as plugin objects against the public interface only, with unit tests like `test/effect-shatter.test.ts` and e2e in `e2e/vanilla/effect.spec.ts` (per-link `data-shatter-effect`). Then **`flip` and `assemble`**: incoming snapshot, second texture, back faces / fly-in, critically damped spring settle that never overshoots on the last frame, last-frame seam tests (live DOM after reveal vs overlay's last frame). Then `backForward: 'reverse' | 'same' | 'none'` (`shatter` reversed = `assemble`), documented mapping.
+3. Plugin interface docs (GLSL hook points, uniforms, attributes) in the code docs now, README in M12. Then the ritual (A.5) and tag `m07-effects`.
 
 ## Deferred (tracked, not forgotten)
 
 - `backForward: 'reverse'` → Milestone 7 with `assemble` (ADR-025).
 - Debug panel (section 10) → Milestone 10 (ADR-025).
 - `physics: 'rapier'` → M8. `glassTint`, `chromatic`, lighting fade-in → M9. README items (`scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, popstate note from ADR-026) → M12.
-- `'use client'` for the React entries is handled with the Next.js adapter (M6).
 
 ## Open problems / blockers
 
