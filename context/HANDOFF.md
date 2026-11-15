@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 9 — Glass shading polish (implemented; PR next)
+- **Current milestone:** 9 — Glass shading polish (complete; PR #9 green, merge next)
 - **Current branch:** `milestone/09-glass-shading` (from `main` at `13d4fb6`)
-- **Last commit:** see `git log -1` (`feat(shading): glass lighting, chromatic aberration and tint`)
+- **Last commit:** see `git log -1` (`docs(context): milestone 9 complete`)
 - **Latest tag:** `m08-rapier` (on `13d4fb6`)
 
 ## Done so far
@@ -20,7 +20,7 @@
 
 ## Next 3 steps (Milestone 9)
 
-1. **Ritual (A.5):** PR "Milestone 09: Glass shading polish" (ADR-038, the screenshots, seams unchanged, engine size 21.58/22 KB), `gh pr checks --watch`; record the CI seams (Firefox, Linux WebKit) in PROGRESS.
+1. **Merge PR [#9](https://github.com/abdullahasghar966/shatter-router/pull/9)** (green on all three engines on the first run, CI seams identical to M7): `gh pr merge 9 --merge`.
 2. Merge with `--merge`, tag `m09-glass-shading`, push the tag.
 3. Create `milestone/10-performance` from main (first commit records PR/merge/tag). Milestone 10 (section 8): measure and meet every budget on a real GPU (60 fps at 1440x900 with 160 shards, one draw call and no per-frame allocations from a Performance trace, capture ≤ 120 ms on the docs landing page once it exists, no long task > 50 ms outside capture, textures freed after `end`); strip GLSL comments from shader strings at build to regain engine headroom; build the debug panel (section 10, ADR-025).
 
