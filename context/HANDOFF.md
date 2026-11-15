@@ -1,28 +1,26 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 2, Milestone 8 merged, Milestone 9 branch created)
+- **Last updated:** 2026-11-15 (session 2, Milestone 9 merged, Milestone 10 branch created)
 - **Session:** 2
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
 ## Where we are
 
-- **Current milestone:** 9 — Glass shading polish (complete; PR #9 green, merge next)
-- **Current branch:** `milestone/09-glass-shading` (from `main` at `13d4fb6`)
-- **Last commit:** see `git log -1` (`docs(context): milestone 9 complete`)
-- **Latest tag:** `m08-rapier` (on `13d4fb6`)
+- **Current milestone:** 10 — Performance pass (branch created, no code yet)
+- **Current branch:** `milestone/10-performance` (from `main` at `48476d2`)
+- **Last commit:** see `git log -1` (`docs(context): record milestone 9 merge and start milestone 10`)
+- **Latest tag:** `m09-glass-shading` (on `48476d2`)
 
 ## Done so far
 
-- Milestones 0–8 merged and tagged (see `PROGRESS.md`; ADR-001..037). Latest: M8 Rapier mode (PR #8, `13d4fb6`, `m08-rapier`): `physics: rapier({ floor })` from `shatter-router/rapier` (ADR-037), all three engines green.
-- What works: core + `shatter-router/react`, `/react-router` (`createShatterBrowserRouter` in data mode), `/next` (`waitFor`, `data-shatter-pending`), `/rapier`; five effects with first- and last-frame seam tests; back/forward effects with scroll restoration; Rapier physics for `shatter`/`explode` with procedural fallback. Examples: vanilla (4173: `/effects`, `?physics=rapier&floor`, `csp.html`, `csp-wasm.html`), react-router (4174), next (4175; `NEXT_TELEMETRY_DISABLED=1` locally).
+- Milestones 0–9 merged and tagged (see `PROGRESS.md`; ADR-001..038). Latest: M9 Glass shading polish (PR #9, `48476d2`, `m09-glass-shading`): rim light, glint, chromatic aberration (`glassSample`), tinted sides, `glassTint`/`chromatic` options, all exactly zero at rest (ADR-038); seams unchanged on all three engines.
+- What works: core + `shatter-router/react`, `/react-router` (`createShatterBrowserRouter` in data mode), `/next` (`waitFor`, `data-shatter-pending`), `/rapier`; five effects with first- and last-frame seam tests; back/forward effects with scroll restoration; Rapier physics with procedural fallback; glass shading. Examples: vanilla (4173: `/effects`, `?physics=rapier&floor`, `csp.html`, `csp-wasm.html`), react-router (4174), next (4175; `NEXT_TELEMETRY_DISABLED=1` locally). Review scripts belong in `coverage/` (Playwright wipes `test-results/`).
 
-- Milestone 9 implemented on this branch: glass lighting (rim, glint), chromatic aberration (`glassSample`), tinted sides, options `glassTint` and `chromatic`, all gated by the 60 ms fade-in and the rest pose (ADR-038). Before/after screenshots in `context/screenshots/` (PROGRESS). 318 unit tests; local e2e 173 passed, 9 skipped; seams unchanged.
+## Next 3 steps (Milestone 10: performance pass, master prompt section 8)
 
-## Next 3 steps (Milestone 9)
-
-1. **Merge PR [#9](https://github.com/abdullahasghar966/shatter-router/pull/9)** (green on all three engines on the first run, CI seams identical to M7): `gh pr merge 9 --merge`.
-2. Merge with `--merge`, tag `m09-glass-shading`, push the tag.
-3. Create `milestone/10-performance` from main (first commit records PR/merge/tag). Milestone 10 (section 8): measure and meet every budget on a real GPU (60 fps at 1440x900 with 160 shards, one draw call and no per-frame allocations from a Performance trace, capture ≤ 120 ms on the docs landing page once it exists, no long task > 50 ms outside capture, textures freed after `end`); strip GLSL comments from shader strings at build to regain engine headroom; build the debug panel (section 10, ADR-025).
+1. **Regain engine headroom first:** the engine chunk is 21.58 of 22 KB. Strip GLSL comments and collapse whitespace in the shader template strings at build time (an esbuild plugin in `tsup.config.ts` that rewrites `/* glsl */` templates, or minify the strings in `src/engine/shaders.ts` and the effect chunks through a small build-time function), verify the shaders still compile (e2e) and record the new size.
+2. **Measure every section 8 budget on a real GPU** (headed Chrome on the RTX 4050 through Playwright, not the throttled app pane): 60 fps at 1440x900 with 160 shards for each effect; one draw call per frame; no per-frame allocations (Chrome DevTools Protocol `HeapProfiler` sampling or a Performance trace via `page.context().tracing` / CDP `Tracing`); no long task > 50 ms outside the capture step (PerformanceObserver `longtask`); textures freed after `end` (already: `textureCount` 0); capture time on the example pages (the docs landing page arrives in M11, re-measure there). Record device, browser and numbers in PROGRESS.
+3. **Debug panel (section 10, ADR-025):** shadow-DOM panel when `debug: true`: state machine state and phase timings, shard count, device tier, FPS, draw calls, wireframe toggle and impact point, and a "seam check" button that captures the live DOM and the overlay frame and shows a diff heatmap with the % of differing pixels. Lazy (debug only), its own size budget. Then the ritual and tag `m10-performance`.
 
 ## Deferred (tracked, not forgotten)
 

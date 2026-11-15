@@ -18,8 +18,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 6   | Next.js App Router adapter    | ☑      | `milestone/06-nextjs`         | [#6](https://github.com/abdullahasghar966/shatter-router/pull/6) | `99f7e26` | `m06-nextjs` |
 | 7   | Remaining effects             | ☑      | `milestone/07-effects`        | [#7](https://github.com/abdullahasghar966/shatter-router/pull/7) | `d6054ae` | `m07-effects` |
 | 8   | Rapier mode                   | ☑      | `milestone/08-rapier`         | [#8](https://github.com/abdullahasghar966/shatter-router/pull/8) | `13d4fb6` | `m08-rapier` |
-| 9   | Glass shading polish          | ◐      | `milestone/09-glass-shading`  |     |           |             |
-| 10  | Performance pass              | ☐      | `milestone/10-performance`    |     |           |             |
+| 9   | Glass shading polish          | ☑      | `milestone/09-glass-shading`  | [#9](https://github.com/abdullahasghar966/shatter-router/pull/9) | `48476d2` | `m09-glass-shading` |
+| 10  | Performance pass              | ◐      | `milestone/10-performance`    |     |           |             |
 | 11  | Docs site                     | ☐      | `milestone/11-docs-site`      |     |           |             |
 | 12  | Release readiness             | ☐      | `milestone/12-release`        |     |           |             |
 
