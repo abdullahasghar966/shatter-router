@@ -108,6 +108,10 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **tsup 9.0.0 inlined the optional peer `@dimforge/rapier3d-compat`** (dist/rapier-backend.js 4.2 MB) although it is listed in `peerDependencies`; react, react-router and next were externalised automatically. Fix: `external: ['@dimforge/rapier3d-compat']` in `tsup.config.ts`; size-limit caught it.
 - **Flaky unit test under load:** the React Router data-mode timeout test used `readyTimeout: 40` and checked at 10 ms; with the Rapier tests loading the CPU, timers fired late. Margins widened (300 ms / 30 ms / 450 ms).
 
+- **Playwright's `outputDir` (`test-results/`) is wiped at the start of every run**, scratch scripts and screenshots included: the M9 "before" frames were lost and rebuilt from the pre-shading commit in a `git worktree`. Keep review scripts and shots in `coverage/` (gitignored, untouched by Playwright).
+- **`git worktree remove` fails on Windows with "Filename too long"** when the worktree has `node_modules`; delete it with PowerShell `Remove-Item -LiteralPath '\\?\<path>' -Recurse`, then `git worktree prune`.
+- **GLSL ES 3.00:** a global may not be initialised from a uniform, but a plain global can be assigned in `main()`; effect chunks keep reading `uTime` while the engine evaluates `shardMotion` at two times. `normalize()` of constants is a valid constant expression.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.

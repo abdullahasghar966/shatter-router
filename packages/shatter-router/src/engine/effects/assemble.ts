@@ -96,7 +96,7 @@ void shardMotion(Shard shard, inout Pose pose) {
   fragmentChunk: /* glsl */ `
 void shardFragment(inout vec4 color) {
   if (vLayer < 0.5) return;
-  vec4 page = texture(uIncoming, vUv);
+  vec4 page = glassSample(uIncoming, vUv);
   if (abs(vFace) < 0.5) page.rgb *= 0.55;
   else if (vFace < -0.5) page.rgb *= 0.82;
   color = page;

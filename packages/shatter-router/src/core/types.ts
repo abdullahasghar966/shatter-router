@@ -20,6 +20,10 @@ export interface ShatterOptions {
   impulse?: number;
   /** Glass thickness in CSS pixels, seen on the shards' sides as they tumble. Default 6. */
   thickness?: number;
+  /** Colour of the glass' cut edges (`#rgb` or `#rrggbb`), mixed in at 12 %. Default `'#cfe8ff'`. */
+  glassTint?: string;
+  /** Colour fringing along fast shards' motion, up to 1.5 px. Default true. */
+  chromatic?: boolean;
   /**
    * How falling shards move (`shatter`, `explode`): `'procedural'` (default,
    * closed-form in the vertex shader, no download) or a physics plugin, e.g.
