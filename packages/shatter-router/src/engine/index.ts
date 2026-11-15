@@ -10,6 +10,10 @@ import { createRandom } from '../core/random';
 import type { Snapshot } from '../core/snapshot';
 import { createPixelCamera, type PixelCamera } from './camera';
 import { CRACK_DURATION_MS, CRACK_HOLD_MS, crackAt } from './crack';
+import { assembleEffect } from './effects/assemble';
+import { explodeEffect } from './effects/explode';
+import { flipEffect } from './effects/flip';
+import { implodeEffect } from './effects/implode';
 import { shatterEffect } from './effects/shatter';
 import {
   clampShardCount,
@@ -31,9 +35,11 @@ export { GLError } from './gl';
 export type { LoopStats } from './loop';
 
 /** Effects that ship with the library, by name. */
-export const BUILT_IN_EFFECTS: ReadonlyMap<string, ShatterEffect> = new Map([
-  [shatterEffect.name, shatterEffect],
-]);
+export const BUILT_IN_EFFECTS: ReadonlyMap<string, ShatterEffect> = new Map(
+  [shatterEffect, explodeEffect, implodeEffect, flipEffect, assembleEffect].map(
+    (effect) => [effect.name, effect] as const,
+  ),
+);
 
 interface PageResources {
   readonly program: GLProgram;
@@ -101,6 +107,9 @@ export class Engine {
   private texture: WebGLTexture | null = null;
   private shardData: WebGLTexture | null = null;
   private snapshot: Snapshot | null = null;
+  /** The incoming page, for effects that end on it. */
+  private incomingTexture: WebGLTexture | null = null;
+  private incoming: Snapshot | null = null;
   private geometry: FractureGeometry | null = null;
   private effect: ShatterEffect | null = null;
   private state: EffectState | null = null;
@@ -124,6 +133,7 @@ export class Engine {
       this.programs.clear();
       this.texture = null;
       this.shardData = null;
+      this.incomingTexture = null;
     });
   }
 
@@ -318,6 +328,31 @@ export class Engine {
   }
 
   /**
+   * Uploads the capture of the incoming page (effects with
+   * `needsIncomingSnapshot`). The engine owns the snapshot from here on.
+   */
+  setIncoming(snapshot: Snapshot): void {
+    if (this.isContextLost()) {
+      snapshot.dispose();
+      throw new GLError('WebGL context is lost');
+    }
+    this.device.deleteTexture(this.incomingTexture);
+    this.incoming?.dispose();
+    this.incoming = snapshot;
+    this.incomingTexture = this.device.createTexture(snapshot.source);
+  }
+
+  /**
+   * Swaps the effect of the fractured page (before `prepareMotion`), for
+   * example when the incoming page could not be captured.
+   */
+  replaceEffect(effect: ShatterEffect): void {
+    if (!this.geometry) throw new GLError('replaceEffect() needs a fractured page');
+    this.effect = effect;
+    this.ensureEffectProgram(effect);
+  }
+
+  /**
    * Plays the crack: fracture lines grow out of the impact point until they
    * reach the farthest corner, then hold. An aborted signal jumps to the end.
    */
@@ -353,6 +388,11 @@ export class Engine {
     const effect = this.effect;
     if (!state || !effect) throw new GLError('animate() needs prepareMotion()');
     const { signal } = options;
+    // Effects that end on the incoming page get one last frame at their rest
+    // pose (uTime = duration), shown for a frame before the overlay goes: the
+    // last picture is the live page underneath (see core/effect.ts).
+    const endsAtRest = effect.needsIncomingSnapshot;
+    let finalDrawn = false;
     this.moving = true;
     this.flash = 0;
     let started = -1;
@@ -360,10 +400,16 @@ export class Engine {
       if (this.isContextLost()) throw new GLError('WebGL context was lost while animating');
       if (started < 0) started = now;
       const t = now - started;
-      const done = signal?.aborted === true || effect.isComplete(t, state);
-      // The frame in which the effect completes is the frame the overlay goes:
-      // do not draw it, the caller hides the overlay right away.
-      if (done) return true;
+      if (signal?.aborted === true || finalDrawn) return true;
+      if (effect.isComplete(t, state)) {
+        if (!endsAtRest) return true;
+        // The frame in which the effect completes is not drawn otherwise: the
+        // caller hides the overlay right away.
+        this.time = Math.max(t, state.duration) / 1000;
+        this.draw();
+        finalDrawn = true;
+        return false;
+      }
       this.time = t / 1000;
       this.draw();
       return false;
@@ -419,6 +465,10 @@ export class Engine {
       gl.activeTexture(gl.TEXTURE1);
       gl.bindTexture(gl.TEXTURE_2D, this.shardData);
       gl.uniform1i(program.uniform('uShardData'), 1);
+      // Unit 2: the incoming page; the outgoing one stands in when there is none.
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, this.incomingTexture ?? texture);
+      gl.uniform1i(program.uniform('uIncoming'), 2);
       gl.activeTexture(gl.TEXTURE0);
       gl.uniform1f(program.uniform('uMaxZ'), camera ? camera.maxZ : 0);
       gl.uniform2f(program.uniform('uViewport'), geometry.width, geometry.height);
@@ -426,19 +476,24 @@ export class Engine {
       gl.uniform1f(program.uniform('uMaxRadius'), geometry.maxRadius);
       const state = this.state;
       gl.uniform1f(program.uniform('uTime'), this.moving ? this.time : 0);
+      gl.uniform1f(program.uniform('uMoving'), this.moving ? 1 : 0);
       gl.uniform1f(program.uniform('uDuration'), state ? state.duration / 1000 : 1);
       gl.uniform1f(program.uniform('uGravity'), state ? state.gravity : 0);
       gl.uniform1f(program.uniform('uImpulse'), state ? state.impulse : 0);
+      gl.uniform1f(program.uniform('uThickness'), geometry.thickness);
       gl.uniform1f(program.uniform('uDirection'), state?.direction === 'back' ? -1 : 1);
       gl.uniform1f(program.uniform('uCrackRadius'), this.crackRadius);
       gl.uniform1f(program.uniform('uFlash'), this.flash);
       gl.uniform1f(program.uniform('uWireframe'), this.wireframe ? 1 : 0);
       gl.bindVertexArray(vao);
-      // At rest only the front faces can be seen; in motion everything can.
-      gl.drawArrays(
+      // At rest only the front faces of the outgoing page can be seen; in
+      // motion every face of every layer can. Still one draw call.
+      const layers = this.moving ? (effect.layers ?? 1) : 1;
+      gl.drawArraysInstanced(
         gl.TRIANGLES,
         0,
         this.moving ? geometry.vertexCount : geometry.frontVertexCount,
+        layers,
       );
     } else {
       gl.disable(gl.DEPTH_TEST);
@@ -504,6 +559,10 @@ export class Engine {
     this.texture = null;
     this.device.deleteTexture(this.shardData);
     this.shardData = null;
+    this.device.deleteTexture(this.incomingTexture);
+    this.incomingTexture = null;
+    this.incoming?.dispose();
+    this.incoming = null;
     if (this.snapshot) {
       this.snapshot.dispose();
       this.snapshot = null;

@@ -1,6 +1,6 @@
 import { classifyLinkClick, createShatter, findAnchor, getLinkEffect } from 'shatter-router';
 import { lab } from './lab';
-import { notFound, pages } from './pages';
+import { effectsPage, notFound, pages } from './pages';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app is missing from index.html');
@@ -49,7 +49,12 @@ let renderedRoute = '';
 
 function render(url: URL): void {
   renderedRoute = url.pathname;
-  const page = (url.pathname === '/lab' ? lab : pages[url.pathname]) ?? notFound;
+  const page =
+    (url.pathname === '/lab'
+      ? lab
+      : url.pathname === '/effects'
+        ? effectsPage
+        : pages[url.pathname]) ?? notFound;
   outlet.innerHTML = page.render();
   page.mount?.(outlet);
   document.title = `${page.title} — Shatter Router vanilla example`;

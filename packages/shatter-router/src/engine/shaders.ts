@@ -1,3 +1,5 @@
+import { SETTLE_GLSL } from '../core/spring';
+
 /**
  * GLSL ES 3.00 sources. The page texture holds display-ready sRGB values with
  * premultiplied alpha; shaders pass them through without any gamma maths so the
@@ -42,10 +44,12 @@ uniform vec2 uViewport;     // CSS px
 uniform float uMaxRadius;   // CSS px
 uniform float uGravity;     // px/s^2, +y is down
 uniform float uImpulse;     // px/s
+uniform float uThickness;   // CSS px
 uniform float uDirection;   // 1 forward, -1 back
 
 struct Shard {
   int id;
+  int layer;       // 0 outgoing page, 1 incoming page (instanced second copy)
   vec2 center;     // "centroid" is a reserved word in GLSL ES 3.00
   vec4 a;
   vec4 b;
@@ -69,7 +73,7 @@ mat3 axisAngle(vec3 axis, float angle) {
     t * a.x * a.z + s * a.y, t * a.y * a.z - s * a.x, t * a.z * a.z + c
   );
 }
-`;
+${SETTLE_GLSL}`;
 
 /**
  * Shard vertex shader with the effect's `shardMotion` inserted. Per-shard
@@ -91,6 +95,7 @@ in vec3 aNormal;
 uniform mat4 uViewProjection;
 uniform sampler2D uShardData;
 uniform float uMaxZ;        // CSS px; nothing may come closer to the camera
+uniform float uMoving;      // 0 at rest (cover, fracture, crack): the rest pose, exactly
 ${MOTION_PRELUDE}
 // ---- effect chunk ----
 ${effectChunk}
@@ -102,12 +107,14 @@ out vec2 vCentroid;
 out float vEdge;
 out vec3 vNormal;
 out float vFace;
+out float vLayer;
 out float vAlpha;
 
 void main() {
   int id = int(aShardId + 0.5);
   Shard shard;
   shard.id = id;
+  shard.layer = gl_InstanceID;
   shard.center = aCentroid;
   shard.a = texelFetch(uShardData, ivec2(0, id), 0);
   shard.b = texelFetch(uShardData, ivec2(1, id), 0);
@@ -117,7 +124,9 @@ void main() {
   pose.rotate = mat3(1.0);
   pose.scale = 1.0;
   pose.alpha = 1.0;
-  shardMotion(shard, pose);
+  // Effects only move shards during the motion phase; until then their data
+  // may not be uploaded yet, and the page must be drawn exactly at rest.
+  if (uMoving > 0.5) shardMotion(shard, pose);
 
   vec3 rest = vec3(aCentroid, 0.0);
   vec3 world = rest + pose.translate + pose.rotate * ((aPosition - rest) * pose.scale);
@@ -129,6 +138,7 @@ void main() {
   vEdge = aEdgeDistance;
   vNormal = pose.rotate * aNormal;
   vFace = aNormal.z;
+  vLayer = float(gl_InstanceID);
   vAlpha = clamp(pose.alpha, 0.0, 1.0);
   gl_Position = uViewProjection * vec4(world, 1.0);
 }
@@ -149,6 +159,7 @@ export function shardFragmentSource(fragmentChunk?: string): string {
 precision highp float;
 
 uniform sampler2D uPage;
+uniform sampler2D uIncoming;   // the incoming page (effects with needsIncomingSnapshot)
 uniform float uCrackRadius;    // CSS px the crack front has travelled
 uniform float uFlash;          // 0..1 impact flash strength
 uniform float uWireframe;      // 1 = debug: show every cell edge and the impact point
@@ -160,6 +171,7 @@ in vec2 vCentroid;
 in float vEdge;
 in vec3 vNormal;
 in float vFace;
+in float vLayer;
 in float vAlpha;
 
 out vec4 outColor;
@@ -172,12 +184,11 @@ const float FLASH_RADIUS = 34.0;      // CSS px
 
 ${fragmentChunk ? `${fragmentChunk}\n#define SHATTER_FRAGMENT_HOOK 1` : ''}
 
-void main() {
+vec4 pageColor() {
   // Thickness faces: darker glass edge.
   if (abs(vFace) < 0.5) {
     vec4 side = texture(uPage, vUv);
-    outColor = vec4(side.rgb * 0.55, side.a) * vAlpha;
-    return;
+    return vec4(side.rgb * 0.55, side.a);
   }
 
   float d = distance(vPos, uOrigin);
@@ -209,7 +220,11 @@ void main() {
     rgb = mix(rgb, vec3(1.0, 0.15, 0.3) * page.a, dot);
   }
 
-  vec4 color = vec4(min(rgb, vec3(page.a)), page.a);
+  return vec4(min(rgb, vec3(page.a)), page.a);
+}
+
+void main() {
+  vec4 color = pageColor();
 #ifdef SHATTER_FRAGMENT_HOOK
   shardFragment(color);
 #endif

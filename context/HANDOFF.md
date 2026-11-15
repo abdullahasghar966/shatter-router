@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 7 — Remaining effects (branch created, no code yet)
+- **Current milestone:** 7 — Remaining effects (implemented; PR next)
 - **Current branch:** `milestone/07-effects` (from `main` at `99f7e26`)
-- **Last commit:** see `git log -1` (`fix: tighten back/forward tests; fragments in shatter-router/react`)
+- **Last commit:** see `git log -1` (`feat(effects): explode, implode, flip and assemble`)
 - **Latest tag:** `m06-nextjs` (on `99f7e26`)
 
 ## Done so far
@@ -18,15 +18,16 @@
 
 - Follow-up fixes (start of Milestone 7): the vanilla back/forward test now checks the lifecycle events of each history move (`window.__shatterEvents` in the vanilla example, shared helpers `lifecycleEvents`/`clearLifecycleEvents`/`FULL_EFFECT` in `e2e/hook.ts`) instead of the hook's last values; `test/route-bridge.test.ts` covers the ADR-035 clamp rule (mutation-checked), an app scroll winning, the same-URL fast path and fragment scrolling; `shatter-router/react` links and `useShatterNavigate` scroll to a `#fragment` like the router adapters (`scrollToFragment` moved to `src/react/shared.ts`). 272 unit tests; local e2e 139 passed, 9 skipped.
 
+- Milestone 7 implemented on this branch: `explode`, `implode`, `flip`, `assemble` (`src/engine/effects/`), `core/spring.ts` (`settle`), interface refinements (layers, `uThickness`, `uIncoming`, `settle()`, fragment hook on all faces), incoming capture with `shatter` as substitute, final rest frame + `settled` pause, `backForward` (ADR-036). Vanilla example `/effects` page. 301 unit tests; local e2e 165 passed, 9 skipped. Visual check done.
+
 ## Next 3 steps (Milestone 7)
 
-1. **Read the effect plumbing first:** `packages/shatter-router/src/core/effect.ts` (public `ShatterEffect`, `EffectContext`, `ShardAttributes`, GLSL hook docs), `src/engine/effects/` (the `shatter` effect written against it), `src/engine/index.ts` (`resolveEffect`, `prepareMotion`, `animate`), `src/runtime/index.ts` (pipeline; `needsIncomingSnapshot` is not wired yet: capture the new viewport under the overlay after the waiting phase, section 4.7). ADR-018, 021, 025.
-2. **Implement `explode` and `implode`** (no incoming snapshot) as plugin objects against the public interface only, with unit tests like `test/effect-shatter.test.ts` and e2e in `e2e/vanilla/effect.spec.ts` (per-link `data-shatter-effect`). Then **`flip` and `assemble`**: incoming snapshot, second texture, back faces / fly-in, critically damped spring settle that never overshoots on the last frame, last-frame seam tests (live DOM after reveal vs overlay's last frame). Then `backForward: 'reverse' | 'same' | 'none'` (`shatter` reversed = `assemble`), documented mapping.
-3. Plugin interface docs (GLSL hook points, uniforms, attributes) in the code docs now, README in M12. Then the ritual (A.5) and tag `m07-effects`.
+1. **Ritual (A.5):** PR "Milestone 07: Remaining effects" with ADR-036, the seam table from PROGRESS, sizes, verification; `gh pr checks --watch`. Firefox and Linux WebKit only run on CI: read the `[seam] ... first-*`/`last-*` and `[effect]` lines and record them in PROGRESS.
+2. Merge with `--merge`, tag `m07-effects`, push the tag.
+3. Create `milestone/08-rapier` from main (first commit records PR/merge/tag). Milestone 8: `physics: 'rapier'` as an optional lazy chunk (`shatter-router/rapier`), `@dimforge/rapier3d-compat` optional peer, convex hulls (cuboid fallback), floor option, 100 px = 1 m, fixed 1/60 s step, per-shard mat4 in a float texture read by `texelFetch` (master prompt 5.3).
 
 ## Deferred (tracked, not forgotten)
 
-- `backForward: 'reverse'` → Milestone 7 with `assemble` (ADR-025).
 - Debug panel (section 10) → Milestone 10 (ADR-025).
 - `physics: 'rapier'` → M8. `glassTint`, `chromatic`, lighting fade-in → M9. README items (`scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, popstate note from ADR-026) → M12.
 
