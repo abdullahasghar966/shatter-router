@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 8 — Rapier mode (implemented; PR next)
+- **Current milestone:** 8 — Rapier mode (complete; PR #8 green, merge next)
 - **Current branch:** `milestone/08-rapier` (from `main` at `d6054ae`)
-- **Last commit:** see `git log -1` (`feat(rapier): Rapier physics mode`)
+- **Last commit:** see `git log -1` (`docs(context): milestone 8 complete`)
 - **Latest tag:** `m07-effects` (on `d6054ae`)
 
 ## Done so far
@@ -18,11 +18,13 @@
 
 - Milestone 8 implemented on this branch: `shatter-router/rapier` (`rapier({ floor })`), `src/core/physics.ts` (public plugin interface), `src/rapier/simulation.ts` + `backend.ts`, engine transforms texture path, runtime plugin loading (ADR-037). Vanilla example: `?physics=rapier`, `&floor`; `csp-wasm.html`. 311 unit tests; local e2e 173 passed, 9 skipped. Visual check done.
 
-## Next 3 steps (Milestone 8)
+- PR [#8](https://github.com/abdullahasghar966/shatter-router/pull/8) green on all three engines on the first run (numbers in PROGRESS).
 
-1. **Ritual (A.5):** PR "Milestone 08: Rapier mode" (ADR-037, measurements from PROGRESS, verification, known issues: `physics: rapier()` instead of the spec's string), `gh pr checks --watch`; read the `[rapier]` lines from CI (Firefox, Linux WebKit) and record them.
-2. Merge with `--merge`, tag `m08-rapier`, push the tag.
-3. Create `milestone/09-glass-shading` from main (first commit records PR/merge/tag). Milestone 9: edge highlight from `edgeDistance` facing a fixed light, Blinn-Phong glint with the rotated normal, `chromatic: true` aberration up to 1.5 px by shard speed, darker tinted sides (`glassTint`, default `#cfe8ff` at 12 %), all lighting exactly zero at `t = 0` and faded in over the first 60 ms of motion; before/after screenshots in PROGRESS.
+## Next 3 steps
+
+1. **Merge PR #8** once the last push is green: `gh pr merge 8 --merge`; tag `m08-rapier` on main and push it.
+2. Create `milestone/09-glass-shading` from main; first commit records PR #8, merge SHA and tag in PROGRESS and refreshes HANDOFF.
+3. **Milestone 9 (glass shading polish):** edge highlight from `edgeDistance` (brighter when the rotated normal faces a fixed virtual light), Blinn-Phong glint with the rotated normal, `chromatic: true` aberration proportional to shard speed (max 1.5 px), darker sides with `glassTint` (default `#cfe8ff` at 12 %), every lighting term exactly zero at `t = 0` and faded in over the first 60 ms of motion; first/last-frame seam tests must stay green; before/after screenshots recorded in PROGRESS.
 
 ## Deferred (tracked, not forgotten)
 
