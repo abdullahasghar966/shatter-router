@@ -1,6 +1,6 @@
 import { nextFrame } from '../core/frame';
 import type { Shatter, TransitionRequest } from '../core/types';
-import { boundedCommit } from './shared';
+import { boundedCommit, scrollToFragment } from './shared';
 
 interface Waiter {
   readonly from: string;
@@ -29,17 +29,6 @@ function scrolledSince(before: ScrollPosition): boolean {
   return (
     Math.abs(now.x - Math.min(before.x, maxX)) > 1 || Math.abs(now.y - Math.min(before.y, maxY)) > 1
   );
-}
-
-/** Scrolls the element a URL fragment points at into view, if it exists. */
-export function scrollToFragment(hash: string): void {
-  let id = hash.startsWith('#') ? hash.slice(1) : hash;
-  try {
-    id = decodeURIComponent(id);
-  } catch {
-    // Keep the raw fragment.
-  }
-  if (id) document.getElementById(id)?.scrollIntoView();
 }
 
 /** `pathname + search` of the window: what decides whether a popstate changes the route. */

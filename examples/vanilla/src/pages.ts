@@ -77,6 +77,32 @@ export const pages: Readonly<Record<string, Page>> = {
   },
 };
 
+/** Every built-in effect, each link playing its own (per-link `data-shatter-effect`). */
+const EFFECTS = [
+  ['shatter', 'Cracks from the click, shards fall with gravity.'],
+  ['explode', 'A violent radial blast toward you, then gravity.'],
+  ['implode', 'Shards spiral into the click like a black hole.'],
+  ['flip', 'Every shard turns over: the new page is on the back.'],
+  ['assemble', 'The old page falls away as the new one flies together.'],
+] as const;
+
+export const effectsPage: Page = {
+  title: 'Effects',
+  render: () => `
+    <section class="hero compact">
+      <p class="eyebrow">Effects</p>
+      <h1>Five ways to break.</h1>
+    </section>
+    <section class="prose" aria-label="Effects">
+      <ul class="effects">
+        ${EFFECTS.map(
+          ([name, text]) => `
+        <li><a href="/work" data-shatter-effect="${name}">${name}</a> — ${text}</li>`,
+        ).join('')}
+      </ul>
+    </section>`,
+};
+
 export const notFound: Page = {
   title: 'Not found',
   render: () => `

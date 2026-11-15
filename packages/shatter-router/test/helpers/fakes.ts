@@ -46,6 +46,15 @@ export const testEffect: ShatterEffect = {
   isComplete: () => true,
 };
 
+/** Built-in effect names the fake engine knows; the ones ending on the new page need it captured. */
+const FAKE_BUILT_INS: Readonly<Record<string, boolean>> = {
+  shatter: false,
+  explode: false,
+  implode: false,
+  flip: true,
+  assemble: true,
+};
+
 export type FakeSnapshot = Snapshot & { readonly dispose: ReturnType<typeof vi.fn<() => void>> };
 
 export function fakeSnapshot(duration = 40): FakeSnapshot {
@@ -63,6 +72,8 @@ export function fakeSnapshot(duration = 40): FakeSnapshot {
 /** A controllable stand-in for the WebGL engine and the capturer. */
 export class FakeWorld {
   readonly calls: string[] = [];
+  /** Effect names passed to resolveEffect, in order. */
+  readonly resolved: string[] = [];
   readonly overlay = document.createElement('div');
   readonly snapshots: FakeSnapshot[] = [];
   /** Hold the matching phase until opened (or aborted, for crack/animate). */
@@ -99,9 +110,12 @@ export class FakeWorld {
       ) {
         world.calls.push('resolveEffect');
         if (typeof effect !== 'string') return effect;
-        const found = registered.get(effect) ?? (effect === 'shatter' ? testEffect : undefined);
-        if (!found) throw new Error(`Unknown effect "${effect}"`);
-        return found;
+        world.resolved.push(effect);
+        const registeredEffect = registered.get(effect);
+        if (registeredEffect) return registeredEffect;
+        const needsIncoming = FAKE_BUILT_INS[effect];
+        if (needsIncoming === undefined) throw new Error(`Unknown effect "${effect}"`);
+        return { ...testEffect, name: effect, needsIncomingSnapshot: needsIncoming };
       },
       resolveShardCount: () => ({ count: 40, tier: 'low' as const }),
       async cover() {
@@ -112,6 +126,12 @@ export class FakeWorld {
       fracture() {
         world.calls.push('fracture');
         return { shardCount: 40, vertexCount: 480, fractureMs: 1 };
+      },
+      setIncoming() {
+        world.calls.push('setIncoming');
+      },
+      replaceEffect(effect: ShatterEffect) {
+        world.calls.push(`replaceEffect:${effect.name}`);
       },
       prepareMotion() {
         world.calls.push('prepareMotion');

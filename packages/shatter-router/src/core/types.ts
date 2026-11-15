@@ -35,6 +35,16 @@ export interface ShatterOptions {
    * (play the full effect; for demos only, discouraged).
    */
   reducedMotion?: 'crossfade' | 'instant' | 'ignore';
+  /**
+   * Effect for back/forward navigations (`direction: 'back'`):
+   * - `'reverse'` (default): the visual reverse where one exists: `shatter`,
+   *   `explode` and `implode` become `assemble` (the new page flies together),
+   *   `assemble` becomes `shatter`, `flip` turns the other way; custom effects
+   *   play as they are, with `uDirection = -1`;
+   * - `'same'`: the same effect as forward (with `uDirection = -1`);
+   * - `'none'`: no effect, the page swaps instantly (fallback reason `'disabled'`).
+   */
+  backForward?: 'reverse' | 'same' | 'none';
   /** Makes fracture layouts and motion deterministic. Default: random each time. */
   seed?: number;
   /** Exposes `window.__SHATTER_TEST__` and extra diagnostics. Default false. */
@@ -74,6 +84,7 @@ export type FallbackReason =
   | 'capture-budget'
   | 'capture-failed'
   | 'context-lost'
+  | 'disabled'
   | 'error';
 
 export interface ShatterEventMap {
@@ -115,8 +126,12 @@ export interface Shatter {
   destroy(): void;
 }
 
-/** Phases a test can pause the pipeline at (debug mode only). */
-export type PausePoint = 'covered' | 'fractured' | 'cracked' | 'animating';
+/**
+ * Phases a test can pause the pipeline at (debug mode only). `'settled'`: the
+ * motion has ended and the overlay still shows its last frame (for effects that
+ * end on the incoming page, that frame must equal the live page underneath).
+ */
+export type PausePoint = 'covered' | 'fractured' | 'cracked' | 'animating' | 'settled';
 
 /** Shape of `window.__SHATTER_TEST__`, available only when `debug` is on. */
 export interface ShatterTestHook {
@@ -140,6 +155,10 @@ export interface ShatterTestHook {
   lastPrecaptured: boolean;
   /** Reason of the most recent fallback, or null. */
   lastFallback: FallbackReason | null;
+  /** Effect the most recent transition played, after back/forward mapping and any substitution. */
+  lastEffect: string | null;
+  /** Duration of the most recent capture of the incoming page in ms, or null. */
+  lastIncomingCaptureMs: number | null;
   /** Grid the page copy is laid out on in this engine, once the capturer is loaded. */
   layoutGrid(): 'css' | 'device' | null;
   /** Most recent fracture: shard count, CPU time and the device tier used for `'auto'`. */

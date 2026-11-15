@@ -1,6 +1,12 @@
 import { APPS } from '../../playwright.config';
 import { expect, test } from '../fixtures';
-import { hookState, waitForIdle } from '../hook';
+import {
+  clearLifecycleEvents,
+  FULL_EFFECT,
+  hookState,
+  lifecycleEvents,
+  waitForIdle,
+} from '../hook';
 import { waitForShatterReady } from '../seam';
 
 const BASE = APPS.vanilla;
@@ -19,16 +25,20 @@ test.describe('vanilla example: back and forward', () => {
     await expect(page.locator('h1')).toHaveText('Links that behave.');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
+    // Check the events of this navigation itself: the hook's last values could
+    // still describe the previous one (LEARNINGS, React Router back/forward).
+    await clearLifecycleEvents(page);
     await page.goBack();
+    await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
     await waitForIdle(page);
     await expect(page).toHaveURL(`${BASE}/work${QUERY}`);
     await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
     expect(await page.evaluate(() => window.scrollY)).toBe(300);
-    const back = await hookState(page);
-    expect(back.fallback).toBeNull();
-    expect(back.animation?.frames).toBeGreaterThan(0);
+    expect((await hookState(page)).fallback).toBeNull();
 
+    await clearLifecycleEvents(page);
     await page.goForward();
+    await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
     await waitForIdle(page);
     await expect(page.locator('h1')).toHaveText('Links that behave.');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);

@@ -35,6 +35,8 @@ export type EngineLike = Pick<
   | 'resolveShardCount'
   | 'cover'
   | 'fracture'
+  | 'setIncoming'
+  | 'replaceEffect'
   | 'prepareMotion'
   | 'crack'
   | 'animate'
@@ -117,11 +119,27 @@ interface Settings {
   readonly captureBudget: number;
   readonly readyTimeout: number;
   readonly reducedMotion: 'crossfade' | 'instant' | 'ignore';
+  readonly backForward: 'reverse' | 'same' | 'none';
   readonly seed: number | undefined;
   readonly debug: boolean;
 }
 
 const DEFAULT_MOTION_MS = 1000;
+
+/**
+ * `backForward: 'reverse'`: the built-in effect played for a back/forward
+ * navigation, by the forward effect's name (documented on `ShatterOptions`).
+ * `flip` is its own reverse (it turns the other way with `uDirection = -1`).
+ */
+const REVERSED: Readonly<Record<string, string>> = {
+  shatter: 'assemble',
+  explode: 'assemble',
+  implode: 'assemble',
+  assemble: 'shatter',
+};
+
+/** Effect used when an effect's incoming-page capture fails. */
+const SUBSTITUTE_EFFECT = 'shatter';
 
 function settingsFrom(options: ShatterOptions): Settings {
   return {
@@ -135,6 +153,7 @@ function settingsFrom(options: ShatterOptions): Settings {
     captureBudget: options.captureBudget ?? 250,
     readyTimeout: options.readyTimeout ?? 1500,
     reducedMotion: options.reducedMotion ?? 'crossfade',
+    backForward: options.backForward ?? 'reverse',
     seed: options.seed,
     debug: options.debug ?? false,
   };
@@ -267,6 +286,9 @@ class Runtime implements ShatterRuntime {
       if (settings.reducedMotion !== 'ignore' && prefersReducedMotion()) {
         throw new Fallback('reduced-motion');
       }
+      if (request.direction === 'back' && settings.backForward === 'none') {
+        throw new Fallback('disabled');
+      }
       machine.enter('capturing');
       this.scrollLock?.lock();
 
@@ -277,7 +299,7 @@ class Runtime implements ShatterRuntime {
       if (engine.contextLost) throw new Fallback('context-lost');
       const viewport = readViewport(window);
       if (viewport.pinchZoomed) throw new Fallback('pinch-zoom');
-      const effect = engine.resolveEffect(request.effect ?? settings.effect, this.host.effects);
+      const effect = engine.resolveEffect(this.effectFor(request), this.host.effects);
 
       const { snapshot, precaptured } = await this.snapshotFor(run, loaded, viewport);
       if (this.hook) {
@@ -317,16 +339,30 @@ class Runtime implements ShatterRuntime {
       const scroll: ScrollTarget = request.scroll ?? (direction === 'back' ? 'none' : 'top');
       await waitUntilReady(document, scroll, settings.readyTimeout, run.skip.signal);
 
+      // Effects that end on the new page need a picture of it (master prompt 4.7):
+      // captured under the overlay; without one, a substitute effect plays.
+      let motionEffect = effect;
+      if (effect.needsIncomingSnapshot && !run.skip.signal.aborted) {
+        const incoming = await this.captureIncoming(run, loaded);
+        if (incoming) {
+          engine.setIncoming(incoming);
+        } else {
+          motionEffect = engine.resolveEffect(SUBSTITUTE_EFFECT, this.host.effects);
+          engine.replaceEffect(motionEffect);
+        }
+      }
+      if (this.hook) this.hook.lastEffect = motionEffect.name;
+
       engine.prepareMotion({
-        duration: settings.duration ?? effect.duration ?? DEFAULT_MOTION_MS,
+        duration: settings.duration ?? motionEffect.duration ?? DEFAULT_MOTION_MS,
         gravity: settings.gravity,
         impulse: settings.impulse,
         direction,
         ...(seed === undefined ? {} : { seed }),
       });
       machine.enter('animating');
-      this.emit('animating', { effect: effect.name });
-      if (effect.crack) {
+      this.emit('animating', { effect: motionEffect.name });
+      if (motionEffect.crack) {
         await engine.crack({ signal: run.skip.signal });
         await this.pause('cracked', run);
       }
@@ -338,6 +374,8 @@ class Runtime implements ShatterRuntime {
           fps: loop.durationMs > 0 ? ((loop.frames - 1) * 1000) / loop.durationMs : 0,
         };
       }
+
+      await this.pause('settled', run);
 
       machine.enter('revealing');
       engine.release();
@@ -397,6 +435,7 @@ class Runtime implements ShatterRuntime {
   private async fallbackCommit(run: Run, reason: FallbackReason): Promise<void> {
     const instant =
       reason === 'hidden' ||
+      reason === 'disabled' ||
       (reason === 'reduced-motion' && this.settings.reducedMotion === 'instant');
     if (instant) {
       await this.commit(run);
@@ -435,6 +474,41 @@ class Runtime implements ShatterRuntime {
 
   private throwIfCancelled(run: Run): void {
     if (run.cancel.signal.aborted) throw new Cancelled();
+  }
+
+  /**
+   * The effect to play: the request's or the default, mapped for back/forward
+   * navigations when `backForward` is `'reverse'`. User-registered effects
+   * (and effect objects) are never mapped.
+   */
+  private effectFor(request: TransitionRequest): string | ShatterEffect {
+    const chosen = request.effect ?? this.settings.effect;
+    if (request.direction !== 'back' || this.settings.backForward !== 'reverse') return chosen;
+    if (typeof chosen !== 'string' || this.host.effects.has(chosen)) return chosen;
+    return REVERSED[chosen] ?? chosen;
+  }
+
+  /**
+   * Captures the new page under the overlay, within the capture budget.
+   * Null when it fails or takes too long: the caller substitutes an effect.
+   */
+  private async captureIncoming(run: Run, loaded: Loaded): Promise<Snapshot | null> {
+    const started = performance.now();
+    try {
+      const snapshot = await this.withinBudget(
+        loaded.capturer.capture({
+          viewport: readViewport(window),
+          maxTextureSize: loaded.engine.maxTextureSize,
+        }),
+        this.settings.captureBudget,
+        run,
+      );
+      if (this.hook) this.hook.lastIncomingCaptureMs = performance.now() - started;
+      return snapshot;
+    } catch (error) {
+      if (this.settings.debug) console.warn('[shatter-router] incoming capture failed', error);
+      return null;
+    }
   }
 
   /** Uses a still-valid pre-capture if there is one; otherwise captures now. */
@@ -631,6 +705,8 @@ class Runtime implements ShatterRuntime {
       lastCaptureMs: null,
       lastPrecaptured: false,
       lastFallback: null,
+      lastEffect: null,
+      lastIncomingCaptureMs: null,
       layoutGrid: () => this.loaded?.capturer.layoutGrid ?? null,
       lastFracture: null,
       lastAnimation: null,

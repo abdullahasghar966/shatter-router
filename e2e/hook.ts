@@ -78,3 +78,20 @@ export async function resetFallback(page: Page): Promise<void> {
     if (hook) hook.lastFallback = null;
   });
 }
+
+/** Lifecycle events of one transition that played the full effect, in order. */
+export const FULL_EFFECT = ['start', 'covered', 'committed', 'animating', 'end'];
+
+/** Lifecycle events the example recorded since the last clear (debug mode). */
+export async function lifecycleEvents(page: Page): Promise<string[]> {
+  return page.evaluate(() => [
+    ...((window as { __shatterEvents?: string[] }).__shatterEvents ?? []),
+  ]);
+}
+
+/** Forgets the recorded lifecycle events, so the next read covers one navigation. */
+export async function clearLifecycleEvents(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as { __shatterEvents?: string[] }).__shatterEvents?.splice(0);
+  });
+}
