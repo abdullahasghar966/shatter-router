@@ -147,6 +147,14 @@ Milestone 6, Next.js example (`e2e/next/transitions.spec.ts`), local Windows 11,
 
 Visual check (headless Chromium screenshots, motion frozen at 450 ms): Home to `/slow` breaks the Home page over the loaded Slow page (not its `loading.tsx` UI); back from `/slow` breaks the Slow page over Home. No console errors.
 
+Milestone 6, **PR #6 CI (GitHub Actions ubuntu-latest)**, Next.js example, 2026-11-15:
+
+| Browser | First frame, top of `/` | Back: overlay vs outgoing page | Committing, `/slow` with `waitFor: 'settled'` |
+|---|---|---|---|
+| Chromium headless (1x) | 0.1566 % / worst block 4.0 % | 0.1347 % | 424 ms |
+| Firefox headed (xvfb, Mesa) | 0.0000 % / 0.0 % | 0.0000 % | 435 ms |
+| WebKit (2x) | 0.1453 % (raw 0.3166 %) / 0.9 % | 0.0311 % (raw 0.1314 %) | 418 ms |
+
 ### Capture time (viewport capture of the vanilla example, capturer warm)
 
 | Date | Device / browser | Viewport | DPR | Time | Notes |
@@ -226,4 +234,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
 | 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |
 | 5 | 257 tests in 16 files (+ `react.test.tsx` 24, `react-router.test.tsx` 13, `standard-font.test.ts` 2) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped. PR #5 CI: Chromium 57 passed, Firefox 49 passed, WebKit 49 passed (engine-specific skips) |
-| 6 | 266 tests in 17 files (+ `next.test.tsx` 9) | Next.js example: 11 navigation + 6 transitions/seam per engine. Local: Chromium + WebKit, full suite 139 passed, 9 skipped |
+| 6 | 266 tests in 17 files (+ `next.test.tsx` 9) | Next.js example: 11 navigation + 6 transitions/seam per engine. Local: Chromium + WebKit, full suite 139 passed, 9 skipped. PR #6 CI: Chromium 74 passed, Firefox 66 passed, WebKit 66 passed |

@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 6 — Next.js App Router adapter (adapter, example and e2e done; PR next)
+- **Current milestone:** 6 — Next.js App Router adapter (complete; PR #6 green, merge next)
 - **Current branch:** `milestone/06-nextjs` (from `main` at `0d4d85f`)
-- **Last commit:** see `git log -1` (`feat(next): example app and e2e`)
+- **Last commit:** see `git log -1` (`docs(context): milestone 6 complete`)
 - **Latest tag:** `m05-react-router` (on `0d4d85f`)
 
 ## Done so far
@@ -24,11 +24,13 @@
 
 - Milestone 6, sub-task 2: `examples/next` (next 16.4.6, port 4175: root layout + client `Providers`, header of `ShatterLink`s, `/`, `/work`, `/about`, `/slow` with a 400 ms server component and `loading.tsx` marked `data-shatter-pending`, not-found, "Navigate in code"); e2e `e2e/next/navigation.spec.ts` (11) and `transitions.spec.ts` (6); ADR-035 (clamped scroll is not an app scroll). Local full suite Chromium + WebKit: 139 passed, 9 skipped. Visual check done (PROGRESS).
 
-## Next 3 steps (Milestone 6)
+- PR [#6](https://github.com/abdullahasghar966/shatter-router/pull/6) open; all three engines green on the first CI run (numbers in PROGRESS).
 
-1. **Ritual (A.5):** open PR "Milestone 06: Next.js App Router adapter" (body: what was built, measurements from PROGRESS, verification, known issues: `UrlObject` hrefs unsupported, ADR-034), `gh pr checks --watch` until Chromium, Firefox, WebKit and size are green. Firefox and Linux WebKit have only run on CI: read the `[seam]` and `[next]` lines in the logs and record them in PROGRESS.
-2. Merge with `gh pr merge <n> --merge`, tag `m06-nextjs` on main, push the tag.
-3. Create `milestone/07-effects` from main; first commit records PR/merge/tag in PROGRESS and refreshes HANDOFF. Milestone 7: `explode`, `implode`, `flip`, `assemble` against the public `ShatterEffect` interface, plugin docs, last-frame seam tests for `flip`/`assemble`, `backForward: 'reverse'` (ADR-025).
+## Next 3 steps
+
+1. **Merge PR #6** once the checks of the last push are green: `gh pr merge 6 --merge`; then on main `git tag -a m06-nextjs -m "Milestone 06 complete"` and push the tag.
+2. Create `milestone/07-effects` from main; first commit records PR #6, merge SHA and tag in PROGRESS (row 6 done, row 7 in progress) and refreshes HANDOFF.
+3. **Milestone 7:** `explode`, `implode`, `flip`, `assemble` written only against the public `ShatterEffect` interface (`src/core/effect.ts`, `src/engine/effects/`), incoming snapshot for `flip`/`assemble` (`needsIncomingSnapshot`), critically damped spring settle, last-frame seam tests, plugin interface docs, and `backForward: 'reverse'` (ADR-025).
 
 ## Deferred (tracked, not forgotten)
 
