@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 3, Milestone 10 step 1 done: GLSL minified at build)
+- **Last updated:** 2026-11-15 (session 3, Milestone 10 steps 1–2 done: GLSL minify, budgets measured)
 - **Session:** 3
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 
@@ -8,7 +8,7 @@
 
 - **Current milestone:** 10 — Performance pass (in progress)
 - **Current branch:** `milestone/10-performance` (from `main` at `48476d2`)
-- **Last commit:** see `git log -1` (`build(engine): minify glsl template literals at build time`)
+- **Last commit:** see `git log -1` (`test(perf): measure the section 8 budgets`)
 - **Latest tag:** `m09-glass-shading` (on `48476d2`)
 
 ## Done so far
@@ -19,7 +19,7 @@
 ## Next 3 steps (Milestone 10: performance pass, master prompt section 8)
 
 1. ~~Regain engine headroom~~ **done** (ADR-039): `build/glsl.ts` esbuild plugin; engine 21.58 → 19.74 kB, seams unchanged.
-2. **Measure every section 8 budget on a real GPU** (headed Chrome on the RTX 4050 through Playwright, not the throttled app pane): 60 fps at 1440x900 with 160 shards for each effect; one draw call per frame; no per-frame allocations (Chrome DevTools Protocol `HeapProfiler` sampling or a Performance trace via `page.context().tracing` / CDP `Tracing`); no long task > 50 ms outside the capture step (PerformanceObserver `longtask`); textures freed after `end` (already: `textureCount` 0); capture time on the example pages (the docs landing page arrives in M11, re-measure there). Record device, browser and numbers in PROGRESS.
+2. ~~Measure section 8 budgets~~ **done** (ADR-040, PROGRESS "Performance budgets"): `e2e/vanilla/performance.spec.ts`; on the RTX 4050 every effect runs at 60.0 fps, worst frame ≤ 17.1 ms, 1 draw call per frame, no per-frame allocations, no long tasks, capture ~22 ms. Real-GPU rerun: `SHATTER_PERF=1 npx playwright test e2e/vanilla/performance.spec.ts --project=chromium --workers=1` (system Chrome).
 3. **Debug panel (section 10, ADR-025):** shadow-DOM panel when `debug: true`: state machine state and phase timings, shard count, device tier, FPS, draw calls, wireframe toggle and impact point, and a "seam check" button that captures the live DOM and the overlay frame and shows a diff heatmap with the % of differing pixels. Lazy (debug only), its own size budget. Then the ritual and tag `m10-performance`.
 
 ## Deferred (tracked, not forgotten)

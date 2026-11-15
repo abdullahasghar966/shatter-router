@@ -264,9 +264,27 @@ Visual check (headless Chromium): without a floor, shards tumble and collide whi
 | 2026-11-15 | Headless Chromium (CDP heap after forced GC), 40 shards, 60 ms motion | heap 3.02 MB → 3.14 MB (+119 kB) after 100 transitions (10 warm-up first); live GPU textures after every transition: 0 |
 | 2026-11-15 | PR #4 CI (ubuntu-latest), same test | heap 3.02 MB → 3.13 MB (+117 kB); textures 0 |
 
+### Performance budgets (Milestone 10, section 8; `e2e/vanilla/performance.spec.ts`, ADR-040)
+
+Real GPU: `SHATTER_PERF=1 npx playwright test e2e/vanilla/performance.spec.ts --project=chromium --workers=1` runs installed Google Chrome headed (`channel: 'chrome'`). Renderer: `ANGLE (NVIDIA, NVIDIA GeForce RTX 4050 Laptop GPU Direct3D11 vs_5_0 ps_5_0, D3D11)`, Windows 11, 1440x900, `/effects`, 160 shards, `seed=7`, second run after an in-document warm-up (2026-11-15):
+
+| Effect | Frames / ms | fps | Worst frame | Capture | start→covered | covered→animating | Draw calls per frame | Long tasks outside capture |
+|---|---|---|---|---|---|---|---|---|
+| shatter | 62 / 1016 | 60.0 | 17.1 ms | 22.7 ms | 55 ms | 34 ms | 1 (76 frames) | none |
+| explode | 68 / 1116 | 60.0 | 17.1 ms | 22.0 ms | 55 ms | 33 ms | 1 (82 frames) | none |
+| implode | 61 / 1000 | 60.0 | 17.0 ms | 23.5 ms | 55 ms | 33 ms | 1 (75 frames) | none |
+| flip | 63 / 1033 | 60.0 | 17.0 ms | 21.4 ms | 55 ms | 91 ms (incoming capture) | 1 (79 frames) | none |
+| assemble | 75 / 1233 | 60.0 | 17.0 ms | 20.7 ms | 53 ms | 88 ms (incoming capture) | 1 (90 frames) | none |
+
+- **Draw calls:** every `clear` is followed by exactly one draw call, from the intact quad and the crack to the last shard frame, on Chromium, WebKit (and Firefox in CI).
+- **Allocations per frame** (CDP sampling heap profiler, 64 B interval, stacks with `FrameLoop.tick` on them, warm code): 0 samples for `shatter`, `implode`, `flip`, `assemble` on the GPU run; `explode` 1 sample (72 B, `uniform`) in 68 frames, a one-off (0 in the headless runs). A per-frame allocation of 16 B would show ~frames/4 samples. Rapier mode: our simulation allocates nothing (indexed loops since M10), but Rapier 0.21's getters and `World.step` do: Node probe, 160 shards: 20 000 `write()` calls → 25 scavenges, the same as the 3.2 M `translation`/`rotation`/`linvel` calls they make (9 + 12 + 6); 2 000 `world.step()` → 12.
+- **Textures:** `textureCount()` 0 after every `end` (also the 100-transition memory test).
+- **Capture:** 20.7–23.5 ms on `/effects` at 1440x900 (budget 120 ms on the docs landing page: re-measure in M11).
+- Headless Chromium (SwiftShader) for comparison: 31–34 fps for the falling effects, 13–15 fps for `flip`/`assemble`, long tasks 51–108 ms (software rasterising), draw calls still 1 per frame. Headless WebKit: 10.6–11.1 fps, no long tasks reported. These are environment limits, so CI prints the numbers without enforcing them.
+
 ### Not measured yet
 
-Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later milestones.
+Lighthouse, and capture on the docs landing page (M11).
 
 ## Test counts
 

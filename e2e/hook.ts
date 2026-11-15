@@ -92,6 +92,8 @@ export async function lifecycleEvents(page: Page): Promise<string[]> {
 /** Forgets the recorded lifecycle events, so the next read covers one navigation. */
 export async function clearLifecycleEvents(page: Page): Promise<void> {
   await page.evaluate(() => {
-    (window as { __shatterEvents?: string[] }).__shatterEvents?.splice(0);
+    const log = window as { __shatterEvents?: string[]; __shatterEventTimes?: number[] };
+    log.__shatterEvents?.splice(0);
+    log.__shatterEventTimes?.splice(0);
   });
 }

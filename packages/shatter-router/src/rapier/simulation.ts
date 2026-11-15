@@ -107,12 +107,16 @@ export class RapierSimulation implements PhysicsSimulation {
   }
 
   /** Enables every shard whose delay has passed, with its initial motion. */
+  // `release`, `write` and `finished` run every frame: indexed loops, no
+  // callbacks, so this file allocates nothing per frame (Rapier's getters do,
+  // ADR-040).
   private release(seconds: number): void {
     const m = PX_PER_METRE;
-    this.shards.forEach((shard, i) => {
-      if (this.released[i] || seconds < shard.delay) return;
+    for (let i = 0; i < this.shards.length; i++) {
+      const shard = this.shards[i];
+      if (!shard || this.released[i] || seconds < shard.delay) continue;
       const body = this.bodies[i];
-      if (!body) return;
+      if (!body) continue;
       this.released[i] = true;
       body.setEnabled(true);
       const v = this.velocity;
@@ -125,21 +129,22 @@ export class RapierSimulation implements PhysicsSimulation {
       v.y = spin.y * spin.speed;
       v.z = spin.z * spin.speed;
       body.setAngvel(v, true);
-    });
+    }
   }
 
   write(target: Float32Array): void {
     const m = PX_PER_METRE;
     const p = this.position;
     const q = this.rotation;
-    this.bodies.forEach((body, i) => {
+    for (let i = 0; i < this.bodies.length; i++) {
+      const body = this.bodies[i];
       const shard = this.shards[i];
-      if (!shard) return;
+      if (!body || !shard) continue;
       const o = i * PHYSICS_TRANSFORM_FLOATS;
       if (!this.released[i]) {
         // Exactly at rest: reading the body back would cost a float32 round trip (~1e-5 px).
         target.set(IDENTITY, o);
-        return;
+        continue;
       }
       body.translation(p);
       body.rotation(q);
@@ -165,7 +170,7 @@ export class RapierSimulation implements PhysicsSimulation {
       target[o + 13] = p.y * m - shard.centroid.y;
       target[o + 14] = p.z * m;
       target[o + 15] = 1;
-    });
+    }
   }
 
   get finished(): boolean {
@@ -173,17 +178,20 @@ export class RapierSimulation implements PhysicsSimulation {
     const m = PX_PER_METRE;
     const v = this.velocity;
     const p = this.position;
-    return this.bodies.every((body, i) => {
+    for (let i = 0; i < this.bodies.length; i++) {
+      const body = this.bodies[i];
+      if (!body) continue;
       if (!this.released[i]) return false;
-      if (body.isSleeping()) return true;
+      if (body.isSleeping()) continue;
       body.translation(p);
       const shard = this.shards[i];
       const reach = shard ? Math.sqrt(shard.area) * 1.5 : 0;
-      if (p.y * m - reach > this.setup.height) return true;
+      if (p.y * m - reach > this.setup.height) continue;
       if (!this.options.floor) return false;
       body.linvel(v);
-      return Math.hypot(v.x, v.y, v.z) < REST_SPEED;
-    });
+      if (Math.hypot(v.x, v.y, v.z) >= REST_SPEED) return false;
+    }
+    return true;
   }
 
   free(): void {

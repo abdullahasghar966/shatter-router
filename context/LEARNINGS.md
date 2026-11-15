@@ -11,6 +11,7 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - No global git identity on this machine; the repo uses a repo-local identity (ADR-002).
 - `pnpm exec playwright install chromium firefox webkit` took more than 10 minutes on this connection. Browsers land in `%LOCALAPPDATA%\ms-playwright`.
 - **Playwright Firefox (build 1572, Firefox 159) does not launch on this machine.** Symptom: `browserType.launch: spawn UNKNOWN`; from cmd/PowerShell: "side-by-side configuration is incorrect"; Application event log (SideBySide): `Dependent Assembly mozglue ... could not be found` although `mozglue.dll` is present with an embedded manifest. `playwright install --force firefox` did not fix it; Smart App Control is off. Not diagnosed further (sxstrace needs admin). **Firefox e2e is verified on CI (Linux) only**; run local e2e with `--project=chromium --project=webkit`.
+- **Playwright's full Chromium (build 1255, Chrome 159.0.8154.6) does not start either** (2026-11-15), with the same side-by-side error: `Dependent Assembly 159.0.8154.6 ... could not be found`, although `159.0.8154.6.manifest` sits next to `chrome.exe`. Only `chromium_headless_shell` works, so every headed run fails with `spawn UNKNOWN`. For real-GPU runs, use the installed Google Chrome: `channel: 'chrome'` (`SHATTER_PERF=1`, ADR-040).
 
 ## Tooling
 
@@ -147,3 +148,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Next.js 16 answers an unknown route with an HTTP 404 document**, which the browser logs as `Failed to load resource: ... status of 404`; the e2e test for not-found declares it as expected console output.
 - **Next.js example, local runs:** set `NEXT_TELEMETRY_DISABLED=1` in the shell before `pnpm build:examples` (CI sets it in the workflow env); package scripts stay free of environment variables so they work in PowerShell and bash.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.
+- **Headed Chrome requests `/favicon.ico`** when a page has no icon link; the headless shell does not. The vanilla example's 404 for it failed the console check, so the example now links `/favicon.svg`.
+- **A cold first transition allocates in the frame loop** (V8 compiles bytecode and allocates feedback vectors on first calls: 80–352 B samples in the step closure, `tick` and `draw`). A reload throws the warm code away, so allocation measurements need a warm-up transition in the same document (`page.goBack()`), not `page.goto()`.
+- **The V8 sampling heap profiler attributes allocations in inlined callees to the optimised caller:** Rapier's getters showed up as allocations in our `write()` after TurboFan inlined them. Use a Node GC-count probe to separate them.
+- **Rapier 0.21 (`rapier3d-compat`) getters allocate** although they take a target object: `translation(target)` → `rbTranslation(handle, scratch)`, and the wasm writes each float back through the `__wbg_set_index` import, which boxes the numbers. `World.step()` allocates too (`intoRaw` of the gravity vector, event glue).
+- **SwiftShader headless Chromium on this laptop:** 160 shards at 1440x900 run at 31–34 fps (falling effects) and 13–15 fps (`flip`/`assemble`, two layers), with 51–108 ms long tasks. The same page runs at 60 fps on the RTX 4050 with no long tasks.
