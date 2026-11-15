@@ -135,6 +135,9 @@ interface Settings {
 
 const DEFAULT_MOTION_MS = 1000;
 
+/** First signs of a user's intent that start the priming capture (ADR-043). */
+const PRIME_EVENTS = ['pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
+
 type DrawStats = Engine['drawStats'];
 
 /** Draw calls per drawn frame between two engine readings (debug panel). */
@@ -214,6 +217,9 @@ class Runtime implements ShatterRuntime {
   private panel: DebugPanel | null = null;
   /** A debug seam check in progress: transitions wait for it. */
   private busy: Promise<unknown> | null = null;
+  /** The capturer has captured once (warm), or a priming capture is on its way. */
+  private primed = false;
+  private removePrimeListeners: (() => void) | null = null;
 
   constructor(
     private readonly host: RuntimeHost,
@@ -227,7 +233,64 @@ class Runtime implements ShatterRuntime {
   }
 
   warmUp(): void {
-    void this.load();
+    void this.load().then((loaded) => {
+      if (loaded) this.armPrime();
+    });
+  }
+
+  /**
+   * The first capture of a page is about three times slower than the next
+   * ones (JIT, the library's style caches, embedded fonts: 160–185 ms against
+   * 50–110 ms on the docs landing page). On the first sign of the user's
+   * intent, one throwaway capture runs at idle, so the click's capture is a
+   * warm one. Not at load: that would be a long task in every page load
+   * (ADR-043).
+   */
+  private armPrime(): void {
+    if (this.primed || this.removePrimeListeners || this.destroyed) return;
+    const onIntent = (): void => {
+      // A capture is happening anyway (a transition, a pre-capture, a check).
+      if (this.current || this.pending || this.busy) return;
+      this.disarmPrime();
+      this.primed = true;
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => void this.prime(), { timeout: 500 });
+      } else {
+        window.setTimeout(() => void this.prime(), 50);
+      }
+    };
+    for (const name of PRIME_EVENTS) {
+      window.addEventListener(name, onIntent, { capture: true, passive: true });
+    }
+    this.removePrimeListeners = () => {
+      for (const name of PRIME_EVENTS) {
+        window.removeEventListener(name, onIntent, { capture: true });
+      }
+    };
+  }
+
+  private disarmPrime(): void {
+    this.removePrimeListeners?.();
+    this.removePrimeListeners = null;
+  }
+
+  private async prime(): Promise<void> {
+    const loaded = this.loaded;
+    if (!loaded || this.destroyed || this.current || this.pending) return;
+    if (document.visibilityState === 'hidden' || loaded.engine.contextLost) return;
+    // No effect will play: nothing to warm up.
+    if (this.settings.reducedMotion !== 'ignore' && prefersReducedMotion()) return;
+    const viewport = readViewport(window);
+    if (viewport.pinchZoomed) return;
+    try {
+      const snapshot = await loaded.capturer.capture({
+        viewport,
+        maxTextureSize: loaded.engine.maxTextureSize,
+      });
+      snapshot.dispose();
+    } catch {
+      // The real capture reports its own failure.
+    }
   }
 
   precapture(): void {
@@ -289,6 +352,7 @@ class Runtime implements ShatterRuntime {
       run.skip.abort();
     }
     this.dropPrecapture();
+    this.disarmPrime();
     this.resumePaused?.();
     this.resumePaused = null;
     this.scrollLock?.unlock();
@@ -331,6 +395,9 @@ class Runtime implements ShatterRuntime {
       const effect = engine.resolveEffect(this.effectFor(request), this.host.effects);
 
       const { snapshot, precaptured } = await this.snapshotFor(run, loaded, viewport);
+      // A real capture warmed the capturer: no priming capture needed.
+      this.primed = true;
+      this.disarmPrime();
       if (this.hook) {
         this.hook.lastCaptureMs = snapshot.duration;
         this.hook.lastPrecaptured = precaptured;
