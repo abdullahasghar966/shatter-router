@@ -1,3 +1,4 @@
+import { ABERRATION_FULL_SPEED, GLASS_TINT_STRENGTH, MAX_ABERRATION_PX } from '../core/shading';
 import { SETTLE_GLSL } from '../core/spring';
 
 /**
@@ -37,7 +38,8 @@ void main() {
 
 /** Uniforms and helpers shared by the vertex shader and every effect chunk. */
 const MOTION_PRELUDE = /* glsl */ `
-uniform float uTime;        // s since the motion phase started
+uniform float uTimeValue;   // s since the motion phase started
+float uTime;                // = uTimeValue, set first thing in main(); read-only for effects
 uniform float uDuration;    // s
 uniform vec2 uOrigin;       // impact point, CSS px
 uniform vec2 uViewport;     // CSS px
@@ -114,8 +116,28 @@ out vec3 vNormal;
 out float vFace;
 out float vLayer;
 out float vAlpha;
+out vec2 vVelocity;   // screen-plane velocity of this vertex, px/s (chromatic aberration)
+out float vMotion;    // 0 at the rest pose, 1 once clearly away from it (gates the lighting)
+
+/** Seconds between the two poses the velocity is measured from (about one frame). */
+const float VELOCITY_DT = 1.0 / 60.0;
+
+vec3 place(Pose pose) {
+  vec3 rest = vec3(aCentroid, 0.0);
+  return rest + pose.translate + pose.rotate * ((aPosition - rest) * pose.scale);
+}
+
+Pose restPose() {
+  Pose pose;
+  pose.translate = vec3(0.0);
+  pose.rotate = mat3(1.0);
+  pose.scale = 1.0;
+  pose.alpha = 1.0;
+  return pose;
+}
 
 void main() {
+  uTime = uTimeValue;
   int id = int(aShardId + 0.5);
   Shard shard;
   shard.id = id;
@@ -124,11 +146,8 @@ void main() {
   shard.a = texelFetch(uShardData, ivec2(0, id), 0);
   shard.b = texelFetch(uShardData, ivec2(1, id), 0);
 
-  Pose pose;
-  pose.translate = vec3(0.0);
-  pose.rotate = mat3(1.0);
-  pose.scale = 1.0;
-  pose.alpha = 1.0;
+  Pose pose = restPose();
+  vec2 velocity = vec2(0.0);
   // Effects only move shards during the motion phase; until then their data
   // may not be uploaded yet, and the page must be drawn exactly at rest.
   if (uMoving > 0.5) {
@@ -141,14 +160,28 @@ void main() {
       pose.rotate = mat3(m);
       pose.translate = m[3].xyz;
       pose.alpha = 1.0 - smoothstep(PHYSICS_FADE_START, 1.0, uTime / uDuration);
+      // The simulation stores the linear velocity (px/s) in the spare row.
+      velocity = vec2(m[0].w, m[1].w);
     } else {
+      // The pose a frame earlier gives this vertex's velocity.
+      Pose before = restPose();
+      uTime = max(0.0, uTimeValue - VELOCITY_DT);
+      shardMotion(shard, before);
+      uTime = uTimeValue;
       shardMotion(shard, pose);
+      velocity = uTimeValue > 0.0 ? (place(pose).xy - place(before).xy) / min(uTimeValue, VELOCITY_DT) : vec2(0.0);
     }
   }
 
-  vec3 rest = vec3(aCentroid, 0.0);
-  vec3 world = rest + pose.translate + pose.rotate * ((aPosition - rest) * pose.scale);
+  vec3 world = place(pose);
   world.z = min(world.z, uMaxZ);
+
+  // How far the shard is from lying at rest in the screen plane (translation,
+  // in-plane rotation or mirroring, scale), in px; exactly 0 at the rest pose.
+  float away =
+    length(pose.translate.xy) +
+    60.0 * (length(pose.rotate[0].xy - vec2(1.0, 0.0)) + length(pose.rotate[1].xy - vec2(0.0, 1.0))) +
+    60.0 * abs(pose.scale - 1.0);
 
   vUv = aUv;
   vPos = aPosition.xy;
@@ -158,6 +191,8 @@ void main() {
   vFace = aNormal.z;
   vLayer = float(gl_InstanceID);
   vAlpha = clamp(pose.alpha, 0.0, 1.0);
+  vVelocity = velocity;
+  vMotion = clamp(away / 2.0, 0.0, 1.0);
   gl_Position = uViewProjection * vec4(world, 1.0);
 }
 `;
@@ -181,6 +216,9 @@ uniform sampler2D uIncoming;   // the incoming page (effects with needsIncomingS
 uniform float uCrackRadius;    // CSS px the crack front has travelled
 uniform float uFlash;          // 0..1 impact flash strength
 uniform float uWireframe;      // 1 = debug: show every cell edge and the impact point
+uniform float uLight;          // lighting fade-in: exactly 0 at t = 0, 1 after 60 ms of motion
+uniform float uChromatic;      // 1: colour fringing along fast shards' motion
+uniform vec3 uTint;            // glass tint of the cut edges, 0..1
 ${MOTION_PRELUDE}
 
 in vec2 vUv;
@@ -191,6 +229,8 @@ in vec3 vNormal;
 in float vFace;
 in float vLayer;
 in float vAlpha;
+in vec2 vVelocity;
+in float vMotion;
 
 out vec4 outColor;
 
@@ -199,14 +239,36 @@ const float REFRACT_WIDTH = 2.5;      // CSS px band beside the crack that bends
 const float REFRACT_SHIFT = 0.8;      // CSS px the band is displaced
 const float FRONT_GLOW = 70.0;        // CSS px behind the front that stay extra bright
 const float FLASH_RADIUS = 34.0;      // CSS px
+const float MAX_ABERRATION = ${MAX_ABERRATION_PX.toFixed(2)};   // CSS px
+const float ABERRATION_FULL_SPEED = ${ABERRATION_FULL_SPEED.toFixed(1)}; // px/s
+const float TINT_STRENGTH = ${GLASS_TINT_STRENGTH.toFixed(3)};
+const float EDGE_LIGHT_WIDTH = 2.0;   // CSS px of bright rim along each cut edge
+const vec3 LIGHT_DIR = vec3(-0.4472, -0.5367, 0.7155);  // from the top left, toward the viewer
+const vec3 HALF_VECTOR = normalize(LIGHT_DIR + vec3(0.0, 0.0, 1.0)); // Blinn-Phong, viewer on +z
+
+/**
+ * Samples a page texture with chromatic aberration along this shard's motion
+ * (red ahead, blue behind, at most MAX_ABERRATION px), when enabled. Exactly
+ * texture(tex, uv) at rest. Effects use it for uIncoming too.
+ */
+vec4 glassSample(sampler2D tex, vec2 uv) {
+  float speed = length(vVelocity);
+  float shift = uChromatic * uLight * vMotion * min(MAX_ABERRATION, speed * MAX_ABERRATION / ABERRATION_FULL_SPEED);
+  vec4 color = texture(tex, uv);
+  if (shift <= 0.0 || speed <= 0.0) return color;
+  vec2 offset = (vVelocity / speed) * shift / uViewport;
+  float red = texture(tex, uv + offset).r;
+  float blue = texture(tex, uv - offset).b;
+  return vec4(min(red, color.a), color.g, min(blue, color.a), color.a);
+}
 
 ${fragmentChunk ? `${fragmentChunk}\n#define SHATTER_FRAGMENT_HOOK 1` : ''}
 
 vec4 pageColor() {
   // Thickness faces: darker glass edge.
   if (abs(vFace) < 0.5) {
-    vec4 side = texture(uPage, vUv);
-    return vec4(side.rgb * 0.55, side.a);
+    vec4 side = glassSample(uPage, vUv);
+    return vec4(mix(side.rgb * 0.55, uTint * side.a, TINT_STRENGTH), side.a);
   }
 
   float d = distance(vPos, uOrigin);
@@ -217,7 +279,7 @@ vec4 pageColor() {
   vec2 toCentre = vCentroid - vPos;
   float len = length(toCentre);
   vec2 dir = len > 1e-3 ? toCentre / len : vec2(0.0);
-  vec4 page = texture(uPage, vUv + dir * band * REFRACT_SHIFT / uViewport);
+  vec4 page = glassSample(uPage, vUv + dir * band * REFRACT_SHIFT / uViewport);
 
   // The crack line itself, anti-aliased with screen-space derivatives.
   float aa = max(fwidth(vEdge), 1e-4);
@@ -241,11 +303,30 @@ vec4 pageColor() {
   return vec4(min(rgb, vec3(page.a)), page.a);
 }
 
+/**
+ * Glass lighting (master prompt 5.5): a bright rim along the cut edges that
+ * is stronger where the shard faces the light, and a Blinn-Phong glint that
+ * sweeps across a shard as it turns. Scaled by uLight (0 at t = 0, faded in
+ * over 60 ms) and vMotion (0 at the rest pose), so the first frame and the
+ * settled last frame of every effect are unlit.
+ */
+float glassLight() {
+  float strength = uLight * vMotion;
+  if (strength <= 0.0) return 0.0;
+  vec3 normal = normalize(vNormal);
+  float facing = max(dot(normal, LIGHT_DIR), 0.0);
+  float glint = pow(max(dot(normal, HALF_VECTOR), 0.0), 60.0);
+  float rim = abs(vFace) < 0.5 ? 0.25 * facing : (1.0 - smoothstep(0.0, EDGE_LIGHT_WIDTH, vEdge)) * (0.15 + 0.55 * facing);
+  return strength * (rim + 0.55 * glint);
+}
+
 void main() {
+  uTime = uTimeValue;
   vec4 color = pageColor();
 #ifdef SHATTER_FRAGMENT_HOOK
   shardFragment(color);
 #endif
+  color.rgb = min(color.rgb + glassLight() * color.a, vec3(color.a));
   outColor = color * vAlpha;
 }
 `;

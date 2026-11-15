@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 9 — Glass shading polish (branch created, no code yet)
+- **Current milestone:** 9 — Glass shading polish (implemented; PR next)
 - **Current branch:** `milestone/09-glass-shading` (from `main` at `13d4fb6`)
-- **Last commit:** see `git log -1` (`docs(context): record milestone 8 merge and start milestone 9`)
+- **Last commit:** see `git log -1` (`feat(shading): glass lighting, chromatic aberration and tint`)
 - **Latest tag:** `m08-rapier` (on `13d4fb6`)
 
 ## Done so far
@@ -16,16 +16,18 @@
 - Milestones 0–8 merged and tagged (see `PROGRESS.md`; ADR-001..037). Latest: M8 Rapier mode (PR #8, `13d4fb6`, `m08-rapier`): `physics: rapier({ floor })` from `shatter-router/rapier` (ADR-037), all three engines green.
 - What works: core + `shatter-router/react`, `/react-router` (`createShatterBrowserRouter` in data mode), `/next` (`waitFor`, `data-shatter-pending`), `/rapier`; five effects with first- and last-frame seam tests; back/forward effects with scroll restoration; Rapier physics for `shatter`/`explode` with procedural fallback. Examples: vanilla (4173: `/effects`, `?physics=rapier&floor`, `csp.html`, `csp-wasm.html`), react-router (4174), next (4175; `NEXT_TELEMETRY_DISABLED=1` locally).
 
-## Next 3 steps (Milestone 9: glass shading polish, master prompt 5.5)
+- Milestone 9 implemented on this branch: glass lighting (rim, glint), chromatic aberration (`glassSample`), tinted sides, options `glassTint` and `chromatic`, all gated by the 60 ms fade-in and the rest pose (ADR-038). Before/after screenshots in `context/screenshots/` (PROGRESS). 318 unit tests; local e2e 173 passed, 9 skipped; seams unchanged.
 
-1. **Before screenshots first:** headless Playwright frames of `shatter`, `explode` and `flip` at fixed motion times (`?seed=7`, `setMotionTime`), saved to `test-results/shots` and recorded (paths, what they show) in PROGRESS; the after set uses the same frames.
-2. **Shading in `src/engine/shaders.ts`** (engine-level, applies to every effect; options `glassTint`, `chromatic` in `ShatterOptions` and uniforms): edge highlight from `vEdge` brighter when the rotated normal faces a fixed virtual light; Blinn-Phong glint with `vNormal`; side faces darker with `glassTint` (default `#cfe8ff` at 12 %); chromatic aberration ∝ shard speed (needs a per-vertex speed varying; max 1.5 px) when `chromatic: true`; every term multiplied by a fade-in uniform that is exactly 0 at `t = 0` and reaches 1 after 60 ms of motion. Keep the incoming-page faces of `flip`/`assemble` at rest unlit (last-frame seam) and the at-rest frames untouched (first-frame seam).
-3. Unit tests (option parsing, tint parsing, fade-in function), e2e seams unchanged and green, after screenshots, then the ritual and tag `m09-glass-shading`.
+## Next 3 steps (Milestone 9)
+
+1. **Ritual (A.5):** PR "Milestone 09: Glass shading polish" (ADR-038, the screenshots, seams unchanged, engine size 21.58/22 KB), `gh pr checks --watch`; record the CI seams (Firefox, Linux WebKit) in PROGRESS.
+2. Merge with `--merge`, tag `m09-glass-shading`, push the tag.
+3. Create `milestone/10-performance` from main (first commit records PR/merge/tag). Milestone 10 (section 8): measure and meet every budget on a real GPU (60 fps at 1440x900 with 160 shards, one draw call and no per-frame allocations from a Performance trace, capture ≤ 120 ms on the docs landing page once it exists, no long task > 50 ms outside capture, textures freed after `end`); strip GLSL comments from shader strings at build to regain engine headroom; build the debug panel (section 10, ADR-025).
 
 ## Deferred (tracked, not forgotten)
 
 - Debug panel (section 10) → Milestone 10 (ADR-025).
-- `glassTint`, `chromatic`, lighting fade-in → M9. README items (`scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, popstate note from ADR-026) → M12.
+- README items (`scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, popstate note from ADR-026) → M12.
 
 ## Open problems / blockers
 

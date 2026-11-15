@@ -13,6 +13,7 @@ import {
   type PhysicsSimulation,
 } from '../core/physics';
 import { createRandom } from '../core/random';
+import { lightFade, type Rgb } from '../core/shading';
 import type { Snapshot } from '../core/snapshot';
 import { createPixelCamera, type PixelCamera } from './camera';
 import { CRACK_DURATION_MS, CRACK_HOLD_MS, crackAt } from './crack';
@@ -96,6 +97,14 @@ export interface MotionRequest {
   readonly seed?: number;
 }
 
+/** Glass shading settings (master prompt 5.5). */
+export interface ShadingOptions {
+  /** Tint of the cut edges, 0..1 channels. */
+  readonly tint: Rgb;
+  /** Colour fringing along fast shards' motion. */
+  readonly chromatic: boolean;
+}
+
 export interface PhaseOptions {
   /** Ends the phase at its final state within one frame (skip, interruption). */
   readonly signal?: AbortSignal;
@@ -109,6 +118,7 @@ export interface PhaseOptions {
 export class Engine {
   /** Draws every cell edge and the impact point (debug mode). */
   wireframe = false;
+  private shading: ShadingOptions = { tint: [0.812, 0.91, 1], chromatic: true };
 
   private readonly device: GLDevice;
   private readonly overlay: Overlay;
@@ -187,6 +197,11 @@ export class Engine {
   /** The overlay element; it receives clicks during a transition. */
   get overlayElement(): HTMLElement {
     return this.overlay.host;
+  }
+
+  /** Sets the glass shading used by every following frame. */
+  setShading(shading: ShadingOptions): void {
+    this.shading = shading;
   }
 
   /** Looks up an effect: user-registered first, then built-in. */
@@ -567,7 +582,12 @@ export class Engine {
       gl.uniform2f(program.uniform('uOrigin'), geometry.origin.x, geometry.origin.y);
       gl.uniform1f(program.uniform('uMaxRadius'), geometry.maxRadius);
       const state = this.state;
-      gl.uniform1f(program.uniform('uTime'), this.moving ? this.time : 0);
+      gl.uniform1f(program.uniform('uTimeValue'), this.moving ? this.time : 0);
+      // Lighting is exactly 0 until the motion starts and fades in over 60 ms.
+      gl.uniform1f(program.uniform('uLight'), this.moving ? lightFade(this.time) : 0);
+      gl.uniform1f(program.uniform('uChromatic'), this.shading.chromatic ? 1 : 0);
+      const [r, g, b] = this.shading.tint;
+      gl.uniform3f(program.uniform('uTint'), r, g, b);
       gl.uniform1f(program.uniform('uMoving'), this.moving ? 1 : 0);
       gl.uniform1f(program.uniform('uDuration'), state ? state.duration / 1000 : 1);
       gl.uniform1f(program.uniform('uGravity'), state ? state.gravity : 0);

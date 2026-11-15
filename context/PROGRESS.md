@@ -232,6 +232,17 @@ Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 
 Visual check (headless Chromium screenshots, 1280x720, motion frozen at 450 ms): forward Home → Work shatters the Home page from the click point over the live Work page; back Work → Home shatters the Work page from the viewport centre over the live Home page. No console errors or warnings.
 
+### Glass shading review (Milestone 9)
+
+Same frames before (commit `f7a764d`) and after, headless Chromium 1255, 1280x720, `/effects?seed=7&shards=90&duration=1000`, same click point, motion frozen with `setMotionTime` (script `coverage/m9/shading-shots.mjs`, not in the repo):
+
+- `context/screenshots/m09-shatter-before-after.jpg` (260 ms): before, flat dark shards; after, a bright rim along every cut edge, tinted side faces, a soft glint on shards turning toward the light, and red/blue fringing on fast-moving text.
+- `context/screenshots/m09-explode-before-after.jpg` (200 ms): the same, with stronger fringing (faster shards).
+- `context/screenshots/m09-flip-before-after.jpg` (380 ms): turning shards show lit edges and a glint; the edges fade to nothing as each shard settles (the last-frame seam is unchanged).
+- `context/screenshots/m09-before-after-sheet.jpg`: all three, full frame.
+
+Seams after the shading (local Windows 11), identical to Milestone 7: Chromium first frames 0.0843–0.0936 %, last frames flip 0.1647 % / assemble 0.2615 %; WebKit first 0.0225 %, last 0.0000 % / 0.0001 %.
+
 ### Physics (Milestone 8, Rapier 0.21.0)
 
 | Date | Runtime | Measurement |
@@ -268,3 +279,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 6 | 266 tests in 17 files (+ `next.test.tsx` 9); after the M6 follow-up fixes on `milestone/07-effects`: 272 in 18 (+ `route-bridge.test.ts` 6) | Next.js example: 11 navigation + 6 transitions/seam per engine. Local: Chromium + WebKit, full suite 139 passed, 9 skipped. PR #6 CI: Chromium 74 passed, Firefox 66 passed, WebKit 66 passed |
 | 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped. PR #7 CI: Chromium 87 passed, Firefox 79, WebKit 79 |
 | 8 | 311 tests in 22 files (+ `rapier.test.ts` 8 with the real Rapier WASM, `rapier.bench.test.ts` 2) | + `e2e/vanilla/rapier.spec.ts` 4 per engine (Rapier shatter, floor pile, flip stays procedural, CSP without wasm-unsafe-eval stays procedural). Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #8 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
+| 9 | 318 tests in 23 files (+ `shading.test.ts` 7: tint parsing, fade-in, aberration, shader gates, options) | unchanged suites; every first/last-frame seam identical to M7. Local: Chromium + WebKit, full suite 173 passed, 9 skipped |

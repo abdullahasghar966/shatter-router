@@ -145,18 +145,21 @@ export class RapierSimulation implements PhysicsSimulation {
       body.rotation(q);
       const { x, y, z, w } = q;
       // Column-major rotation from the unit quaternion.
+      // The spare row carries the linear velocity in px/s (for shading).
+      const v = this.velocity;
+      body.linvel(v);
       target[o] = 1 - 2 * (y * y + z * z);
       target[o + 1] = 2 * (x * y + z * w);
       target[o + 2] = 2 * (x * z - y * w);
-      target[o + 3] = 0;
+      target[o + 3] = v.x * m;
       target[o + 4] = 2 * (x * y - z * w);
       target[o + 5] = 1 - 2 * (x * x + z * z);
       target[o + 6] = 2 * (y * z + x * w);
-      target[o + 7] = 0;
+      target[o + 7] = v.y * m;
       target[o + 8] = 2 * (x * z + y * w);
       target[o + 9] = 2 * (y * z - x * w);
       target[o + 10] = 1 - 2 * (x * x + y * y);
-      target[o + 11] = 0;
+      target[o + 11] = v.z * m;
       // Translation relative to the rest pose, CSS px.
       target[o + 12] = p.x * m - shard.centroid.x;
       target[o + 13] = p.y * m - shard.centroid.y;

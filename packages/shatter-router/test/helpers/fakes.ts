@@ -72,6 +72,8 @@ export function fakeSnapshot(duration = 40): FakeSnapshot {
 /** A controllable stand-in for the WebGL engine and the capturer. */
 export class FakeWorld {
   readonly calls: string[] = [];
+  /** The shading the runtime set on the engine (glassTint, chromatic). */
+  shading: { tint: readonly [number, number, number]; chromatic: boolean } | null = null;
   /** Effect names passed to resolveEffect, in order. */
   readonly resolved: string[] = [];
   readonly overlay = document.createElement('div');
@@ -132,6 +134,9 @@ export class FakeWorld {
       },
       replaceEffect(effect: ShatterEffect) {
         world.calls.push(`replaceEffect:${effect.name}`);
+      },
+      setShading(shading: { tint: readonly [number, number, number]; chromatic: boolean }) {
+        world.shading = shading;
       },
       startPhysics() {
         world.calls.push('startPhysics');

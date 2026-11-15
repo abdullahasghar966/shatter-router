@@ -47,7 +47,7 @@
  *
  * | Uniform | Type | Meaning |
  * |---|---|---|
- * | `uTime` | float | seconds since the motion phase started |
+ * | `uTime` | float | seconds since the motion phase started (read-only) |
  * | `uDuration` | float | motion phase length in seconds |
  * | `uOrigin` | vec2 | impact point, CSS px |
  * | `uViewport` | vec2 | viewport size, CSS px |
@@ -72,7 +72,13 @@
  * `pose.rotate`), `vFace` (1 front, -1 back, 0 side), `vLayer` (0 or 1),
  * `vAlpha`. Uniforms as above plus `sampler2D uPage` (the outgoing page) and
  * `sampler2D uIncoming` (the incoming page, effects with
- * `needsIncomingSnapshot` only).
+ * `needsIncomingSnapshot` only). Sample pages with
+ * `vec4 glassSample(sampler2D page, vec2 uv)`: `texture()` plus the chromatic
+ * aberration of moving shards (exactly `texture()` at rest).
+ *
+ * The engine adds the glass lighting (edge rim, glint) after the hook; it is
+ * exactly zero while a shard is at its rest pose and during the first frame of
+ * the motion, so effects need not do anything for the seam guarantees.
  *
  * ## Effects that end on the incoming page
  *

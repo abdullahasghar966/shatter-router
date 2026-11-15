@@ -5,6 +5,7 @@ import { crossfade } from '../core/crossfade';
 import type { ShatterEffect } from '../core/effect';
 import type { PhysicsBackend, PhysicsPlugin } from '../core/physics';
 import { prefersReducedMotion } from '../core/env';
+import { DEFAULT_GLASS_TINT, parseHexColor, type Rgb } from '../core/shading';
 import { StateMachine, type TransitionState } from '../core/machine';
 import { Precapture, PRECAPTURE_TTL_MS } from '../core/precapture';
 import { type ScrollTarget, waitUntilReady } from '../core/ready';
@@ -39,6 +40,7 @@ export type EngineLike = Pick<
   | 'setIncoming'
   | 'replaceEffect'
   | 'startPhysics'
+  | 'setShading'
   | 'prepareMotion'
   | 'crack'
   | 'animate'
@@ -670,6 +672,10 @@ class Runtime implements ShatterRuntime {
           return null;
         }
         loaded.engine.wireframe = this.wireframe;
+        loaded.engine.setShading({
+          tint: this.glassTint(),
+          chromatic: this.host.options.chromatic ?? true,
+        });
         this.loaded = loaded;
         if (this.hook) this.hook.ready = true;
         return loaded;
@@ -681,6 +687,18 @@ class Runtime implements ShatterRuntime {
       },
     );
     return this.loading;
+  }
+
+  /** The `glassTint` option as channels; the default when it is not a `#rgb`/`#rrggbb` colour. */
+  private glassTint(): Rgb {
+    const option = this.host.options.glassTint;
+    const parsed = option === undefined ? null : parseHexColor(option);
+    if (option !== undefined && !parsed && this.settings.debug) {
+      console.warn(
+        `[shatter-router] glassTint "${option}" is not #rgb or #rrggbb; using ${DEFAULT_GLASS_TINT}`,
+      );
+    }
+    return parsed ?? parseHexColor(DEFAULT_GLASS_TINT) ?? [0.812, 0.91, 1];
   }
 
   /**

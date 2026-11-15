@@ -63,7 +63,9 @@ export interface PhysicsSimulation {
   /**
    * Writes each shard's transform relative to its rest pose into `target`
    * (`PHYSICS_TRANSFORM_FLOATS` per shard, shard order): columns 0–2 are the
-   * rotation, column 3 the translation in CSS px. Must not allocate.
+   * rotation, column 3 the translation in CSS px, and the spare fourth row
+   * (floats 3, 7, 11) the linear velocity in CSS px/s (used for shading).
+   * Must not allocate.
    */
   write(target: Float32Array): void;
   /** True once every shard has left the viewport (or come to rest, with a floor). */
