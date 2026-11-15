@@ -51,6 +51,7 @@ Recorded 2026-11-14 (session 1). Node v24.21.0, pnpm 12.8.1.
 | react / react-dom | 19.3.1 | packages/shatter-router (dev; optional peer `>=19.0.0`), recorded 2026-11-15 |
 | react-router | 8.5.1 | packages/shatter-router (dev; optional peer `>=8.0.0`) |
 | @types/react / @types/react-dom | 19.3.0 | packages/shatter-router (dev) |
+| next | 16.4.6 | packages/shatter-router (dev; optional peer `>=16.0.0`), recorded 2026-11-15 |
 
 GitHub Actions: actions/checkout v7, actions/setup-node v7, pnpm/action-setup v6, actions/cache v6, actions/upload-artifact v7.
 

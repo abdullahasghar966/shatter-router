@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 6 — Next.js App Router adapter (branch created, no code yet)
+- **Current milestone:** 6 — Next.js App Router adapter (adapter done, example next)
 - **Current branch:** `milestone/06-nextjs` (from `main` at `0d4d85f`)
-- **Last commit:** see `git log -1` (`docs(context): record milestone 5 merge and start milestone 6`)
+- **Last commit:** see `git log -1` (`feat(next): Next.js App Router adapter`)
 - **Latest tag:** `m05-react-router` (on `0d4d85f`)
 
 ## Done so far
@@ -20,11 +20,13 @@
   - `examples/react-router` (port 4174) with e2e `e2e/react-router/*` (16 per engine).
   - Unit 257 tests. Measurements in PROGRESS.
 
+- Milestone 6, sub-task 1: next 16.4.6 installed and read (LEARNINGS); `src/next/` builds `shatter-router/next` (`ShatterProvider` with `waitFor`, `ShatterLink`, `useShatterNavigate`, `useShatter`, `PENDING_ATTRIBUTE`); bridge and pop gate moved to `src/react/` and shared (ADR-034); `"use client"` added to built client entries; 9 unit tests in `test/next.test.tsx` (266 total).
+
 ## Next 3 steps (Milestone 6)
 
-1. **Read the installed APIs first (rule 3):** `npm view next version` (latest stable) and add `next` as a dev + optional peer dependency of `packages/shatter-router` (`peerDependenciesMeta`). Read `node_modules/next/dist/client/components/navigation.d.ts` (`useRouter`, `usePathname`, `useSearchParams`), `next/link` props (`prefetch`, `scroll`, `replace`, `onNavigate`), and how the App Router handles `popstate` (who registers first, whether the update renders synchronously in React 19): the same questions ADR-026/028/030/031 answered for React Router. Record facts in LEARNINGS.
-2. **Build `src/next/`** → `shatter-router/next` with `'use client'` preserved in the built file (check tsup/esbuild keeps or strips the directive; add a banner if needed): `ShatterProvider` (root layout), `ShatterLink` (wraps `next/link`, keeps prefetch), `useShatterNavigate`, commit = `router.push(href, { scroll: false })` resolving when `usePathname()` + `useSearchParams()` (inside `<Suspense>`) change, plus two rAFs; `waitFor: 'commit' | 'settled'` (`[data-shatter-pending]` / Suspense fallback marker, bounded by `readyTimeout`). Reuse `src/react/shared.ts`, `context.ts`, the bridge and pop-gate ideas. Exports, tsup entry, size-limit entry (≤ 6 KB incl. core). ADRs for every deviation.
-3. **`examples/next`** (App Router, same pages/look, a `loading.tsx` route, port 4175) + e2e `e2e/next/*` mirroring `e2e/react-router/*` (links, modifier clicks, loading boundary, back/forward with scroll, seams, interruption). Then the ritual (A.5).
+1. **`examples/next`** (`@shatter-router/example-next`, next 16.4.6, React 19.3.1, port 4175 via `next start -p 4175`): App Router root layout with a client `Providers` component (reads the same query params as the other examples once on the client: `?debug`, `?seed`, `?shards`, `?budget`, `?duration`, plus `?waitfor=commit`), header nav of `ShatterLink`s, pages `/`, `/work`, `/about` (target=_blank, data-shatter="off", same-page anchor), `/slow` (server component awaiting 400 ms, `export const dynamic = 'force-dynamic'`, `loading.tsx` with `data-shatter-pending`), `not-found.tsx`, a "Navigate in code" button, and the debug event log (`window.__shatterEvents`). Copy `examples/react-router/src/style.css`. Add to `playwright.config.ts` (APPS.next, webServer). CI: set `NEXT_TELEMETRY_DISABLED: 1` in the workflow env.
+2. **E2E `e2e/next/*`** mirroring `e2e/react-router/*`: links, modifier clicks, opt-outs, loading.tsx with `settled` (overlay up until the real page) and `commit`, back/forward with scroll restoration and events, back first-frame seam, interruption, first-frame seam, prefetch still requested. Run the React Router e2e again (the bridge moved).
+3. **Ritual (A.5):** headless screenshots, context files, PR "Milestone 06: Next.js App Router adapter", three-engine CI, merge `--merge`, tag `m06-nextjs`, then `milestone/07-effects`.
 
 ## Deferred (tracked, not forgotten)
 

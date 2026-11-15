@@ -54,6 +54,13 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - The browser history listens with `window.addEventListener('popstate', handlePop)` (bubbling); `handlePop` reads the index from `window.history.state.idx`, so a later, re-dispatched popstate is handled correctly.
   - The location key lives in `history.state.key` (`getHistoryState` in `lib/router/history.js`: `{ usr, key, idx }`); the first entry has no key and its location key is `'default'`.
   - Peer dependencies: `react >=19.2.7`, `react-dom >=19.2.7`.
+- **next 16.4.6** (read from `dist/client/components/app-router.js`, `dist/client/app-dir/link.js`, `dist/shared/lib/*.d.ts`):
+  - `AppRouterInstance`: `push(href, { scroll?, transitionTypes? })`, `replace`, `back`, `forward`, `refresh`, `prefetch`, plus a required `bfcacheId: string` (test stubs need it).
+  - The App Router listens with `window.addEventListener('popstate', onPopState)` inside a passive `useEffect` (no capture); `handlePopState(state)` reloads the page when `state.__NA` is missing and ignores a null state. It patches `history.pushState/replaceState` to copy its internal state. It never sets `history.scrollRestoration`.
+  - App-dir `<Link>`: the app's `onClick` runs first, then `if (e.defaultPrevented) return`; modified clicks and `download` are left to the browser; `onNavigate({ preventDefault })` can cancel.
+  - `useRouter`/`usePathname`/`useSearchParams` read `AppRouterContext` (`next/dist/shared/lib/app-router-context.shared-runtime`) and `PathnameContext`/`SearchParamsContext` (`next/dist/shared/lib/hooks-client-context.shared-runtime`): unit tests can provide them directly, and `next/link` then renders in happy-dom.
+  - Peer dependencies: `react`/`react-dom` `^18.2.0 || ^19.0.0`.
+- **esbuild (tsup 9.0.0) drops `"use client"`** when bundling; it is added to the built client entries afterwards (ADR-034).
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found

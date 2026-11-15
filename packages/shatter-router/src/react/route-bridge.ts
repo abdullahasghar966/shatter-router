@@ -1,6 +1,6 @@
 import { nextFrame } from '../core/frame';
 import type { Shatter, TransitionRequest } from '../core/types';
-import { boundedCommit } from '../react/shared';
+import { boundedCommit } from './shared';
 
 interface Waiter {
   readonly from: string;
@@ -16,13 +16,15 @@ function currentScroll(): ScrollPosition {
   return { x: window.scrollX, y: window.scrollY };
 }
 
-/**
- * The location key React Router gives the entry the browser just moved to:
- * it keeps it in `history.state.key`; the first entry has none ('default').
- */
-function incomingKey(): string {
-  const state = window.history.state as { key?: unknown } | null;
-  return typeof state?.key === 'string' ? state.key : 'default';
+/** Scrolls the element a URL fragment points at into view, if it exists. */
+export function scrollToFragment(hash: string): void {
+  let id = hash.startsWith('#') ? hash.slice(1) : hash;
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // Keep the raw fragment.
+  }
+  if (id) document.getElementById(id)?.scrollIntoView();
 }
 
 /** `pathname + search` of the window: what decides whether a popstate changes the route. */
@@ -30,12 +32,31 @@ function windowRoute(): string {
   return window.location.pathname + window.location.search;
 }
 
+/** Options of a router commit. */
+export interface CommitOptions {
+  /**
+   * False when the navigation keeps the current route (same path and search),
+   * so no new render token is expected: resolve after two frames instead of
+   * waiting for the timeout.
+   */
+  readonly changesRoute?: boolean;
+  /** Fragment of the target URL (with `#`): scrolled into view once rendered. */
+  readonly hash?: string;
+  /** Extra wait after the render (Next.js `waitFor: 'settled'`), within the same bound. */
+  readonly afterRender?: () => Promise<void>;
+}
+
+function twoFrames(): Promise<void> {
+  return nextFrame(window).then(() => nextFrame(window));
+}
+
 /**
- * Connects transitions to React Router's render cycle:
+ * Connects transitions to a React router's render cycle (React Router,
+ * Next.js App Router):
  *
- * - `commit()` resolves once `<ShatterRouteSignal>` has seen a new location
- *   key in a layout effect while the data router (if any) is idle, so the
- *   new route is in the DOM under the overlay.
+ * - `commit()` resolves once the adapter's signal component has reported a
+ *   new render token (React Router: location key; Next.js: path + search)
+ *   in a layout effect, so the new route is in the DOM under the overlay.
  * - Back/forward: the router's `popstate` handling is held back (the browser
  *   history itself has already moved) until the outgoing page is captured,
  *   then a `popstate` is dispatched again for the router (ADR-026, ADR-028).
@@ -43,13 +64,16 @@ function windowRoute(): string {
 export class RouteBridge {
   /** Longest wait for a render, ms (the provider's `readyTimeout`). */
   timeout: number;
+  /** Token of the last rendered location; null until the signal reports. */
   private key: string | null = null;
+  /** History entry the last render belongs to, for scroll positions. */
+  private entry: string | null = null;
   private renderedRoute = '';
   private readonly waiters = new Set<Waiter>();
   private pendingPop = false;
   private releasing = false;
   private inflight = 0;
-  /** Last known scroll position of each rendered history entry, by location key. */
+  /** Last known scroll position of each rendered history entry. */
   private readonly positions = new Map<string, ScrollPosition>();
   /** Where the held back/forward navigation should end up scrolled, if known. */
   private popTarget: ScrollPosition | null = null;
@@ -57,7 +81,15 @@ export class RouteBridge {
   private heldScroll: ScrollPosition | null = null;
   private restorationBefore: ScrollRestoration | null = null;
 
-  constructor(timeout: number) {
+  /**
+   * @param timeout longest wait for a render, ms
+   * @param entryKey identifies the current history entry (read at render and
+   *   at popstate time, when the browser has already moved to the new entry)
+   */
+  constructor(
+    timeout: number,
+    private readonly entryKey: () => string,
+  ) {
     this.timeout = timeout;
   }
 
@@ -79,7 +111,7 @@ export class RouteBridge {
         if (window.scrollX !== held.x || window.scrollY !== held.y) window.scrollTo(held.x, held.y);
         return;
       }
-      if (this.key !== null) this.positions.set(this.key, currentScroll());
+      if (this.entry !== null) this.positions.set(this.entry, currentScroll());
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
@@ -91,9 +123,10 @@ export class RouteBridge {
     };
   }
 
-  /** Called by `<ShatterRouteSignal>` after every commit of the router's location. */
+  /** Called by the adapter's signal after every commit of the router's location. */
   rendered(key: string, idle: boolean): void {
     this.key = key;
+    this.entry = this.entryKey();
     this.renderedRoute = windowRoute();
     // Each history entry has its own mode; set it on every entry we show.
     if (this.restorationBefore !== null) window.history.scrollRestoration = 'manual';
@@ -140,16 +173,19 @@ export class RouteBridge {
   }
 
   /** Runs `navigate` (the router call) and resolves once its route has rendered. */
-  commit(navigate: () => unknown): Promise<void> {
+  commit(navigate: () => unknown, options: CommitOptions = {}): Promise<void> {
     this.releasePop();
-    if (this.key !== null) this.positions.set(this.key, currentScroll());
+    if (this.entry !== null) this.positions.set(this.entry, currentScroll());
     const next = this.nextRender();
-    return boundedCommit(() => {
+    if (options.changesRoute === false) next.cancel();
+    return boundedCommit(async () => {
       const result = navigate();
       // Data routers return a promise that settles when the navigation does;
       // the signal decides when the route is visible, so only errors matter.
       if (result instanceof Promise) result.catch(() => undefined);
-      return next.promise;
+      await (options.changesRoute === false ? twoFrames() : next.promise);
+      await options.afterRender?.();
+      if (options.hash) scrollToFragment(options.hash);
     }, this.timeout + 50).catch((error: unknown) => {
       next.cancel();
       throw error;
@@ -181,9 +217,9 @@ export class RouteBridge {
     if (!this.pendingPop && windowRoute() === this.renderedRoute) return false;
     if (!this.pendingPop) {
       this.heldScroll = currentScroll();
-      if (this.key !== null) this.positions.set(this.key, this.heldScroll);
+      if (this.entry !== null) this.positions.set(this.entry, this.heldScroll);
     }
-    this.popTarget = this.positions.get(incomingKey()) ?? null;
+    this.popTarget = this.positions.get(this.entryKey()) ?? null;
     this.pendingPop = true;
     return true;
   }
@@ -193,11 +229,11 @@ export class RouteBridge {
    * browser applies to the held page right after `popstate` has been undone
    * before the capture reads the page.
    */
-  async runPop(shatter: Shatter): Promise<void> {
+  async runPop(shatter: Shatter, afterRender?: () => Promise<void>): Promise<void> {
     this.inflight += 1;
     try {
       await nextFrame(window);
-      await shatter.transition({ direction: 'back', commit: () => this.commitPop() });
+      await shatter.transition({ direction: 'back', commit: () => this.commitPop(afterRender) });
     } finally {
       this.inflight -= 1;
       if (this.inflight === 0) this.releasePop();
@@ -210,7 +246,7 @@ export class RouteBridge {
    * unless the app (for example React Router's `<ScrollRestoration>`) already
    * scrolled during the render.
    */
-  async commitPop(): Promise<void> {
+  async commitPop(afterRender?: () => Promise<void>): Promise<void> {
     const changes = windowRoute() !== this.renderedRoute;
     const target = this.popTarget;
     this.popTarget = null;
@@ -219,6 +255,7 @@ export class RouteBridge {
     this.releasePop();
     if (!changes) next.cancel();
     await next.promise;
+    await afterRender?.();
     const after = currentScroll();
     if (target && after.x === before.x && after.y === before.y) {
       window.scrollTo(target.x, target.y);

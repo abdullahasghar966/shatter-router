@@ -5,7 +5,6 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
   type Ref,
@@ -32,11 +31,12 @@ import {
   DEFAULT_READY_TIMEOUT,
   reportNavigationError,
   useShatterClick,
+  useLatest,
   useShatterInstance,
   type LinkStart,
 } from '../react/shared';
-import { RouteBridge } from './bridge';
-import { installPopGate, setPopHolder } from './pop-gate';
+import { installPopGate, setPopHolder } from '../react/pop-gate';
+import { RouteBridge } from '../react/route-bridge';
 
 /**
  * React Router's `createBrowserRouter`, with Shatter's back/forward gate
@@ -85,13 +85,20 @@ export interface ShatterProviderProps {
   children?: ReactNode;
 }
 
-/** Keeps the latest value in a ref, for callbacks that must stay stable. */
-function useLatest<T>(value: T): { readonly current: T } {
-  const ref = useRef(value);
-  useLayoutEffect(() => {
-    ref.current = value;
-  });
-  return ref;
+/**
+ * The history entry the browser is on, as React Router identifies it: the
+ * location key it keeps in `history.state.key` ('default' for the first entry).
+ */
+function routerEntryKey(): string {
+  const state = window.history.state as { key?: unknown } | null;
+  return typeof state?.key === 'string' ? state.key : 'default';
+}
+
+/** The fragment (`#id`) of a React Router `To`, or ''. */
+function hashOf(to: To): string {
+  if (typeof to !== 'string') return to.hash ?? '';
+  const index = to.indexOf('#');
+  return index === -1 ? '' : to.slice(index);
 }
 
 /**
@@ -109,7 +116,7 @@ export function ShatterProvider({
 }: ShatterProviderProps): ReactNode {
   const shatter = useShatterInstance(options, instance);
   const timeout = options?.readyTimeout ?? DEFAULT_READY_TIMEOUT;
-  const [bridge] = useState(() => new RouteBridge(timeout));
+  const [bridge] = useState(() => new RouteBridge(timeout, routerEntryKey));
   bridge.timeout = timeout;
   const navigate = useLatest(useNavigate());
 
@@ -198,8 +205,11 @@ function useRouterTransition(): (
         await go();
         return;
       }
+      // A link to a fragment scrolls to it once rendered, not to the top.
+      const hash = hashOf(to);
       await context.transition({
-        commit: () => bridge.commit(go),
+        commit: () => bridge.commit(go, hash ? { hash } : {}),
+        ...(hash ? { scroll: 'none' as const } : {}),
         ...(origin ? { origin } : {}),
         ...(effect ? { effect } : {}),
       });
