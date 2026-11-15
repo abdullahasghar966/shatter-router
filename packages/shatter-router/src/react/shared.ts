@@ -34,6 +34,17 @@ export function boundedCommit(commit: () => unknown, timeout: number): Promise<v
   });
 }
 
+/** Scrolls the element a URL fragment points at into view, if it exists. */
+export function scrollToFragment(hash: string): void {
+  let id = hash.startsWith('#') ? hash.slice(1) : hash;
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // Keep the raw fragment.
+  }
+  if (id) document.getElementById(id)?.scrollIntoView();
+}
+
 /** Logs a navigation that failed inside a click handler, where nobody awaits it. */
 export function reportNavigationError(error: unknown): void {
   console.error('[shatter-router] navigation failed', error);

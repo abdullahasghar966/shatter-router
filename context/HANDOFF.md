@@ -8,13 +8,15 @@
 
 - **Current milestone:** 7 — Remaining effects (branch created, no code yet)
 - **Current branch:** `milestone/07-effects` (from `main` at `99f7e26`)
-- **Last commit:** see `git log -1` (`docs(context): record milestone 6 merge and start milestone 7`)
+- **Last commit:** see `git log -1` (`fix: tighten back/forward tests; fragments in shatter-router/react`)
 - **Latest tag:** `m06-nextjs` (on `99f7e26`)
 
 ## Done so far
 
 - Milestones 0–6 merged and tagged (see `PROGRESS.md`; ADR-001..035). Latest: M5 React + React Router (PR #5, `0d4d85f`, `m05-react-router`), M6 Next.js App Router (PR #6, `99f7e26`, `m06-nextjs`), all three engines green.
 - What works: `shatter-router` (core), `shatter-router/react`, `shatter-router/react-router` (use `createShatterBrowserRouter` in data mode), `shatter-router/next` (`waitFor`, `data-shatter-pending`). Examples: `examples/vanilla` (4173), `examples/react-router` (4174), `examples/next` (4175, build needs `NEXT_TELEMETRY_DISABLED=1` locally). Back/forward shatter in all of them; the adapters take over scroll restoration for history moves (ADR-030, 031, 035).
+
+- Follow-up fixes (start of Milestone 7): the vanilla back/forward test now checks the lifecycle events of each history move (`window.__shatterEvents` in the vanilla example, shared helpers `lifecycleEvents`/`clearLifecycleEvents`/`FULL_EFFECT` in `e2e/hook.ts`) instead of the hook's last values; `test/route-bridge.test.ts` covers the ADR-035 clamp rule (mutation-checked), an app scroll winning, the same-URL fast path and fragment scrolling; `shatter-router/react` links and `useShatterNavigate` scroll to a `#fragment` like the router adapters (`scrollToFragment` moved to `src/react/shared.ts`). 272 unit tests; local e2e 139 passed, 9 skipped.
 
 ## Next 3 steps (Milestone 7)
 

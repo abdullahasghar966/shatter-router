@@ -98,6 +98,8 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Next.js forward navigation ended at 90 px instead of 0** (local e2e): the bridge mistook the browser clamping 300 px to the shorter page for an app scroll and skipped its restore (ADR-035).
 - **A `#fragment` near the bottom of a short page cannot reach the top**: `scrollIntoView` stops at the maximum scroll. Tests expect `min(element top, max scroll)`.
 
+- **Unit-testing the bridge's scroll bookkeeping needs browser event order:** in a browser, `scroll` events fire at the next rendering step, after React's commit, so a router's scroll during a render is recorded for the new entry. A fake router that dispatches `scroll` synchronously before reporting the render credits it to the old entry and makes the test wrong, not the code (`test/route-bridge.test.ts` dispatches after `rendered()`). happy-dom has no layout: `scrollHeight`/`clientHeight` are stubbed per test.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.

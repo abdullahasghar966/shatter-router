@@ -28,6 +28,16 @@ const shatter = createShatter({
   ...(duration === undefined ? {} : { duration }),
 });
 
+// Debug mode: lifecycle events go to `window.__shatterEvents` for the e2e
+// suite, so a test can check what one navigation did (not the hook's last values).
+if (params.has('debug')) {
+  const events: string[] = [];
+  (window as unknown as { __shatterEvents: string[] }).__shatterEvents = events;
+  for (const name of ['start', 'covered', 'committed', 'animating', 'end', 'fallback'] as const) {
+    shatter.on(name, () => events.push(name));
+  }
+}
+
 // The example restores scroll positions itself, under the overlay.
 history.scrollRestoration = 'manual';
 

@@ -14,6 +14,7 @@ import {
   DEFAULT_READY_TIMEOUT,
   boundedCommit,
   reportNavigationError,
+  scrollToFragment,
   useShatterClick,
   useShatterInstance,
   type LinkStart,
@@ -110,13 +111,19 @@ export function useShatterNavigate(): ShatterNavigateFunction {
         replace: options.replace ?? false,
         state: options.state,
       };
-      const commit = (): Promise<void> => commitTo(href, info);
+      // A target with a #fragment scrolls to it once rendered, not to the top.
+      const { hash } = new URL(href, window.location.href);
+      const commit = async (): Promise<void> => {
+        await commitTo(href, info);
+        if (hash) scrollToFragment(hash);
+      };
       if (!context.transition) {
         await commit();
         return;
       }
       await context.transition({
         commit,
+        ...(hash ? { scroll: 'none' as const } : {}),
         ...(options.origin ? { origin: options.origin } : {}),
         ...(options.effect ? { effect: options.effect } : {}),
       });
