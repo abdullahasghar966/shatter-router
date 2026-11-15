@@ -82,6 +82,7 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | `shatter-router/react` (`dist/react.js`, incl. core) | 2.46 kB | 6 KB (ADR-027) | Milestone 5; react, react-dom excluded (peers) |
 | 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
+| 2026-11-15 | debug `dist/debug.js` (lazy, debug mode only) | 3.44 kB | 5 KB (own) | Milestone 10: debug panel and seam check (ADR-041). Runtime 7.55 kB of 8 KB (+0.32: panel loading, `exclusive()`, draw stats); engine 19.76 kB |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
 
@@ -233,6 +234,15 @@ Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 
 Visual check (headless Chromium screenshots, 1280x720, motion frozen at 450 ms): forward Home → Work shatters the Home page from the click point over the live Work page; back Work → Home shatters the Work page from the viewport centre over the live Home page. No console errors or warnings.
 
+### Debug panel (Milestone 10, section 10, ADR-041)
+
+Screenshot: `context/screenshots/m10-debug-panel.jpg` (installed Chrome headed, RTX 4050, after a `shatter` transition with 160 shards and a tab-capture seam check). The panel showed capture 9 ms, cover 78 ms, wait 25 ms, animate 1201 ms, 160 shards (5.3 ms), tier high, 60.0 fps (worst 17 ms), draw calls 1.00 per frame, textures 0.
+
+| Seam check mode | Where | Result |
+|---|---|---|
+| capture vs overlay (no screen capture) | headless Chromium, WebKit (e2e) | 0.000 % |
+| tab capture (`getDisplayMedia`, auto-accepted with `--auto-accept-this-tab-capture`) | Chrome headed, Windows 11, window 1440x870 after the sharing bar, stream 1788x1080 | 1.131 %, all on text edges (ClearType live vs grayscale capture, ADR-009, plus the stream's scaling) |
+
 ### Glass shading review (Milestone 9)
 
 Same frames before (commit `f7a764d`) and after, headless Chromium 1255, 1280x720, `/effects?seed=7&shards=90&duration=1000`, same click point, motion frozen with `setMotionTime` (script `coverage/m9/shading-shots.mjs`, not in the repo):
@@ -299,3 +309,4 @@ Lighthouse, and capture on the docs landing page (M11).
 | 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped. PR #7 CI: Chromium 87 passed, Firefox 79, WebKit 79 |
 | 8 | 311 tests in 22 files (+ `rapier.test.ts` 8 with the real Rapier WASM, `rapier.bench.test.ts` 2) | + `e2e/vanilla/rapier.spec.ts` 4 per engine (Rapier shatter, floor pile, flip stays procedural, CSP without wasm-unsafe-eval stays procedural). Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #8 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
 | 9 | 318 tests in 23 files (+ `shading.test.ts` 7: tint parsing, fade-in, aberration, shader gates, options) | unchanged suites; every first/last-frame seam identical to M7. Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #9 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
+| 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged |

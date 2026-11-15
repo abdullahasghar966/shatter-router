@@ -1,4 +1,5 @@
 import type { DomCapturer } from '../capture/index';
+import type { DebugPanel } from '../debug/index';
 import type { Engine } from '../engine/index';
 import { announceTitle, focusNewPage } from '../core/a11y';
 import { crossfade } from '../core/crossfade';
@@ -50,6 +51,8 @@ export type EngineLike = Pick<
   | 'release'
   | 'destroy'
   | 'measureFracture'
+  | 'drawStats'
+  | 'readPixels'
 >;
 
 export type CapturerLike = Pick<DomCapturer, 'capture' | 'warmUp' | 'destroy' | 'layoutGrid'>;
@@ -127,9 +130,17 @@ interface Settings {
   readonly physics: PhysicsPlugin | null;
   readonly seed: number | undefined;
   readonly debug: boolean;
+  readonly panel: boolean;
 }
 
 const DEFAULT_MOTION_MS = 1000;
+
+type DrawStats = Engine['drawStats'];
+
+/** Draw calls per drawn frame between two engine readings (debug panel). */
+function perFrame(before: DrawStats, after: DrawStats): number {
+  return (after.calls - before.calls) / Math.max(1, after.frames - before.frames);
+}
 
 /**
  * `backForward: 'reverse'`: the built-in effect played for a back/forward
@@ -162,7 +173,9 @@ function settingsFrom(options: ShatterOptions): Settings {
     physics:
       options.physics === undefined || options.physics === 'procedural' ? null : options.physics,
     seed: options.seed,
-    debug: options.debug ?? false,
+    debug: options.debug !== undefined && options.debug !== false,
+    panel:
+      typeof options.debug === 'object' ? options.debug.panel !== false : options.debug === true,
   };
 }
 
@@ -198,6 +211,9 @@ class Runtime implements ShatterRuntime {
   private resumePaused: (() => void) | null = null;
   private wireframe = false;
   private destroyed = false;
+  private panel: DebugPanel | null = null;
+  /** A debug seam check in progress: transitions wait for it. */
+  private busy: Promise<unknown> | null = null;
 
   constructor(
     private readonly host: RuntimeHost,
@@ -206,6 +222,7 @@ class Runtime implements ShatterRuntime {
     this.settings = settingsFrom(host.options);
     this.machine = new StateMachine(() => performance.now());
     this.hook = this.settings.debug ? this.installHook() : null;
+    if (this.hook && this.settings.panel) this.openPanel(this.hook);
     this.scrollLock = createScrollLock(window, host.options.scrollLock);
   }
 
@@ -226,6 +243,7 @@ class Runtime implements ShatterRuntime {
       await request.commit();
       return;
     }
+    if (this.busy) await this.busy;
     const ticket = ++this.ticket;
     const previous = this.current;
     if (previous) {
@@ -277,6 +295,8 @@ class Runtime implements ShatterRuntime {
     this.loaded?.engine.destroy();
     this.loaded?.capturer.destroy();
     this.loaded = null;
+    this.panel?.destroy();
+    this.panel = null;
     if (this.hook) {
       const holder = window as unknown as { __SHATTER_TEST__?: ShatterTestHook };
       if (holder.__SHATTER_TEST__ === this.hook) delete holder.__SHATTER_TEST__;
@@ -382,11 +402,13 @@ class Runtime implements ShatterRuntime {
         await this.pause('cracked', run);
       }
       await this.pause('animating', run);
+      const before = engine.drawStats;
       const loop = await engine.animate({ signal: run.skip.signal });
       if (this.hook) {
         this.hook.lastAnimation = {
           ...loop,
           fps: loop.durationMs > 0 ? ((loop.frames - 1) * 1000) / loop.durationMs : 0,
+          drawCallsPerFrame: perFrame(before, engine.drawStats),
         };
       }
 
@@ -736,6 +758,42 @@ class Runtime implements ShatterRuntime {
 
   private emit<K extends ShatterEventName>(event: K, payload: ShatterEventMap[K]): void {
     this.host.emit(event, payload);
+    this.panel?.update(event);
+  }
+
+  /** Loads the debug panel chunk (debug mode only, ADR-041). */
+  private openPanel(hook: ShatterTestHook): void {
+    import('../debug/index')
+      .then(({ createDebugPanel }) => {
+        if (this.destroyed) return;
+        this.panel = createDebugPanel({
+          hook,
+          exclusive: (work) => this.exclusive(work),
+          shards: this.settings.shards,
+          thickness: this.settings.thickness,
+          seed: this.settings.seed,
+        });
+      })
+      .catch((error: unknown) => {
+        console.warn('[shatter-router] debug panel failed to load', error);
+      });
+  }
+
+  /** Runs debug work on the engine while no transition runs; transitions wait for it. */
+  private async exclusive<T>(work: (loaded: Loaded) => Promise<T>): Promise<T> {
+    if (this.busy || this.current || this.machine.state !== 'idle') {
+      throw new Error('a transition is running');
+    }
+    const task = this.load().then((loaded) => {
+      if (!loaded) throw new Error('WebGL2 or capture is unavailable');
+      return work(loaded);
+    });
+    this.busy = task.catch(() => undefined);
+    try {
+      return await task;
+    } finally {
+      this.busy = null;
+    }
   }
 
   private installHook(): ShatterTestHook {

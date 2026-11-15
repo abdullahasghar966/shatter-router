@@ -7,7 +7,8 @@ const app = document.getElementById('app');
 if (!app) throw new Error('#app is missing from index.html');
 const outlet: HTMLElement = app;
 
-// `?debug` on the first load turns on debug mode (and the e2e test hook).
+// `?debug` on the first load turns on debug mode (and the e2e test hook);
+// `&panel` also shows the debug panel (left out so e2e screenshots stay clean).
 // `?budget=<ms>` overrides the capture budget; the e2e suite uses it so slow CI
 // machines measure the seam instead of tripping the fallback.
 // `?seed=<n>` makes the fracture deterministic; `?shards=<n>` fixes the count;
@@ -26,7 +27,7 @@ const physics =
   params.get('physics') === 'rapier' ? rapier({ floor: params.has('floor') }) : undefined;
 const shatter = createShatter({
   ...(physics ? { physics } : {}),
-  debug: params.has('debug'),
+  debug: params.has('debug') ? { panel: params.has('panel') } : false,
   ...(seed === undefined ? {} : { seed }),
   ...(shards === undefined ? {} : { shards }),
   ...(budget === undefined ? {} : { captureBudget: budget }),

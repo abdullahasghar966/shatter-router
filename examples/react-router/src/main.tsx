@@ -7,7 +7,8 @@ import { createShatterBrowserRouter } from 'shatter-router/react-router';
 import { DeclarativeApp, dataRoutes } from './app';
 
 // Same query parameters as the vanilla example, read on the first load:
-// `?debug` (debug mode and the e2e hook), `?budget=<ms>` (capture budget),
+// `?debug` (debug mode and the e2e hook; add `&panel` for the debug panel),
+// `?budget=<ms>` (capture budget),
 // `?seed=<n>`, `?shards=<n>`, `?duration=<ms>`. `?mode=declarative` renders
 // the routes under <BrowserRouter> instead of a data router; `?mode=data-plain`
 // uses React Router's own createBrowserRouter (no back/forward gate, ADR-028).
@@ -21,7 +22,7 @@ const shards = number('shards');
 const budget = number('budget');
 const duration = number('duration');
 const options: ShatterOptions = {
-  debug: params.has('debug'),
+  debug: params.has('debug') ? { panel: params.has('panel') } : false,
   ...(seed === undefined ? {} : { seed }),
   ...(shards === undefined ? {} : { shards }),
   ...(budget === undefined ? {} : { captureBudget: budget }),

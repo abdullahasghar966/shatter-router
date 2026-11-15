@@ -39,6 +39,7 @@ export default defineConfig({
     engine: 'src/engine/index.ts',
     capture: 'src/capture/index.ts',
     'rapier-backend': 'src/rapier/backend.ts',
+    debug: 'src/debug/index.ts',
   },
   // Optional peers stay external. tsup's automatic peer handling missed this
   // scoped one and inlined 4.2 MB of Rapier (LEARNINGS).

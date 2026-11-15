@@ -59,10 +59,20 @@ export interface ShatterOptions {
   backForward?: 'reverse' | 'same' | 'none';
   /** Makes fracture layouts and motion deterministic. Default: random each time. */
   seed?: number;
-  /** Exposes `window.__SHATTER_TEST__` and extra diagnostics. Default false. */
-  debug?: boolean;
+  /**
+   * Debug mode: exposes `window.__SHATTER_TEST__`, logs diagnostics and shows
+   * the debug panel (timings, shard count, FPS, draw calls, wireframe toggle,
+   * seam check). `{ panel: false }` keeps everything but the panel. Default false.
+   */
+  debug?: boolean | ShatterDebugOptions;
   /** Custom scroll lock for smooth-scroll libraries (Lenis etc.), used alongside the built-in one. */
   scrollLock?: ScrollLock;
+}
+
+/** Debug mode with options (`debug: true` is `{ panel: true }`). */
+export interface ShatterDebugOptions {
+  /** Shows the debug panel (a lazy chunk). Default true. */
+  panel?: boolean;
 }
 
 /** A point in viewport (CSS pixel) coordinates. */
@@ -177,8 +187,15 @@ export interface ShatterTestHook {
   layoutGrid(): 'css' | 'device' | null;
   /** Most recent fracture: shard count, CPU time and the device tier used for `'auto'`. */
   lastFracture: { shardCount: number; fractureMs: number; tier: string } | null;
-  /** Frames of the most recent motion phase. */
-  lastAnimation: { frames: number; durationMs: number; worstFrameMs: number; fps: number } | null;
+  /** Frames of the most recent motion phase, and the GL draw calls per drawn frame. */
+  lastAnimation: {
+    frames: number;
+    durationMs: number;
+    worstFrameMs: number;
+    fps: number;
+    /** GL draw calls per drawn frame (1 by design). */
+    drawCallsPerFrame: number;
+  } | null;
   /** Draws every cell edge and the impact point on the overlay. */
   wireframe: boolean;
   /** Freezes the crack at `radius` CSS px (with no flash) while paused. */

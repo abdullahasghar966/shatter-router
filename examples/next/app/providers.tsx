@@ -18,7 +18,7 @@ interface Settings {
 
 /**
  * Same query parameters as the other examples, read once on the client:
- * `?debug`, `?budget=<ms>`, `?seed=<n>`, `?shards=<n>`, `?duration=<ms>`, and
+ * `?debug` (`&panel` for the debug panel), `?budget=<ms>`, `?seed=<n>`, `?shards=<n>`, `?duration=<ms>`, and
  * `?waitfor=commit`. Options render nothing, so reading them only on the
  * client cannot cause a hydration mismatch.
  */
@@ -35,7 +35,7 @@ function readSettings(): Settings {
   const duration = number('duration');
   return {
     options: {
-      debug: params.has('debug'),
+      debug: params.has('debug') ? { panel: params.has('panel') } : false,
       ...(seed === undefined ? {} : { seed }),
       ...(shards === undefined ? {} : { shards }),
       ...(budget === undefined ? {} : { captureBudget: budget }),
@@ -71,7 +71,7 @@ export function Providers({ children }: { children: ReactNode }): ReactNode {
   const [{ options, waitFor }] = useState(readSettings);
   return (
     <ShatterProvider options={options} waitFor={waitFor}>
-      <EventLog enabled={options.debug === true} />
+      <EventLog enabled={Boolean(options.debug)} />
       {children}
     </ShatterProvider>
   );

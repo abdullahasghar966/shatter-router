@@ -148,6 +148,7 @@ export class Engine {
   private flash = 0;
   private time = 0;
   private drawCalls = 0;
+  private drawnFrames = 0;
 
   constructor(doc: Document) {
     const win = doc.defaultView;
@@ -180,9 +181,9 @@ export class Engine {
     return this.device.textureCount;
   }
 
-  /** Draw calls issued for the most recent frame. */
-  get lastFrameDrawCalls(): number {
-    return this.drawCalls;
+  /** GL draw calls and drawn frames since the engine was created (debug panel). */
+  get drawStats(): { readonly calls: number; readonly frames: number } {
+    return { calls: this.drawCalls, frames: this.drawnFrames };
   }
 
   /** Frame statistics of the most recent crack or motion phase. */
@@ -617,7 +618,9 @@ export class Engine {
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
     gl.bindVertexArray(null);
-    this.drawCalls = 1;
+    // Either branch above issues exactly one draw call.
+    this.drawCalls += 1;
+    this.drawnFrames += 1;
   }
 
   /**
