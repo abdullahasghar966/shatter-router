@@ -95,7 +95,11 @@ void shardFragment(inout vec4 color) {
     // Done once every shard has arrived (scale 0) at the point.
     const seconds = t / 1000;
     const data = ctx.attributes;
-    for (const shard of ctx.shards) {
+    const { shards } = ctx;
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this runs every frame (ADR-040)
+    for (let i = 0; i < shards.length; i++) {
+      const shard = shards[i];
+      if (!shard) continue;
       const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
       if (seconds < (data[o + 1] ?? 0) + (data[o + 2] ?? 0)) return false;
     }

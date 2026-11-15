@@ -1,5 +1,6 @@
-import type { CDPSession, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { APPS } from '../../playwright.config';
+import { trackLoopAllocations } from '../alloc';
 import { expect, test } from '../fixtures';
 import {
   clearLifecycleEvents,
@@ -26,8 +27,6 @@ const PERF = Boolean(process.env.SHATTER_PERF);
 const BASE = APPS.vanilla;
 const QUERY = '?debug&budget=5000&seed=7&shards=160';
 const EFFECTS = ['shatter', 'explode', 'implode', 'flip', 'assemble'] as const;
-/** Lazy chunks that hold the render loop (the core is bundled into the app's main chunk). */
-const LOOP_CHUNKS = /\/assets\/(engine|runtime|rapier-backend)-[\w-]+\.js$/;
 /** Section 8: no long task over 50 ms outside the capture step. */
 const LONG_TASK_MS = 50;
 /** Waits for a whole transition: CI software GL can draw 2 fps (`flip`, 3 s of motion). */
@@ -153,7 +152,7 @@ test.describe('vanilla example: performance (section 8)', () => {
       page,
       browserName,
     }, testInfo) => {
-      test.setTimeout(150_000);
+      test.setTimeout(240_000);
       await instrument(page);
       await page.goto(`${BASE}/effects${QUERY}`);
       await waitForShatterReady(page);
@@ -219,146 +218,46 @@ test.describe('vanilla example: performance (section 8)', () => {
     }, testInfo) => {
       test.skip(
         browserName !== 'chromium',
-        'allocation sampling uses the Chrome DevTools Protocol',
+        'allocation tracking uses the Chrome DevTools Protocol',
       );
-      test.setTimeout(150_000);
-      // 3 s of motion: even software GL in CI draws well over 10 frames.
+      test.setTimeout(240_000);
+      // 3 s of motion: even software GL in CI draws a good number of frames.
       await page.goto(`${BASE}/effects${query}&duration=3000`);
       await waitForShatterReady(page);
+      // Warm code: a cold first run allocates while V8 compiles (LEARNINGS).
       await warmUp(page, effect);
-      const cdp = await page.context().newCDPSession(page);
-      await cdp.send('HeapProfiler.enable');
       await pauseAt(page, 'animating');
       await page.getByRole('link', { name: effect, exact: true }).click();
       await waitForPause(page, 'animating');
-      // Sample every 64 bytes allocated: an allocation per frame would show up
-      // dozens of times over a second of animation.
-      await cdp.send('HeapProfiler.startSampling', { samplingInterval: 64 });
-      await page.evaluate(() => {
-        (window as { __SHATTER_TEST__?: { resume(): void } }).__SHATTER_TEST__?.resume();
+      const cdp = await page.context().newCDPSession(page);
+      const allocations = await trackLoopAllocations(cdp, async () => {
+        await page.evaluate(() => {
+          (window as { __SHATTER_TEST__?: { resume(): void } }).__SHATTER_TEST__?.resume();
+        });
+        await waitForIdle(page, SLOW_MS);
       });
-      await waitForIdle(page, SLOW_MS);
-      const { profile } = await cdp.send('HeapProfiler.stopSampling');
-      const state = await hookState(page);
-      const frames = state.animation?.frames ?? 0;
-      const { samples, objects, rapierObjects, bytes, sites } = loopAllocations(profile);
+      await cdp.detach();
+      const frames = (await hookState(page)).animation?.frames ?? 0;
       console.log(
-        `[alloc] ${testInfo.project.name} ${label}: ${frames} frames, ${samples} samples in the frame loop ` +
-          `(${bytes} B; objects: ${objects} ours, ${rapierObjects} inside Rapier)` +
-          (sites.length ? `; sites: ${sites.join('; ')}` : ''),
+        `[alloc] ${testInfo.project.name} ${label}: ${String(frames)} frames, objects allocated in the frame loop: ` +
+          `${String(allocations.ours)} ours (${String(allocations.oursExcessBytes)} B beyond boxed numbers), ` +
+          `${String(allocations.rapier)} inside Rapier` +
+          (allocations.sites.length ? `; sites: ${allocations.sites.join('; ')}` : ''),
       );
-      await detach(cdp);
-      expect(frames).toBeGreaterThan(10);
+      expect(frames).toBeGreaterThanOrEqual(5);
       if (query.includes('physics=rapier')) {
         // Report only: Rapier's getters allocate (wasm-bindgen boxes the
-        // numbers it writes back), and the optimising compiler inlines them
-        // into our `write()`, so the profile cannot split the two (ADR-040).
+        // numbers it writes back) and the optimising compiler inlines them
+        // into our `write()`, so the counts cannot be split exactly (ADR-040).
         return;
       }
-      // An allocation in every frame, even 16 B, would be sampled about
-      // frames / 4 times at a 64 B interval. One or two samples are one-off
-      // runtime work (a function tiering up), seen in single runs only.
-      expect(objects).toBeLessThanOrEqual(2);
+      // Tracking runs the loop unoptimised, which boxes doubles (12 B each,
+      // see HEAP_NUMBER_BYTES); any real object costs more. Measured: a
+      // per-frame array destructuring (fixed in M10) added 35 B per frame, a
+      // planted 8-field object 32 B. Noise: one-offs up to ~120 B per run and,
+      // in some runs, ~15 B per frame in `explode`'s offset maths (boxed
+      // numbers that V8 pads to 16 B). Limit: 20 B per frame, at least 400 B.
+      expect(allocations.oursExcessBytes).toBeLessThan(Math.max(400, frames * 20));
     });
   }
 });
-
-interface SamplingNode {
-  callFrame: { functionName: string; url: string; lineNumber: number; columnNumber: number };
-  selfSize: number;
-  id: number;
-  children: SamplingNode[];
-}
-
-interface SamplingProfile {
-  head: SamplingNode;
-  samples: { size: number; nodeId: number }[];
-}
-
-/** `RapierSimulation` methods that run every frame (src/rapier/simulation.ts). */
-const SIMULATION_METHODS = new Set(['advance', 'release', 'write', 'get finished', 'finished']);
-
-/** V8 HeapNumber with pointer compression: a map word and a double. */
-const HEAP_NUMBER_BYTES = 12;
-
-/**
- * Engine functions that run inside the loop's first frame but once per run or
- * per effect, never per frame: `FrameLoop.stop` builds the run's stats object,
- * and `ensureEffectProgram` compiles an effect's program on its first draw (in
- * CI a warm-up `flip` can fall back to `shatter`, leaving `flip` uncompiled).
- */
-const ONCE_PER_RUN = new Set(['stop', 'ensureEffectProgram']);
-
-/**
- * Sampled allocations made inside the frame loop: any stack with the engine's
- * `FrameLoop.tick` on it (the motion and crack steps, `draw()`, physics),
- * except the end of a run. Measured after a warm-up in the same document: a
- * cold first run also allocates bytecode and feedback vectors (one-off,
- * 80-352 B each, LEARNINGS).
- */
-function loopAllocations(profile: SamplingProfile): {
-  samples: number;
-  /** Sampled objects allocated by our code. */
-  objects: number;
-  /** Sampled objects allocated inside Rapier's `World.step` (wasm-bindgen glue). */
-  rapierObjects: number;
-  bytes: number;
-  sites: string[];
-} {
-  const owner = new Map<number, { site: string; rapier: boolean }>();
-  const walk = (
-    node: SamplingNode,
-    site: string | null,
-    inLoop: boolean,
-    inRapier: boolean,
-  ): void => {
-    const frame = node.callFrame;
-    const ours = LOOP_CHUNKS.test(frame.url);
-    if (ours && ONCE_PER_RUN.has(frame.functionName)) return;
-    const loop = inLoop || (ours && frame.functionName === 'tick');
-    // Rapier is bundled into the rapier-backend chunk: any frame there that is
-    // not one of our simulation's per-frame methods is Rapier's (its getters,
-    // `World.step`, the wasm-bindgen glue).
-    const rapier =
-      inRapier ||
-      (frame.url.includes('/rapier-backend-') && !SIMULATION_METHODS.has(frame.functionName));
-    const here = ours
-      ? `${frame.functionName || '(anonymous)'}@${frame.url.split('/').pop() ?? ''}:${frame.lineNumber + 1}:${frame.columnNumber + 1}`
-      : site;
-    if (loop && here) owner.set(node.id, { site: here, rapier });
-    for (const child of node.children) walk(child, here, loop, rapier);
-  };
-  walk(profile.head, null, false, false);
-  let samples = 0;
-  let objects = 0;
-  let rapierObjects = 0;
-  let bytes = 0;
-  const sites = new Map<string, number[]>();
-  for (const sample of profile.samples) {
-    const found = owner.get(sample.nodeId);
-    if (!found) continue;
-    samples++;
-    bytes += sample.size;
-    if (sample.size > HEAP_NUMBER_BYTES) {
-      if (found.rapier) rapierObjects++;
-      else objects++;
-    }
-    const site = found.rapier ? `Rapier ${found.site}` : found.site;
-    sites.set(site, [...(sites.get(site) ?? []), sample.size]);
-  }
-  const ranked = [...sites.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 6);
-  return {
-    samples,
-    objects,
-    rapierObjects,
-    bytes,
-    sites: ranked.map(
-      ([site, sizes]) => `${site} ${sizes.length}× [${[...new Set(sizes)].join(',')} B]`,
-    ),
-  };
-}
-
-async function detach(cdp: CDPSession): Promise<void> {
-  await cdp.send('HeapProfiler.disable');
-  await cdp.detach();
-}

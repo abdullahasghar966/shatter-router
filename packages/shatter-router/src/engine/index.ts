@@ -587,8 +587,10 @@ export class Engine {
       // Lighting is exactly 0 until the motion starts and fades in over 60 ms.
       gl.uniform1f(program.uniform('uLight'), this.moving ? lightFade(this.time) : 0);
       gl.uniform1f(program.uniform('uChromatic'), this.shading.chromatic ? 1 : 0);
-      const [r, g, b] = this.shading.tint;
-      gl.uniform3f(program.uniform('uTint'), r, g, b);
+      // Indexed, not destructured: array destructuring creates an iterator
+      // per frame in unoptimised code (ADR-040).
+      const tint = this.shading.tint;
+      gl.uniform3f(program.uniform('uTint'), tint[0], tint[1], tint[2]);
       gl.uniform1f(program.uniform('uMoving'), this.moving ? 1 : 0);
       gl.uniform1f(program.uniform('uDuration'), state ? state.duration / 1000 : 1);
       gl.uniform1f(program.uniform('uGravity'), state ? state.gravity : 0);
