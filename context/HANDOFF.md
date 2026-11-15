@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 7 — Remaining effects (implemented; PR next)
+- **Current milestone:** 7 — Remaining effects (complete; PR #7 green, merge next)
 - **Current branch:** `milestone/07-effects` (from `main` at `99f7e26`)
-- **Last commit:** see `git log -1` (`feat(effects): explode, implode, flip and assemble`)
+- **Last commit:** see `git log -1` (`docs(context): milestone 7 complete`)
 - **Latest tag:** `m06-nextjs` (on `99f7e26`)
 
 ## Done so far
@@ -20,11 +20,13 @@
 
 - Milestone 7 implemented on this branch: `explode`, `implode`, `flip`, `assemble` (`src/engine/effects/`), `core/spring.ts` (`settle`), interface refinements (layers, `uThickness`, `uIncoming`, `settle()`, fragment hook on all faces), incoming capture with `shatter` as substitute, final rest frame + `settled` pause, `backForward` (ADR-036). Vanilla example `/effects` page. 301 unit tests; local e2e 165 passed, 9 skipped. Visual check done.
 
-## Next 3 steps (Milestone 7)
+- PR [#7](https://github.com/abdullahasghar966/shatter-router/pull/7) green on all three engines on the first run (numbers in PROGRESS).
 
-1. **Ritual (A.5):** PR "Milestone 07: Remaining effects" with ADR-036, the seam table from PROGRESS, sizes, verification; `gh pr checks --watch`. Firefox and Linux WebKit only run on CI: read the `[seam] ... first-*`/`last-*` and `[effect]` lines and record them in PROGRESS.
-2. Merge with `--merge`, tag `m07-effects`, push the tag.
-3. Create `milestone/08-rapier` from main (first commit records PR/merge/tag). Milestone 8: `physics: 'rapier'` as an optional lazy chunk (`shatter-router/rapier`), `@dimforge/rapier3d-compat` optional peer, convex hulls (cuboid fallback), floor option, 100 px = 1 m, fixed 1/60 s step, per-shard mat4 in a float texture read by `texelFetch` (master prompt 5.3).
+## Next 3 steps
+
+1. **Merge PR #7** once the last push is green: `gh pr merge 7 --merge`; tag `m07-effects` on main and push it.
+2. Create `milestone/08-rapier` from main; first commit records PR #7, merge SHA and tag in PROGRESS and refreshes HANDOFF.
+3. **Milestone 8:** `physics: 'rapier'` as an optional lazy chunk (`shatter-router/rapier`), `@dimforge/rapier3d-compat` optional peer loaded with dynamic `import()` and `await RAPIER.init()`, convex-hull colliders from the extruded cells (cuboid when `convexHull()` returns null), `floor: true`, 100 px = 1 m, fixed 1/60 s step with an accumulator, per-shard mat4 written to a float texture read with `texelFetch` (one draw call), initial impulses from the procedural formula. Read the installed rapier types first.
 
 ## Deferred (tracked, not forgotten)
 

@@ -164,6 +164,14 @@ Milestone 7, every effect (`e2e/vanilla/effects.spec.ts`, `/effects` page of the
 
 Incoming-page capture (Chromium, local, parallel workers): flip 45 ms, assemble 181 ms. Visual check: headless screenshots of each effect at 250 and 550 ms (explode stretch and blast, implode spiral, flip backs showing the new page, assemble fly-in), no console errors.
 
+Milestone 7, **PR #7 CI (GitHub Actions ubuntu-latest)**, every effect, 2026-11-15:
+
+| Browser | Fractured first frame (shatter / explode / implode / flip / assemble) | Last frame: flip / assemble |
+|---|---|---|
+| Chromium headless (1x) | 0.1176 / 0.1187 / 0.1194 / 0.1185 / 0.1176 %, worst block 0.0 % | 0.1824 % / 0.2387 % (worst block 4.2 %) |
+| Firefox headed (xvfb, Mesa) | 0.0000 % each | 0.0000 % / 0.0000 % |
+| WebKit (2x) | 0.0187 % each (raw 0.2735 %, worst block 4.2 %) | 0.0023 % / 0.0023 % (raw 0.0419 %) |
+
 ### Capture time (viewport capture of the vanilla example, capturer warm)
 
 | Date | Device / browser | Viewport | DPR | Time | Notes |
@@ -244,4 +252,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |
 | 5 | 257 tests in 16 files (+ `react.test.tsx` 24, `react-router.test.tsx` 13, `standard-font.test.ts` 2) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped. PR #5 CI: Chromium 57 passed, Firefox 49 passed, WebKit 49 passed (engine-specific skips) |
 | 6 | 266 tests in 17 files (+ `next.test.tsx` 9); after the M6 follow-up fixes on `milestone/07-effects`: 272 in 18 (+ `route-bridge.test.ts` 6) | Next.js example: 11 navigation + 6 transitions/seam per engine. Local: Chromium + WebKit, full suite 139 passed, 9 skipped. PR #6 CI: Chromium 74 passed, Firefox 66 passed, WebKit 66 passed |
-| 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped |
+| 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped. PR #7 CI: Chromium 87 passed, Firefox 79, WebKit 79 |
