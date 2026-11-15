@@ -84,6 +84,15 @@ test.describe('vanilla example: debug panel', () => {
   });
 
   test('seam check reports the share of differing pixels and a heatmap', async ({ page }) => {
+    // The user declines screen sharing. Firefox in CI would otherwise wait on
+    // its share prompt forever (Chromium and WebKit headless refuse at once).
+    await page.addInitScript(() => {
+      const media = navigator.mediaDevices as MediaDevices | undefined;
+      if (media) {
+        media.getDisplayMedia = () =>
+          Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+      }
+    });
     await page.goto(`${BASE}/${QUERY}`);
     await waitForShatterReady(page);
     const panel = page.locator('[data-shatter-debug]');
@@ -93,8 +102,8 @@ test.describe('vanilla example: debug panel', () => {
     const text = (await result.textContent()) ?? '';
     const percent = Number(/^([\d.]+) %/.exec(text)?.[1]);
     console.log(`[debug-panel] ${test.info().project.name} seam check: ${text}`);
-    // Headless browsers refuse screen capture: the check compares the capture
-    // with the overlay's read-back, which must be (nearly) identical.
+    // Without screen capture the check compares the capture with the
+    // overlay's read-back, which must be (nearly) identical.
     expect(text).toContain('capture vs overlay');
     expect(percent).toBeLessThanOrEqual(0.5);
     await expect(panel.locator('canvas')).toBeVisible();

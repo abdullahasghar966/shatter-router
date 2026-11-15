@@ -108,17 +108,20 @@ async function resetCounters(page: Page): Promise<void> {
   });
 }
 
-async function gpuName(page: Page): Promise<string> {
-  return page.evaluate(() => {
+/**
+ * The GPU's name. Firefox reports it in `RENDERER` and warns that
+ * `WEBGL_debug_renderer_info` is deprecated (a console warning fails the
+ * test); Chromium and WebKit mask `RENDERER` and need the extension.
+ */
+async function gpuName(page: Page, browserName: string): Promise<string> {
+  return page.evaluate((firefox) => {
     const gl = document.createElement('canvas').getContext('webgl2');
     if (!gl) return 'no WebGL2';
-    const info = gl.getExtension('WEBGL_debug_renderer_info');
-    const name = info
+    const info = firefox ? null : gl.getExtension('WEBGL_debug_renderer_info');
+    return info
       ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL))
       : String(gl.getParameter(gl.RENDERER));
-    gl.getExtension('WEBGL_lose_context')?.loseContext();
-    return name;
-  });
+  }, browserName === 'firefox');
 }
 
 async function playEffect(page: Page, effect: string): Promise<void> {
@@ -146,6 +149,7 @@ test.describe('vanilla example: performance (section 8)', () => {
   for (const effect of EFFECTS) {
     test(`${effect}: one draw call per frame, frame rate and long tasks`, async ({
       page,
+      browserName,
     }, testInfo) => {
       test.setTimeout(60_000);
       await instrument(page);
@@ -167,7 +171,7 @@ test.describe('vanilla example: performance (section 8)', () => {
         };
       });
       const state = await hookState(page);
-      const gpu = await gpuName(page);
+      const gpu = await gpuName(page, browserName);
 
       // One draw call per drawn frame, from the intact quad to the last shard frame.
       expect(result.frames.length).toBeGreaterThan(0);
@@ -216,7 +220,8 @@ test.describe('vanilla example: performance (section 8)', () => {
         'allocation sampling uses the Chrome DevTools Protocol',
       );
       test.setTimeout(60_000);
-      await page.goto(`${BASE}/effects${query}`);
+      // 3 s of motion: even software GL in CI draws well over 10 frames.
+      await page.goto(`${BASE}/effects${query}&duration=3000`);
       await waitForShatterReady(page);
       await warmUp(page, effect);
       const cdp = await page.context().newCDPSession(page);
@@ -275,6 +280,14 @@ const SIMULATION_METHODS = new Set(['advance', 'release', 'write', 'get finished
 const HEAP_NUMBER_BYTES = 12;
 
 /**
+ * Engine functions that run inside the loop's first frame but once per run or
+ * per effect, never per frame: `FrameLoop.stop` builds the run's stats object,
+ * and `ensureEffectProgram` compiles an effect's program on its first draw (in
+ * CI a warm-up `flip` can fall back to `shatter`, leaving `flip` uncompiled).
+ */
+const ONCE_PER_RUN = new Set(['stop', 'ensureEffectProgram']);
+
+/**
  * Sampled allocations made inside the frame loop: any stack with the engine's
  * `FrameLoop.tick` on it (the motion and crack steps, `draw()`, physics),
  * except the end of a run. Measured after a warm-up in the same document: a
@@ -299,8 +312,7 @@ function loopAllocations(profile: SamplingProfile): {
   ): void => {
     const frame = node.callFrame;
     const ours = LOOP_CHUNKS.test(frame.url);
-    // `FrameLoop.stop` runs once per run (it builds the run's stats object): not per frame.
-    if (ours && frame.functionName === 'stop') return;
+    if (ours && ONCE_PER_RUN.has(frame.functionName)) return;
     const loop = inLoop || (ours && frame.functionName === 'tick');
     // Rapier is bundled into the rapier-backend chunk: any frame there that is
     // not one of our simulation's per-frame methods is Rapier's (its getters,
