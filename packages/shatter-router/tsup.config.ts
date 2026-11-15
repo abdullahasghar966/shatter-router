@@ -1,10 +1,21 @@
+import { readFile, writeFile } from 'node:fs/promises';
 import { defineConfig } from 'tsup';
+
+/**
+ * Entries that export React components. esbuild drops module directives when
+ * bundling, so `"use client"` is added to the built files afterwards (ADR-034):
+ * Next.js needs it to treat them as client modules. Prepended on the first line
+ * so the source map stays aligned.
+ */
+const CLIENT_ENTRIES = ['dist/react.js', 'dist/react-router.js', 'dist/next.js'];
+const USE_CLIENT = '"use client";';
 
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
     react: 'src/react/index.ts',
     'react-router': 'src/react-router/index.ts',
+    next: 'src/next/index.ts',
     // Internal lazy chunks. They are entries only so their file names are
     // stable (the core loads them with dynamic import, size-limit budgets
     // them separately); they are not part of the package's public exports.
@@ -20,10 +31,17 @@ export default defineConfig({
       index: 'src/index.ts',
       react: 'src/react/index.ts',
       'react-router': 'src/react-router/index.ts',
+      next: 'src/next/index.ts',
     },
   },
   splitting: true,
   treeshake: true,
   sourcemap: true,
   clean: true,
+  async onSuccess() {
+    for (const file of CLIENT_ENTRIES) {
+      const code = await readFile(file, 'utf8');
+      if (!code.startsWith(USE_CLIENT)) await writeFile(file, USE_CLIENT + code);
+    }
+  },
 });

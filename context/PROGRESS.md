@@ -14,8 +14,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 2   | Renderer + seam               | ☑      | `milestone/02-renderer-seam`  | [#2](https://github.com/abdullahasghar966/shatter-router/pull/2) | `ca25842` | `m02-renderer-seam` |
 | 3   | Fracture + crack propagation  | ☑      | `milestone/03-fracture-crack` | [#3](https://github.com/abdullahasghar966/shatter-router/pull/3) | `5523bfc` | `m03-fracture-crack` |
 | 4   | `shatter` effect (procedural) | ☑      | `milestone/04-shatter-effect` | [#4](https://github.com/abdullahasghar966/shatter-router/pull/4) | `17b79cc` | `m04-shatter-effect` |
-| 5   | React + React Router adapter  | ◐      | `milestone/05-react-router`   |     |           |             |
-| 6   | Next.js App Router adapter    | ☐      | `milestone/06-nextjs`         |     |           |             |
+| 5   | React + React Router adapter  | ☑      | `milestone/05-react-router`   | [#5](https://github.com/abdullahasghar966/shatter-router/pull/5) | `0d4d85f` | `m05-react-router` |
+| 6   | Next.js App Router adapter    | ◐      | `milestone/06-nextjs`         |     |           |             |
 | 7   | Remaining effects             | ☐      | `milestone/07-effects`        |     |           |             |
 | 8   | Rapier mode                   | ☐      | `milestone/08-rapier`         |     |           |             |
 | 9   | Glass shading polish          | ☐      | `milestone/09-glass-shading`  |     |           |             |
@@ -51,6 +51,7 @@ Recorded 2026-11-14 (session 1). Node v24.21.0, pnpm 12.8.1.
 | react / react-dom | 19.3.1 | packages/shatter-router (dev; optional peer `>=19.0.0`), recorded 2026-11-15 |
 | react-router | 8.5.1 | packages/shatter-router (dev; optional peer `>=8.0.0`) |
 | @types/react / @types/react-dom | 19.3.0 | packages/shatter-router (dev) |
+| next | 16.4.6 | packages/shatter-router (dev; optional peer `>=16.0.0`), recorded 2026-11-15 |
 
 GitHub Actions: actions/checkout v7, actions/setup-node v7, pnpm/action-setup v6, actions/cache v6, actions/upload-artifact v7.
 
@@ -137,6 +138,23 @@ Milestone 5, **PR #5 CI (GitHub Actions ubuntu-latest)**, React Router example, 
 
 Before ADR-033 the WebKit first frame had a worst block of 15.3 % (button drawn serif in the copy).
 
+Milestone 6, Next.js example (`e2e/next/transitions.spec.ts`), local Windows 11, 2026-11-15:
+
+| Browser | First frame, top of `/` | Back: overlay vs outgoing page | Committing, `/slow` (400 ms server) with `waitFor: 'settled'` |
+|---|---|---|---|
+| Chromium 1255 headless (1x) | 0.1147 % / worst block 4.0 % | 0.1025 % | 412 ms |
+| WebKit 2388 (2x) | 0.0021 % (raw 0.1095 %) / 0.0 % | 0.2777 % (raw 0.6243 %) | 525 ms |
+
+Visual check (headless Chromium screenshots, motion frozen at 450 ms): Home to `/slow` breaks the Home page over the loaded Slow page (not its `loading.tsx` UI); back from `/slow` breaks the Slow page over Home. No console errors.
+
+Milestone 6, **PR #6 CI (GitHub Actions ubuntu-latest)**, Next.js example, 2026-11-15:
+
+| Browser | First frame, top of `/` | Back: overlay vs outgoing page | Committing, `/slow` with `waitFor: 'settled'` |
+|---|---|---|---|
+| Chromium headless (1x) | 0.1566 % / worst block 4.0 % | 0.1347 % | 424 ms |
+| Firefox headed (xvfb, Mesa) | 0.0000 % / 0.0 % | 0.0000 % | 435 ms |
+| WebKit (2x) | 0.1453 % (raw 0.3166 %) / 0.9 % | 0.0311 % (raw 0.1314 %) | 418 ms |
+
 ### Capture time (viewport capture of the vanilla example, capturer warm)
 
 | Date | Device / browser | Viewport | DPR | Time | Notes |
@@ -216,3 +234,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 3 | 99 tests in 10 files (+ fracture 23, crack 7, fracture timing 1) | 15 tests per engine (6 navigation, 7 seam/crack/wireframe, 1 fracture timing, 1 cleanup) + 6 seam-metric tests. Local: Chromium + WebKit 36/36 |
 | 4 | 218 tests in 13 files (state machine 47 incl. every interruption, machine table 70, effect 7, frame loop 6) | per engine: effect 7, interruptions 6, fallbacks 4 (reduced motion, budget, strict CSP, no WebGL), history 1, lab 1, memory 1 (Chromium) + earlier suites. Local: Chromium + WebKit 73 passed, 9 skipped (engine-specific), CSP fixme on Windows WebKit. PR #4 CI: all three engines green (strict-CSP test passes on Linux WebKit) |
 | 5 | 257 tests in 16 files (+ `react.test.tsx` 24, `react-router.test.tsx` 13, `standard-font.test.ts` 2) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped. PR #5 CI: Chromium 57 passed, Firefox 49 passed, WebKit 49 passed (engine-specific skips) |
+| 6 | 266 tests in 17 files (+ `next.test.tsx` 9) | Next.js example: 11 navigation + 6 transitions/seam per engine. Local: Chromium + WebKit, full suite 139 passed, 9 skipped. PR #6 CI: Chromium 74 passed, Firefox 66 passed, WebKit 66 passed |

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
 import type { ShatterEffect } from '../core/effect';
 import { classifyLinkClick, getLinkEffect } from '../core/links';
 import { createShatter } from '../core/shatter';
@@ -49,7 +49,12 @@ export function clickOrigin(event: MouseEvent<HTMLAnchorElement>): Point {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-export type LinkStart = (origin: Point, effect: string | ShatterEffect | undefined) => void;
+/** Starts a transition for an intercepted click on a link to `url`. */
+export type LinkStart = (
+  origin: Point,
+  effect: string | ShatterEffect | undefined,
+  url: URL,
+) => void;
 
 /**
  * The click handler of every Shatter link component. Runs the app's own
@@ -72,7 +77,7 @@ export function useShatterClick(
       const decision = classifyLinkClick(event, anchor);
       if (!decision.intercept) return;
       event.preventDefault();
-      start(clickOrigin(event), effect ?? getLinkEffect(anchor));
+      start(clickOrigin(event), effect ?? getLinkEffect(anchor), decision.url);
     },
     [onClick, effect, start],
   );
@@ -103,4 +108,13 @@ export function useShatterInstance(
     };
   }, [instance]);
   return shatter;
+}
+
+/** Keeps the latest value in a ref, for callbacks that must stay stable. */
+export function useLatest<T>(value: T): { readonly current: T } {
+  const ref = useRef(value);
+  useLayoutEffect(() => {
+    ref.current = value;
+  });
+  return ref;
 }

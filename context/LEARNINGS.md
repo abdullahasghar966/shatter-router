@@ -54,6 +54,13 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - The browser history listens with `window.addEventListener('popstate', handlePop)` (bubbling); `handlePop` reads the index from `window.history.state.idx`, so a later, re-dispatched popstate is handled correctly.
   - The location key lives in `history.state.key` (`getHistoryState` in `lib/router/history.js`: `{ usr, key, idx }`); the first entry has no key and its location key is `'default'`.
   - Peer dependencies: `react >=19.2.7`, `react-dom >=19.2.7`.
+- **next 16.4.6** (read from `dist/client/components/app-router.js`, `dist/client/app-dir/link.js`, `dist/shared/lib/*.d.ts`):
+  - `AppRouterInstance`: `push(href, { scroll?, transitionTypes? })`, `replace`, `back`, `forward`, `refresh`, `prefetch`, plus a required `bfcacheId: string` (test stubs need it).
+  - The App Router listens with `window.addEventListener('popstate', onPopState)` inside a passive `useEffect` (no capture); `handlePopState(state)` reloads the page when `state.__NA` is missing and ignores a null state. It patches `history.pushState/replaceState` to copy its internal state. It never sets `history.scrollRestoration`.
+  - App-dir `<Link>`: the app's `onClick` runs first, then `if (e.defaultPrevented) return`; modified clicks and `download` are left to the browser; `onNavigate({ preventDefault })` can cancel.
+  - `useRouter`/`usePathname`/`useSearchParams` read `AppRouterContext` (`next/dist/shared/lib/app-router-context.shared-runtime`) and `PathnameContext`/`SearchParamsContext` (`next/dist/shared/lib/hooks-client-context.shared-runtime`): unit tests can provide them directly, and `next/link` then renders in happy-dom.
+  - Peer dependencies: `react`/`react-dom` `^18.2.0 || ^19.0.0`.
+- **esbuild (tsup 9.0.0) drops `"use client"`** when bundling; it is added to the built client entries afterwards (ADR-034).
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found
@@ -88,6 +95,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 
 - **Firefox scrolled the held old page on back** (PR #5 CI): with the entry's `history.scrollRestoration` = `auto`, Firefox applies the target entry's scroll position before `popstate`, onto whatever page is shown. Firefox reported `auto` on the first entry although React Router's `<ScrollRestoration>` had set `manual` at mount. Fix: the bridge keeps every entry `manual` and restores positions itself (ADR-030). Diagnosed with a scroll log printed from the CI test, since Firefox cannot run locally.
 
+- **Next.js forward navigation ended at 90 px instead of 0** (local e2e): the bridge mistook the browser clamping 300 px to the shorter page for an app scroll and skipped its restore (ADR-035).
+- **A `#fragment` near the bottom of a short page cannot reach the top**: `scrollIntoView` stops at the maximum scroll. Tests expect `min(element top, max scroll)`.
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
@@ -120,4 +130,6 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **React 19.3.1 renders a transition update made during a `popstate` event synchronously** (`shouldAttemptEagerTransition` in `react-dom-client`): React Router's route is committed inside its own `popstate` listener, before later listeners run.
 - **WebKit's computed font of a `<button>` on Linux is `600 16px -webkit-standard`** (PR #5 CI); on Windows WebKit `13px MS Shell Dlg`, Chromium `13.3333px Arial`, Firefox (Linux) `13.3333px Sans`. `-webkit-standard` is also WebKit's `<html>` default. A 2D canvas accepts it (`ctx.font` reads back `72px standard`) and measures it with the live settings (ADR-032).
 - **`getComputedStyle` does not tell which font a WebKit form control is painted in** (Linux CI): computed `600 16px -webkit-standard` (which is serif there: 763.8 px probe width, same as `serif`), painted in the system sans (743.9 px, same as `sans-serif`/`system-ui`). Measure the rendered text run instead (ADR-033). Chromium on Linux: `-webkit-standard` = serif (646.3 px), `system-ui` 743.9 px; Firefox: button computed `Sans`.
+- **Next.js 16 answers an unknown route with an HTTP 404 document**, which the browser logs as `Failed to load resource: ... status of 404`; the e2e test for not-found declares it as expected console output.
+- **Next.js example, local runs:** set `NEXT_TELEMETRY_DISABLED=1` in the shell before `pnpm build:examples` (CI sets it in the workflow env); package scripts stay free of environment variables so they work in PowerShell and bash.
 - `popstate` fires on same-document fragment navigation (clicking `<a href="#id">`) in Chromium, not only on history traversal.

@@ -314,3 +314,27 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Decision:** For a form control with a single line of text and `letter-spacing: normal`, the clone session measures the live text run (`Range.getBoundingClientRect()` over its contents) and compares it with the same text drawn on a detached 2D canvas in the control's style, weight and size: first in the computed family (match → keep it), then `sans-serif`, `serif`, `monospace`, `system-ui`. The first family within max(0.5 px, 1 %) becomes the clone's `font-family`. No match → keep the computed family (ADR-029/032 still apply).
 - **Alternatives considered:** trusting `getComputedStyle` (it does not describe what is painted here); forcing `system-ui` on controls (inside an SVG image it may not resolve either, and it is wrong where the theme uses the author font).
 - **Consequences:** One `Range` and up to five `measureText` calls per text-bearing form control per capture. Capture chunk 12.31 → 12.53 kB. Inputs (value text is not in the DOM) are not measured.
+
+## ADR-034 — Next.js App Router adapter shape
+
+- **Date:** 2026-11-15
+- **Status:** accepted
+- **Context:** Section 7 (Next.js): provider in the root layout, `<ShatterLink>` wrapping `next/link` with prefetch kept, `commit` = `router.push(href, { scroll: false })` resolving when `usePathname()` + `useSearchParams()` change (inside `<Suspense>`), two rAFs, `waitFor: 'commit' | 'settled'` with a documented marker contract, Navigation-API back/forward like React Router. Verified in next 16.4.6 (`dist/client/components/app-router.js`, `dist/client/app-dir/link.js`).
+- **Decision:**
+  1. The render-detection and back/forward machinery (`RouteBridge`, popstate gate) moved from `src/react-router/` to `src/react/` and is shared. The bridge takes an `entryKey()` function: React Router uses `history.state.key`; Next.js uses the Navigation API's `navigation.currentEntry.key`, else `pathname + search`. Render tokens: React Router location key; Next.js `pathname?search`.
+  2. The App Router adds its `popstate` listener in a passive `useEffect` of a parent component, so the provider's layout effect installs the gate first: no router factory is needed (unlike React Router data mode, ADR-028). The App Router leaves `history.scrollRestoration` alone; the bridge's takeover (ADR-030/031) applies.
+  3. A navigation to the current path + search (same URL, or only a different hash) does not change the render token: the commit resolves after two frames instead of waiting for the timeout. A target with a `#fragment` scrolls that element into view after the render (`scroll: 'none'` for the runtime); this now also applies to React Router links and `useShatterNavigate`.
+  4. `waitFor` defaults to `'settled'`. Marker contract: any element with `data-shatter-pending` means "still loading"; the commit waits until none is left (MutationObserver), bounded by `readyTimeout`. React gives client-side Suspense fallbacks no DOM marker of their own, so the attribute (on `loading.tsx` UIs, skeletons) is the whole contract.
+  5. `<ShatterLink href>` accepts a string only (no `UrlObject`): the adapter needs the exact href Next.js would push, and Next's formatter is internal. `onNavigate` is honoured (called before the transition; `preventDefault()` cancels it); `replace` and `scroll` behave as on `next/link` (`scroll={false}` keeps the scroll position).
+  6. `"use client"` is prepended to `dist/react.js`, `dist/react-router.js` and `dist/next.js` by tsup's `onSuccess` hook, because esbuild drops module directives when bundling. It goes on the first line so source maps stay aligned.
+  7. Size budget: the `next` entry including the core ≤ 6 KB gzip (`next`, `react` are peers).
+- **Alternatives considered:** detecting renders through Next's internal history state (`__PRIVATE_NEXTJS_INTERNALS_TREE`, internal); a separate tsup config with a banner for client entries (duplicates the shared chunks and the lazy-chunk graph).
+- **Consequences:** `shatter-router/next` 4.20 kB; `react-router` 4.07 kB (the shared bridge now carries the hash scrolling). `next` is an optional peer `>=16.0.0`.
+
+## ADR-035 — A scroll position clamped by a shorter page is not an app scroll
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-030)
+- **Context:** Next.js e2e: Work scrolled to 300, About, back (Work at 300), forward: About ended at 90 instead of 0. The App Router does not restore scroll on traversal, so the bridge should have restored About's recorded 0. It skipped it because the position changed during the render (300 to 90), which ADR-030 treats as "the app scrolled". In fact the browser had only clamped 300 to the shorter About page's maximum.
+- **Decision:** After a back/forward render the bridge treats the page as untouched when the position equals the previous one clamped to the new page's maximum scroll (`scrollHeight - clientHeight`, ±1 px), and then restores the recorded position.
+- **Consequences:** React Router's `<ScrollRestoration>` and app code that really scroll still win; plain App Router and declarative React Router apps get the entry's position back.

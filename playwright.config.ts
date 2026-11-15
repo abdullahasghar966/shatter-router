@@ -6,6 +6,7 @@ const isCI = Boolean(process.env.CI);
 export const APPS = {
   vanilla: 'http://localhost:4173',
   reactRouter: 'http://localhost:4174',
+  next: 'http://localhost:4175',
 } as const;
 
 export default defineConfig({
@@ -46,6 +47,13 @@ export default defineConfig({
     {
       command: 'pnpm --filter @shatter-router/example-react-router preview',
       url: APPS.reactRouter,
+      reuseExistingServer: !isCI,
+      timeout: 60_000,
+    },
+    {
+      // `next start` of the already-built example (`pnpm build:examples`).
+      command: 'pnpm --filter @shatter-router/example-next start',
+      url: APPS.next,
       reuseExistingServer: !isCI,
       timeout: 60_000,
     },
