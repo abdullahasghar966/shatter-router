@@ -81,6 +81,7 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | capture `dist/capture.js` (lazy) | 11.94 kB | 16 KB | Milestone 4: + substitutes for iframe/video/ignored, CORS image rule |
 | 2026-11-15 | `shatter-router/react` (`dist/react.js`, incl. core) | 2.46 kB | 6 KB (ADR-027) | Milestone 5; react, react-dom excluded (peers) |
 | 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
+| 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
 
