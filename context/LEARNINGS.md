@@ -61,6 +61,7 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
   - `useRouter`/`usePathname`/`useSearchParams` read `AppRouterContext` (`next/dist/shared/lib/app-router-context.shared-runtime`) and `PathnameContext`/`SearchParamsContext` (`next/dist/shared/lib/hooks-client-context.shared-runtime`): unit tests can provide them directly, and `next/link` then renders in happy-dom.
   - Peer dependencies: `react`/`react-dom` `^18.2.0 || ^19.0.0`.
 - **esbuild (tsup 9.0.0) drops `"use client"`** when bundling; it is added to the built client entries afterwards (ADR-034).
+- **@dimforge/rapier3d-compat 0.21.0** (read from `dist/*.d.ts`): `init(): Promise<void>` must be awaited first (instantiates the inlined WebAssembly with `WebAssembly.instantiate`, so a CSP needs `'wasm-unsafe-eval'`). `new World({ x, y, z })`, `world.timestep` (setter), `world.step()`, `world.free()` frees every body and collider. `RigidBodyDesc.dynamic().setTranslation(x, y, z).setLinearDamping(d).setCanSleep(b).setEnabled(b)`; body `setEnabled`, `setLinvel(v, wake)`, `setAngvel(v, wake)`, `isSleeping()`, and `translation(target?)`, `rotation(target?)`, `linvel(target?)` accept a reusable target. `ColliderDesc.convexHull(Float32Array)` returns `ColliderDesc | null`; `ColliderDesc.cuboid(hx, hy, hz)`. Size: `rapier.mjs` 4.34 MB, 1.65 MB gzip.
 - **WebGL2 upload settings that keep the capture bit-identical:** `UNPACK_FLIP_Y_WEBGL=false`, `UNPACK_PREMULTIPLY_ALPHA_WEBGL=true`, `UNPACK_COLORSPACE_CONVERSION_WEBGL=NONE`, internal format `RGBA8` (not `SRGB8_ALPHA8`), `LINEAR` filtering, `CLAMP_TO_EDGE`, context `premultipliedAlpha: true`.
 
 ## Bugs found
@@ -103,6 +104,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **`flip` drew turned shards at the `fractured` pause** (7 % seam, worst block 75 %): before `prepareMotion` the engine uploads all-zero shard data and `shardMotion` ran anyway; with a flip time of 0, `settle()` returns 1. Fix: `shardMotion` only runs while moving (`uMoving`, ADR-036).
 - **Mirroring trick for exact flips:** rotating a shard by π about an in-plane axis mirrors its outline; pre-mirroring the back face across the same axis makes it land on its own cell (the two mirrors cancel), with z negated: pull it back by the thickness.
 - **Transparent shards still write depth:** an outgoing shard faded to alpha 0 would punch holes in incoming shards behind it; `assemble` scales faded shards to zero instead.
+
+- **tsup 9.0.0 inlined the optional peer `@dimforge/rapier3d-compat`** (dist/rapier-backend.js 4.2 MB) although it is listed in `peerDependencies`; react, react-router and next were externalised automatically. Fix: `external: ['@dimforge/rapier3d-compat']` in `tsup.config.ts`; size-limit caught it.
+- **Flaky unit test under load:** the React Router data-mode timeout test used `readyTimeout: 40` and checked at 10 ms; with the Rapier tests loading the CPU, timers fired late. Margins widened (300 ms / 30 ms / 450 ms).
 
 ## Approaches that did not work
 

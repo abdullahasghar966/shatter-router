@@ -42,6 +42,10 @@
       "types": "./dist/next.d.ts",
       "import": "./dist/next.js"
     },
+    "./rapier": {
+      "types": "./dist/rapier.d.ts",
+      "import": "./dist/rapier.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -118,6 +122,27 @@
       "limit": "6 KB"
     },
     {
+      "name": "rapier (shatter-router/rapier, the plugin descriptor)",
+      "path": "dist/rapier.js",
+      "import": "*",
+      "ignore": [
+        "./rapier-backend.js",
+        "@dimforge/rapier3d-compat"
+      ],
+      "gzip": true,
+      "limit": "1 KB"
+    },
+    {
+      "name": "rapier-backend chunk (lazy: simulation; Rapier itself is a peer)",
+      "path": "dist/rapier-backend.js",
+      "import": "*",
+      "ignore": [
+        "@dimforge/rapier3d-compat"
+      ],
+      "gzip": true,
+      "limit": "3 KB"
+    },
+    {
       "name": "runtime chunk (lazy: state machine, fallbacks, a11y)",
       "path": "dist/runtime.js",
       "import": "*",
@@ -144,6 +169,7 @@
     }
   ],
   "devDependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
     "@size-limit/preset-small-lib": "14.3.0",
     "@types/d3-delaunay": "6.0.4",
     "@types/react": "19.3.0",
@@ -162,10 +188,10 @@
     "modern-screenshot": "4.7.0"
   },
   "peerDependencies": {
+    "next": ">=16.0.0",
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0",
-    "react-router": ">=8.0.0",
-    "next": ">=16.0.0"
+    "react-router": ">=8.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
@@ -178,6 +204,9 @@
       "optional": true
     },
     "next": {
+      "optional": true
+    },
+    "@dimforge/rapier3d-compat": {
       "optional": true
     }
   }

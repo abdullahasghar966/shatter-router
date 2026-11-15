@@ -133,6 +133,10 @@ export class FakeWorld {
       replaceEffect(effect: ShatterEffect) {
         world.calls.push(`replaceEffect:${effect.name}`);
       },
+      startPhysics() {
+        world.calls.push('startPhysics');
+        return true;
+      },
       prepareMotion() {
         world.calls.push('prepareMotion');
         return {} as EffectState;

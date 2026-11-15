@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <!-- CSP for the e2e suite: images (capture) allowed, but no 'wasm-unsafe-eval': Rapier cannot start and the motion stays procedural. -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'" />
+    <title>Home — Shatter Router vanilla example</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">Shatter<span>/</span>Router</a>
+      <nav aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/work">Work</a>
+        <a href="/about">About</a>
+        <a href="https://github.com/abdullahasghar966/shatter-router" rel="noopener">GitHub</a>
+      </nav>
+    </header>
+    <main id="app" tabindex="-1"></main>
+    <p class="fixed-note">position: fixed</p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

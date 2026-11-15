@@ -16,13 +16,18 @@ export default defineConfig({
     react: 'src/react/index.ts',
     'react-router': 'src/react-router/index.ts',
     next: 'src/next/index.ts',
+    rapier: 'src/rapier/index.ts',
     // Internal lazy chunks. They are entries only so their file names are
     // stable (the core loads them with dynamic import, size-limit budgets
     // them separately); they are not part of the package's public exports.
     runtime: 'src/runtime/index.ts',
     engine: 'src/engine/index.ts',
     capture: 'src/capture/index.ts',
+    'rapier-backend': 'src/rapier/backend.ts',
   },
+  // Optional peers stay external. tsup's automatic peer handling missed this
+  // scoped one and inlined 4.2 MB of Rapier (LEARNINGS).
+  external: ['@dimforge/rapier3d-compat'],
   format: ['esm'],
   target: 'es2022',
   platform: 'browser',
@@ -32,6 +37,7 @@ export default defineConfig({
       react: 'src/react/index.ts',
       'react-router': 'src/react-router/index.ts',
       next: 'src/next/index.ts',
+      rapier: 'src/rapier/index.ts',
     },
   },
   splitting: true,

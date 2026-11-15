@@ -96,6 +96,11 @@ uniform mat4 uViewProjection;
 uniform sampler2D uShardData;
 uniform float uMaxZ;        // CSS px; nothing may come closer to the camera
 uniform float uMoving;      // 0 at rest (cover, fracture, crack): the rest pose, exactly
+uniform float uPhysics;     // 1: poses come from a physics simulation (uTransforms)
+uniform sampler2D uTransforms; // physics: one mat4 per shard, 4 RGBA32F texels per row
+
+/** Fraction of the motion phase after which physics-driven shards fade out. */
+const float PHYSICS_FADE_START = 0.7;
 ${MOTION_PRELUDE}
 // ---- effect chunk ----
 ${effectChunk}
@@ -126,7 +131,20 @@ void main() {
   pose.alpha = 1.0;
   // Effects only move shards during the motion phase; until then their data
   // may not be uploaded yet, and the page must be drawn exactly at rest.
-  if (uMoving > 0.5) shardMotion(shard, pose);
+  if (uMoving > 0.5) {
+    if (uPhysics > 0.5) {
+      mat4 m = mat4(
+        texelFetch(uTransforms, ivec2(0, id), 0),
+        texelFetch(uTransforms, ivec2(1, id), 0),
+        texelFetch(uTransforms, ivec2(2, id), 0),
+        texelFetch(uTransforms, ivec2(3, id), 0));
+      pose.rotate = mat3(m);
+      pose.translate = m[3].xyz;
+      pose.alpha = 1.0 - smoothstep(PHYSICS_FADE_START, 1.0, uTime / uDuration);
+    } else {
+      shardMotion(shard, pose);
+    }
+  }
 
   vec3 rest = vec3(aCentroid, 0.0);
   vec3 world = rest + pose.translate + pose.rotate * ((aPosition - rest) * pose.scale);
