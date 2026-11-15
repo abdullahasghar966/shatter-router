@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "pnpm --filter shatter-router build",
-    "build:examples": "pnpm --filter \"./examples/*\" build",
+    "build:examples": "pnpm --filter \"./examples/*\" --filter \"./apps/*\" build",
     "typecheck": "pnpm -r typecheck && tsc --noEmit -p tsconfig.json",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",

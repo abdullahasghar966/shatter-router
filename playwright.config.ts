@@ -7,6 +7,7 @@ export const APPS = {
   vanilla: 'http://localhost:4173',
   reactRouter: 'http://localhost:4174',
   next: 'http://localhost:4175',
+  docs: 'http://localhost:4176',
 } as const;
 
 export default defineConfig({
@@ -54,6 +55,13 @@ export default defineConfig({
       // `next start` of the already-built example (`pnpm build:examples`).
       command: 'pnpm --filter @shatter-router/example-next start',
       url: APPS.next,
+      reuseExistingServer: !isCI,
+      timeout: 60_000,
+    },
+    {
+      // `next start` of the docs site (`apps/docs`, built by `pnpm build:examples`).
+      command: 'pnpm --filter @shatter-router/docs start',
+      url: APPS.docs,
       reuseExistingServer: !isCI,
       timeout: 60_000,
     },
