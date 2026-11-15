@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 8 — Rapier mode (branch created, no code yet)
+- **Current milestone:** 8 — Rapier mode (implemented; PR next)
 - **Current branch:** `milestone/08-rapier` (from `main` at `d6054ae`)
-- **Last commit:** see `git log -1` (`docs(context): record milestone 7 merge and start milestone 8`)
+- **Last commit:** see `git log -1` (`feat(rapier): Rapier physics mode`)
 - **Latest tag:** `m07-effects` (on `d6054ae`)
 
 ## Done so far
@@ -16,16 +16,18 @@
 - Milestones 0–7 merged and tagged (see `PROGRESS.md`; ADR-001..036). Latest: M7 Remaining effects (PR #7, `d6054ae`, `m07-effects`): `explode`, `implode`, `flip`, `assemble`, the incoming-page capture, `backForward`, all three engines green.
 - What works: core + `shatter-router/react`, `/react-router` (`createShatterBrowserRouter` in data mode), `/next` (`waitFor`, `data-shatter-pending`); five effects with first- and last-frame seam tests; back/forward effects with scroll restoration. Examples: vanilla (4173, `/effects` page), react-router (4174), next (4175; `NEXT_TELEMETRY_DISABLED=1` locally).
 
+- Milestone 8 implemented on this branch: `shatter-router/rapier` (`rapier({ floor })`), `src/core/physics.ts` (public plugin interface), `src/rapier/simulation.ts` + `backend.ts`, engine transforms texture path, runtime plugin loading (ADR-037). Vanilla example: `?physics=rapier`, `&floor`; `csp-wasm.html`. 311 unit tests; local e2e 173 passed, 9 skipped. Visual check done.
+
 ## Next 3 steps (Milestone 8)
 
-1. **Read the installed APIs first (rule 3):** `npm view @dimforge/rapier3d-compat version`; add it as a dev + optional peer dependency; read its `.d.ts` for `init()`, `World`, `RigidBodyDesc.dynamic()`, `ColliderDesc.convexHull()` (may return null), `ColliderDesc.cuboid()`, `world.step()`, `world.timestep`, body `translation()`/`rotation()`, `applyImpulse`/`setLinvel`/`setAngvel`, `free()`. Check the WASM loading under CSP (`'wasm-unsafe-eval'`, section 9). Record in LEARNINGS.
-2. **Design (ADR):** `shatter-router/rapier` exports a physics plugin (e.g. `rapierPhysics()`), passed in options (`physics: 'rapier'` resolves it lazily with `import()`), so the core never imports rapier. Engine: a second motion path where per-shard transforms (mat4 = 4 RGBA32F texels per shard) come from a texture updated each frame, read with `texelFetch` in the vertex shader; still one draw call; procedural initial impulses (same formula as `shatter`); 100 px = 1 m; fixed 1/60 s step with accumulator; optional floor collider at the viewport bottom (`floor: true`); fade; free the world after `end`. Size budget for the rapier chunk (rapier itself is a peer).
-3. Example toggle (`?physics=rapier`, `?floor`), unit tests (integrator/accumulator, transform packing), e2e (rapier transition completes, no console errors, strict CSP falls back), measurements (step time per frame at 160 shards). Then the ritual and tag `m08-rapier`.
+1. **Ritual (A.5):** PR "Milestone 08: Rapier mode" (ADR-037, measurements from PROGRESS, verification, known issues: `physics: rapier()` instead of the spec's string), `gh pr checks --watch`; read the `[rapier]` lines from CI (Firefox, Linux WebKit) and record them.
+2. Merge with `--merge`, tag `m08-rapier`, push the tag.
+3. Create `milestone/09-glass-shading` from main (first commit records PR/merge/tag). Milestone 9: edge highlight from `edgeDistance` facing a fixed light, Blinn-Phong glint with the rotated normal, `chromatic: true` aberration up to 1.5 px by shard speed, darker tinted sides (`glassTint`, default `#cfe8ff` at 12 %), all lighting exactly zero at `t = 0` and faded in over the first 60 ms of motion; before/after screenshots in PROGRESS.
 
 ## Deferred (tracked, not forgotten)
 
 - Debug panel (section 10) → Milestone 10 (ADR-025).
-- `physics: 'rapier'` → M8. `glassTint`, `chromatic`, lighting fade-in → M9. README items (`scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, popstate note from ADR-026) → M12.
+- `glassTint`, `chromatic`, lighting fade-in → M9. README items (`scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, popstate note from ADR-026) → M12.
 
 ## Open problems / blockers
 

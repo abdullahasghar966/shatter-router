@@ -9,12 +9,16 @@ export default defineConfig({
   preview: { port: 4173, strictPort: true, host: true, cors: false },
   build: {
     target: 'es2022',
+    // Rapier (?physics=rapier) is one 4.3 MB lazy chunk: WebAssembly inlined as base64.
+    chunkSizeWarningLimit: 5000,
     sourcemap: true,
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         // The same app under a strict Content-Security-Policy (e2e fallback test).
         csp: fileURLToPath(new URL('./csp.html', import.meta.url)),
+        // Images allowed, WebAssembly blocked: Rapier cannot start (e2e).
+        'csp-wasm': fileURLToPath(new URL('./csp-wasm.html', import.meta.url)),
       },
     },
   },

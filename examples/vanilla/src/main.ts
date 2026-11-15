@@ -1,4 +1,5 @@
 import { classifyLinkClick, createShatter, findAnchor, getLinkEffect } from 'shatter-router';
+import { rapier } from 'shatter-router/rapier';
 import { lab } from './lab';
 import { effectsPage, notFound, pages } from './pages';
 
@@ -10,7 +11,8 @@ const outlet: HTMLElement = app;
 // `?budget=<ms>` overrides the capture budget; the e2e suite uses it so slow CI
 // machines measure the seam instead of tripping the fallback.
 // `?seed=<n>` makes the fracture deterministic; `?shards=<n>` fixes the count;
-// `?duration=<ms>` sets the motion length.
+// `?duration=<ms>` sets the motion length. `?physics=rapier` (with `&floor`)
+// drives falling shards with Rapier, loaded lazily.
 const params = new URLSearchParams(location.search);
 const number = (name: string): number | undefined => {
   const value = Number(params.get(name));
@@ -20,7 +22,10 @@ const seed = number('seed');
 const shards = number('shards');
 const budget = number('budget');
 const duration = number('duration');
+const physics =
+  params.get('physics') === 'rapier' ? rapier({ floor: params.has('floor') }) : undefined;
 const shatter = createShatter({
+  ...(physics ? { physics } : {}),
   debug: params.has('debug'),
   ...(seed === undefined ? {} : { seed }),
   ...(shards === undefined ? {} : { shards }),

@@ -165,6 +165,22 @@ export class GLDevice {
     return texture;
   }
 
+  /** Replaces the contents of a float texture made by `createDataTexture` (no allocation). */
+  updateDataTexture(
+    texture: WebGLTexture,
+    width: number,
+    height: number,
+    data: Float32Array,
+  ): void {
+    const { gl } = this;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, data);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
   deleteTexture(texture: WebGLTexture | null): void {
     if (!texture) return;
     this.gl.deleteTexture(texture);

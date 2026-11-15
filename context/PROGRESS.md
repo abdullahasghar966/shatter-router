@@ -52,6 +52,7 @@ Recorded 2026-11-14 (session 1). Node v24.21.0, pnpm 12.8.1.
 | react-router | 8.5.1 | packages/shatter-router (dev; optional peer `>=8.0.0`) |
 | @types/react / @types/react-dom | 19.3.0 | packages/shatter-router (dev) |
 | next | 16.4.6 | packages/shatter-router (dev; optional peer `>=16.0.0`), recorded 2026-11-15 |
+| @dimforge/rapier3d-compat | 0.21.0 | packages/shatter-router (dev; optional peer `>=0.21.0`), examples/vanilla |
 
 GitHub Actions: actions/checkout v7, actions/setup-node v7, pnpm/action-setup v6, actions/cache v6, actions/upload-artifact v7.
 
@@ -231,6 +232,17 @@ Real-GPU FPS (60 fps target at 1440x900, section 8) is measured in Milestone 10.
 
 Visual check (headless Chromium screenshots, 1280x720, motion frozen at 450 ms): forward Home → Work shatters the Home page from the click point over the live Work page; back Work → Home shatters the Work page from the viewport centre over the live Home page. No console errors or warnings.
 
+### Physics (Milestone 8, Rapier 0.21.0)
+
+| Date | Runtime | Measurement |
+|---|---|---|
+| 2026-11-15 | Node 24.21.0, RTX 4050 / 12-core laptop (`test/rapier.bench.test.ts`) | one frame (step + transform write), 160 shards: no floor median 0.49 ms (p95 1.93), floor median 1.40 ms (p95 2.64) |
+| 2026-11-15 | Headless Chromium 1255, local, 2 workers | `shatter` with Rapier, 160 shards, 800 ms: 20 frames, 23.2 fps (software GL, not the 60 fps target device) |
+| 2026-11-15 | Playwright WebKit 2388, local | same: 10 frames, 11.0 fps |
+| 2026-11-15 | Vite build of `examples/vanilla` | Rapier chunk 4,335.5 kB (1,670.6 kB gzip), lazy; the example's main chunk 13.7 kB |
+
+Visual check (headless Chromium): without a floor, shards tumble and collide while falling; with `floor: true` they pile along the bottom edge (0.9 s) and lie there (2.0 s) before fading.
+
 ### Memory (section 9: 100 consecutive transitions)
 
 | Date | Runtime | Result |
@@ -253,3 +265,4 @@ Real-GPU FPS, draw calls traced in a Performance profile, Lighthouse: later mile
 | 5 | 257 tests in 16 files (+ `react.test.tsx` 24, `react-router.test.tsx` 13, `standard-font.test.ts` 2) | React Router example: 9 navigation + 7 transitions/seam per engine. Local: Chromium + WebKit, full suite 105 passed, 9 skipped. PR #5 CI: Chromium 57 passed, Firefox 49 passed, WebKit 49 passed (engine-specific skips) |
 | 6 | 266 tests in 17 files (+ `next.test.tsx` 9); after the M6 follow-up fixes on `milestone/07-effects`: 272 in 18 (+ `route-bridge.test.ts` 6) | Next.js example: 11 navigation + 6 transitions/seam per engine. Local: Chromium + WebKit, full suite 139 passed, 9 skipped. PR #6 CI: Chromium 74 passed, Firefox 66 passed, WebKit 66 passed |
 | 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped. PR #7 CI: Chromium 87 passed, Firefox 79, WebKit 79 |
+| 8 | 311 tests in 22 files (+ `rapier.test.ts` 8 with the real Rapier WASM, `rapier.bench.test.ts` 2) | + `e2e/vanilla/rapier.spec.ts` 4 per engine (Rapier shatter, floor pile, flip stays procedural, CSP without wasm-unsafe-eval stays procedural). Local: Chromium + WebKit, full suite 173 passed, 9 skipped |

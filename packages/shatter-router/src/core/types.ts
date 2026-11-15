@@ -1,4 +1,5 @@
 import type { ShatterEffect } from './effect';
+import type { PhysicsPlugin } from './physics';
 import type { PhaseTimings, TransitionState } from './machine';
 import type { ScrollTarget } from './ready';
 import type { ScrollLock } from './scroll-lock';
@@ -19,6 +20,13 @@ export interface ShatterOptions {
   impulse?: number;
   /** Glass thickness in CSS pixels, seen on the shards' sides as they tumble. Default 6. */
   thickness?: number;
+  /**
+   * How falling shards move (`shatter`, `explode`): `'procedural'` (default,
+   * closed-form in the vertex shader, no download) or a physics plugin, e.g.
+   * `rapier({ floor: true })` from `shatter-router/rapier` (loaded lazily;
+   * if it cannot load, the procedural motion is used).
+   */
+  physics?: 'procedural' | PhysicsPlugin;
   /**
    * Start capturing before the click, to hide capture latency:
    * `'pointerdown'` (default) on pressing a link, `'hover'` after a 120 ms
@@ -157,6 +165,8 @@ export interface ShatterTestHook {
   lastFallback: FallbackReason | null;
   /** Effect the most recent transition played, after back/forward mapping and any substitution. */
   lastEffect: string | null;
+  /** Motion of the most recent transition: 'procedural' or the physics plugin's name. */
+  lastPhysics: string | null;
   /** Duration of the most recent capture of the incoming page in ms, or null. */
   lastIncomingCaptureMs: number | null;
   /** Grid the page copy is laid out on in this engine, once the capturer is loaded. */

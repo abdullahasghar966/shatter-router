@@ -3,6 +3,7 @@ import type { Engine } from '../engine/index';
 import { announceTitle, focusNewPage } from '../core/a11y';
 import { crossfade } from '../core/crossfade';
 import type { ShatterEffect } from '../core/effect';
+import type { PhysicsBackend, PhysicsPlugin } from '../core/physics';
 import { prefersReducedMotion } from '../core/env';
 import { StateMachine, type TransitionState } from '../core/machine';
 import { Precapture, PRECAPTURE_TTL_MS } from '../core/precapture';
@@ -37,6 +38,7 @@ export type EngineLike = Pick<
   | 'fracture'
   | 'setIncoming'
   | 'replaceEffect'
+  | 'startPhysics'
   | 'prepareMotion'
   | 'crack'
   | 'animate'
@@ -120,6 +122,7 @@ interface Settings {
   readonly readyTimeout: number;
   readonly reducedMotion: 'crossfade' | 'instant' | 'ignore';
   readonly backForward: 'reverse' | 'same' | 'none';
+  readonly physics: PhysicsPlugin | null;
   readonly seed: number | undefined;
   readonly debug: boolean;
 }
@@ -154,6 +157,8 @@ function settingsFrom(options: ShatterOptions): Settings {
     readyTimeout: options.readyTimeout ?? 1500,
     reducedMotion: options.reducedMotion ?? 'crossfade',
     backForward: options.backForward ?? 'reverse',
+    physics:
+      options.physics === undefined || options.physics === 'procedural' ? null : options.physics,
     seed: options.seed,
     debug: options.debug ?? false,
   };
@@ -180,6 +185,8 @@ class Runtime implements ShatterRuntime {
   private readonly hook: ShatterTestHook | null;
   private readonly scrollLock: ScrollLock | null;
   private loaded: Loaded | null = null;
+  /** The loaded physics backend; null for procedural motion (or when it could not load). */
+  private physics: PhysicsBackend | null = null;
   private loading: Promise<Loaded | null> | null = null;
   private current: Run | null = null;
   private ticket = 0;
@@ -360,6 +367,12 @@ class Runtime implements ShatterRuntime {
         direction,
         ...(seed === undefined ? {} : { seed }),
       });
+      // Physics drives the falling effects when a backend is loaded; anything
+      // else (or no backend) keeps the procedural motion.
+      const physical = this.physics !== null && engine.startPhysics(this.physics);
+      if (this.hook) {
+        this.hook.lastPhysics = physical && settings.physics ? settings.physics.name : 'procedural';
+      }
       machine.enter('animating');
       this.emit('animating', { effect: motionEffect.name });
       if (motionEffect.crack) {
@@ -649,8 +662,8 @@ class Runtime implements ShatterRuntime {
 
   /** Loads the engine and capture chunks once. Null when the effect is unavailable. */
   private load(): Promise<Loaded | null> {
-    this.loading ??= this.deps.load(document).then(
-      (loaded) => {
+    this.loading ??= Promise.all([this.deps.load(document), this.loadPhysics()]).then(
+      ([loaded]) => {
         if (this.destroyed) {
           loaded.engine.destroy();
           loaded.capturer.destroy();
@@ -668,6 +681,22 @@ class Runtime implements ShatterRuntime {
       },
     );
     return this.loading;
+  }
+
+  /**
+   * Loads the physics plugin alongside the engine. Never rejects: without it
+   * (offline, a CSP without 'wasm-unsafe-eval') the motion stays procedural.
+   */
+  private async loadPhysics(): Promise<void> {
+    const plugin = this.settings.physics;
+    if (!plugin) return;
+    try {
+      this.physics = await plugin.load();
+    } catch (error) {
+      if (this.settings.debug) {
+        console.warn(`[shatter-router] physics "${plugin.name}" unavailable`, error);
+      }
+    }
   }
 
   /** Debug pause point; a cancel or skip also releases it. */
@@ -706,6 +735,7 @@ class Runtime implements ShatterRuntime {
       lastPrecaptured: false,
       lastFallback: null,
       lastEffect: null,
+      lastPhysics: null,
       lastIncomingCaptureMs: null,
       layoutGrid: () => this.loaded?.capturer.layoutGrid ?? null,
       lastFracture: null,

@@ -29,4 +29,12 @@ export { classifyLinkClick, findAnchor, getLinkEffect } from './core/links';
 export type { LinkClickDecision, LinkClickEvent, LinkLocation, LinkSkipReason } from './core/links';
 export { isBrowser, prefersReducedMotion } from './core/env';
 export type { CaptureRequest, Capturer, Snapshot } from './core/snapshot';
+export { PHYSICS_TRANSFORM_FLOATS } from './core/physics';
+export type {
+  PhysicsBackend,
+  PhysicsPlugin,
+  PhysicsSetup,
+  PhysicsShard,
+  PhysicsSimulation,
+} from './core/physics';
 export type { ViewportMetrics } from './core/viewport';

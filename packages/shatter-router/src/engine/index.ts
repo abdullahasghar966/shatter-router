@@ -6,6 +6,12 @@ import {
   type ShatterEffect,
 } from '../core/effect';
 import { nextFrame } from '../core/frame';
+import {
+  PHYSICS_TRANSFORM_FLOATS,
+  type PhysicsBackend,
+  type PhysicsShard,
+  type PhysicsSimulation,
+} from '../core/physics';
 import { createRandom } from '../core/random';
 import type { Snapshot } from '../core/snapshot';
 import { createPixelCamera, type PixelCamera } from './camera';
@@ -40,6 +46,15 @@ export const BUILT_IN_EFFECTS: ReadonlyMap<string, ShatterEffect> = new Map(
     (effect) => [effect.name, effect] as const,
   ),
 );
+
+/**
+ * Built-in effects a physics backend can drive (their per-shard data is
+ * `a = (v0.xyz, delay)`, `b = (axis.xyz, ω)`), with their air drag in 1/s.
+ */
+const PHYSICS_EFFECTS: ReadonlyMap<ShatterEffect, number> = new Map([
+  [shatterEffect, 0],
+  [explodeEffect, 3],
+]);
 
 interface PageResources {
   readonly program: GLProgram;
@@ -110,6 +125,10 @@ export class Engine {
   /** The incoming page, for effects that end on it. */
   private incomingTexture: WebGLTexture | null = null;
   private incoming: Snapshot | null = null;
+  /** Physics mode: the simulation, its transforms (one mat4 per shard) and their texture. */
+  private simulation: PhysicsSimulation | null = null;
+  private transforms: Float32Array | null = null;
+  private transformTexture: WebGLTexture | null = null;
   private geometry: FractureGeometry | null = null;
   private effect: ShatterEffect | null = null;
   private state: EffectState | null = null;
@@ -134,6 +153,7 @@ export class Engine {
       this.texture = null;
       this.shardData = null;
       this.incomingTexture = null;
+      this.transformTexture = null;
     });
   }
 
@@ -343,6 +363,66 @@ export class Engine {
   }
 
   /**
+   * Hands the prepared motion to a physics backend (after `prepareMotion`).
+   * Only the falling built-in effects can be driven by physics; returns false
+   * (procedural motion) for any other effect.
+   */
+  startPhysics(backend: PhysicsBackend): boolean {
+    const state = this.state;
+    const effect = this.effect;
+    const geometry = this.geometry;
+    const damping = effect ? PHYSICS_EFFECTS.get(effect) : undefined;
+    if (!state || !geometry || damping === undefined) return false;
+    const data = state.attributes;
+    const shards: PhysicsShard[] = state.shards.map((shard) => {
+      const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
+      return {
+        ...shard,
+        velocity: { x: data[o] ?? 0, y: data[o + 1] ?? 0, z: data[o + 2] ?? 0 },
+        delay: data[o + 3] ?? 0,
+        spin: {
+          x: data[o + 4] ?? 0,
+          y: data[o + 5] ?? 0,
+          z: data[o + 6] ?? 0,
+          speed: data[o + 7] ?? 0,
+        },
+      };
+    });
+    this.simulation = backend.createSimulation({
+      width: geometry.width,
+      height: geometry.height,
+      thickness: geometry.thickness,
+      gravity: state.gravity,
+      linearDamping: damping,
+      shards,
+    });
+    const transforms = new Float32Array(shards.length * PHYSICS_TRANSFORM_FLOATS);
+    this.simulation.write(transforms);
+    this.transforms = transforms;
+    this.device.deleteTexture(this.transformTexture);
+    this.transformTexture = this.device.createDataTexture(
+      4,
+      Math.max(1, shards.length),
+      transforms,
+    );
+    return true;
+  }
+
+  /** Steps the simulation to `seconds` and uploads the transforms. */
+  private stepPhysics(seconds: number): void {
+    const { simulation, transforms, transformTexture } = this;
+    if (!simulation || !transforms || !transformTexture) return;
+    simulation.advance(seconds);
+    simulation.write(transforms);
+    this.device.updateDataTexture(
+      transformTexture,
+      4,
+      transforms.length / PHYSICS_TRANSFORM_FLOATS,
+      transforms,
+    );
+  }
+
+  /**
    * Swaps the effect of the fractured page (before `prepareMotion`), for
    * example when the incoming page could not be captured.
    */
@@ -401,7 +481,11 @@ export class Engine {
       if (started < 0) started = now;
       const t = now - started;
       if (signal?.aborted === true || finalDrawn) return true;
-      if (effect.isComplete(t, state)) {
+      const simulation = this.simulation;
+      const complete = simulation
+        ? t >= state.duration || simulation.finished
+        : effect.isComplete(t, state);
+      if (complete) {
         if (!endsAtRest) return true;
         // The frame in which the effect completes is not drawn otherwise: the
         // caller hides the overlay right away.
@@ -411,6 +495,7 @@ export class Engine {
         return false;
       }
       this.time = t / 1000;
+      this.stepPhysics(this.time);
       this.draw();
       return false;
     });
@@ -422,6 +507,8 @@ export class Engine {
     if (!this.state) return;
     this.moving = true;
     this.time = Math.max(0, ms) / 1000;
+    // A simulation only runs forward: an earlier time keeps the latest state.
+    this.stepPhysics(this.time);
     this.draw();
   }
 
@@ -469,6 +556,11 @@ export class Engine {
       gl.activeTexture(gl.TEXTURE2);
       gl.bindTexture(gl.TEXTURE_2D, this.incomingTexture ?? texture);
       gl.uniform1i(program.uniform('uIncoming'), 2);
+      // Unit 3: physics transforms; the shard data stands in when there are none.
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, this.transformTexture ?? this.shardData);
+      gl.uniform1i(program.uniform('uTransforms'), 3);
+      gl.uniform1f(program.uniform('uPhysics'), this.simulation ? 1 : 0);
       gl.activeTexture(gl.TEXTURE0);
       gl.uniform1f(program.uniform('uMaxZ'), camera ? camera.maxZ : 0);
       gl.uniform2f(program.uniform('uViewport'), geometry.width, geometry.height);
@@ -563,6 +655,11 @@ export class Engine {
     this.incomingTexture = null;
     this.incoming?.dispose();
     this.incoming = null;
+    this.simulation?.free();
+    this.simulation = null;
+    this.transforms = null;
+    this.device.deleteTexture(this.transformTexture);
+    this.transformTexture = null;
     if (this.snapshot) {
       this.snapshot.dispose();
       this.snapshot = null;

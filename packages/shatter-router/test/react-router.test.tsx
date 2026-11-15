@@ -268,7 +268,8 @@ describe('React Router adapter, data mode', () => {
     const router = createMemoryRouter([
       {
         path: '/',
-        element: <Root shatter={shatter} readyTimeout={40} />,
+        // Wide margins: under CPU load (parallel test files) timers fire late.
+        element: <Root shatter={shatter} readyTimeout={300} />,
         children: [
           { index: true, element: page('Home') },
           { path: 'slow', loader: () => new Promise(() => undefined), element: page('Slow') },
@@ -278,9 +279,9 @@ describe('React Router adapter, data mode', () => {
     const { container } = await render(<RouterProvider router={router} />);
     const shown = recordShownAtCommit(shatter, container);
     await click(anchor(container, 'Slow'));
-    await settle(10);
+    await settle(30);
     expect(shown).toEqual([]);
-    await settle(80);
+    await settle(450);
     expect(shown).toEqual(['Home']);
   });
 });
