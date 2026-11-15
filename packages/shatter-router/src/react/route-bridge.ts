@@ -16,6 +16,21 @@ function currentScroll(): ScrollPosition {
   return { x: window.scrollX, y: window.scrollY };
 }
 
+/**
+ * True when something scrolled the page away from `before`. A position that
+ * only moved because the new page is shorter (the browser clamps it to the
+ * new maximum) does not count: nobody chose it (ADR-035).
+ */
+function scrolledSince(before: ScrollPosition): boolean {
+  const root = document.scrollingElement ?? document.documentElement;
+  const maxX = Math.max(0, root.scrollWidth - root.clientWidth);
+  const maxY = Math.max(0, root.scrollHeight - root.clientHeight);
+  const now = currentScroll();
+  return (
+    Math.abs(now.x - Math.min(before.x, maxX)) > 1 || Math.abs(now.y - Math.min(before.y, maxY)) > 1
+  );
+}
+
 /** Scrolls the element a URL fragment points at into view, if it exists. */
 export function scrollToFragment(hash: string): void {
   let id = hash.startsWith('#') ? hash.slice(1) : hash;
@@ -256,10 +271,7 @@ export class RouteBridge {
     if (!changes) next.cancel();
     await next.promise;
     await afterRender?.();
-    const after = currentScroll();
-    if (target && after.x === before.x && after.y === before.y) {
-      window.scrollTo(target.x, target.y);
-    }
+    if (target && !scrolledSince(before)) window.scrollTo(target.x, target.y);
   }
 
   /** Dispatches the held-back popstate, if any, for the router's own listener. */

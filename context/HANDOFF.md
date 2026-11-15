@@ -6,9 +6,9 @@
 
 ## Where we are
 
-- **Current milestone:** 6 — Next.js App Router adapter (adapter done, example next)
+- **Current milestone:** 6 — Next.js App Router adapter (adapter, example and e2e done; PR next)
 - **Current branch:** `milestone/06-nextjs` (from `main` at `0d4d85f`)
-- **Last commit:** see `git log -1` (`feat(next): Next.js App Router adapter`)
+- **Last commit:** see `git log -1` (`feat(next): example app and e2e`)
 - **Latest tag:** `m05-react-router` (on `0d4d85f`)
 
 ## Done so far
@@ -22,11 +22,13 @@
 
 - Milestone 6, sub-task 1: next 16.4.6 installed and read (LEARNINGS); `src/next/` builds `shatter-router/next` (`ShatterProvider` with `waitFor`, `ShatterLink`, `useShatterNavigate`, `useShatter`, `PENDING_ATTRIBUTE`); bridge and pop gate moved to `src/react/` and shared (ADR-034); `"use client"` added to built client entries; 9 unit tests in `test/next.test.tsx` (266 total).
 
+- Milestone 6, sub-task 2: `examples/next` (next 16.4.6, port 4175: root layout + client `Providers`, header of `ShatterLink`s, `/`, `/work`, `/about`, `/slow` with a 400 ms server component and `loading.tsx` marked `data-shatter-pending`, not-found, "Navigate in code"); e2e `e2e/next/navigation.spec.ts` (11) and `transitions.spec.ts` (6); ADR-035 (clamped scroll is not an app scroll). Local full suite Chromium + WebKit: 139 passed, 9 skipped. Visual check done (PROGRESS).
+
 ## Next 3 steps (Milestone 6)
 
-1. **`examples/next`** (`@shatter-router/example-next`, next 16.4.6, React 19.3.1, port 4175 via `next start -p 4175`): App Router root layout with a client `Providers` component (reads the same query params as the other examples once on the client: `?debug`, `?seed`, `?shards`, `?budget`, `?duration`, plus `?waitfor=commit`), header nav of `ShatterLink`s, pages `/`, `/work`, `/about` (target=_blank, data-shatter="off", same-page anchor), `/slow` (server component awaiting 400 ms, `export const dynamic = 'force-dynamic'`, `loading.tsx` with `data-shatter-pending`), `not-found.tsx`, a "Navigate in code" button, and the debug event log (`window.__shatterEvents`). Copy `examples/react-router/src/style.css`. Add to `playwright.config.ts` (APPS.next, webServer). CI: set `NEXT_TELEMETRY_DISABLED: 1` in the workflow env.
-2. **E2E `e2e/next/*`** mirroring `e2e/react-router/*`: links, modifier clicks, opt-outs, loading.tsx with `settled` (overlay up until the real page) and `commit`, back/forward with scroll restoration and events, back first-frame seam, interruption, first-frame seam, prefetch still requested. Run the React Router e2e again (the bridge moved).
-3. **Ritual (A.5):** headless screenshots, context files, PR "Milestone 06: Next.js App Router adapter", three-engine CI, merge `--merge`, tag `m06-nextjs`, then `milestone/07-effects`.
+1. **Ritual (A.5):** open PR "Milestone 06: Next.js App Router adapter" (body: what was built, measurements from PROGRESS, verification, known issues: `UrlObject` hrefs unsupported, ADR-034), `gh pr checks --watch` until Chromium, Firefox, WebKit and size are green. Firefox and Linux WebKit have only run on CI: read the `[seam]` and `[next]` lines in the logs and record them in PROGRESS.
+2. Merge with `gh pr merge <n> --merge`, tag `m06-nextjs` on main, push the tag.
+3. Create `milestone/07-effects` from main; first commit records PR/merge/tag in PROGRESS and refreshes HANDOFF. Milestone 7: `explode`, `implode`, `flip`, `assemble` against the public `ShatterEffect` interface, plugin docs, last-frame seam tests for `flip`/`assemble`, `backForward: 'reverse'` (ADR-025).
 
 ## Deferred (tracked, not forgotten)
 

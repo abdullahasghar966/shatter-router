@@ -14,6 +14,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The Next.js example is built and started in CI: no usage telemetry.
+  NEXT_TELEMETRY_DISABLED: '1'
+
 jobs:
   check:
     name: Typecheck, lint, unit

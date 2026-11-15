@@ -330,3 +330,11 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
   7. Size budget: the `next` entry including the core ≤ 6 KB gzip (`next`, `react` are peers).
 - **Alternatives considered:** detecting renders through Next's internal history state (`__PRIVATE_NEXTJS_INTERNALS_TREE`, internal); a separate tsup config with a banner for client entries (duplicates the shared chunks and the lazy-chunk graph).
 - **Consequences:** `shatter-router/next` 4.20 kB; `react-router` 4.07 kB (the shared bridge now carries the hash scrolling). `next` is an optional peer `>=16.0.0`.
+
+## ADR-035 — A scroll position clamped by a shorter page is not an app scroll
+
+- **Date:** 2026-11-15
+- **Status:** accepted (refines ADR-030)
+- **Context:** Next.js e2e: Work scrolled to 300, About, back (Work at 300), forward: About ended at 90 instead of 0. The App Router does not restore scroll on traversal, so the bridge should have restored About's recorded 0. It skipped it because the position changed during the render (300 to 90), which ADR-030 treats as "the app scrolled". In fact the browser had only clamped 300 to the shorter About page's maximum.
+- **Decision:** After a back/forward render the bridge treats the page as untouched when the position equals the previous one clamped to the new page's maximum scroll (`scrollHeight - clientHeight`, ±1 px), and then restores the recorded position.
+- **Consequences:** React Router's `<ScrollRestoration>` and app code that really scroll still win; plain App Router and declarative React Router apps get the entry's position back.
