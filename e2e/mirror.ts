@@ -69,6 +69,12 @@ export async function expectMirror(
   await expect(page.locator('h1')).toHaveText(route.startTitle);
   expect(await lastEffect(page)).toBe(`${route.effect}:reverse`);
   expect((await hookState(page)).fallback).toBeNull();
+  // The runtime focuses the new page's heading once the overlay is gone, and
+  // WebKit draws a focus ring for it after a Back without a pointer: the
+  // overlay never had that ring, so compare the page without it.
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
   const live = await page.screenshot();
   const dpr = await page.evaluate(() => window.devicePixelRatio);
   const result = await compareScreenshots(

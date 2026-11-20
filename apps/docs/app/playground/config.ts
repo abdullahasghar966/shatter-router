@@ -89,7 +89,8 @@ export function configFromSearch(search: string): PlaygroundConfig {
   if (physics === 'procedural' || physics === 'rapier') config.physics = physics;
   for (const key of ['chromatic', 'floor', 'debug'] as const) {
     const raw = params.get(key);
-    if (raw === '1' || raw === 'true') config[key] = true;
+    // A bare `?debug` (the site's own debug switch) counts as on.
+    if (raw === '' || raw === '1' || raw === 'true') config[key] = true;
     else if (raw === '0' || raw === 'false') config[key] = false;
   }
   return config;
