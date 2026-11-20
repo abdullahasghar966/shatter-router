@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M13 merged and tagged; M14 starting)
+- **Last updated:** 2026-11-20 (session 4, M14 implemented; ritual next)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
@@ -18,9 +18,7 @@
 
 ## Next steps (M14: effect architecture)
 
-1. Re-read `PLAN-PRODUCTION.md` (library roadmap: lazy effect plugins, the composition API `{ pattern, motion, material, stagger, timing }`) and write ADR-048 for the plugin and composition design before coding.
-2. Effects become lazily loaded plugins so the engine chunk stops growing with each effect; keep the seams, the single draw call and zero per-frame allocation.
-3. Tests (unit + e2e on every engine), measurements in PROGRESS, then the ritual and tag `m14-effect-architecture`.
+**Status (session 4):** implemented per ADR-048 and committed: patterns and motions as lazy chunks (`src/engine/plugins.ts`, `patterns/impact.ts`, per-chunk budgets), async `engine.loadEffect`, prefetching, stagger order (`src/engine/stagger.ts`, `ctx.order`, GLSL `shard.order`), compositions (`src/core/compose.ts`, `src/engine/compose.ts`), adapters and docs updated, playground stagger control. Unit 386 passing; e2e full suite green on the plugin build plus the new composition tests. **Left:** final local checks, the ritual (PR, three-engine CI, merge, tag `m14-effect-architecture`), then M19 (site redesign) per the plan order.
 
 ## Deferred (tracked, not forgotten)
 

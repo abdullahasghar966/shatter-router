@@ -4,11 +4,23 @@ import { Code } from '../../code';
 
 export const metadata: Metadata = { title: 'API reference' };
 
+const STAGGERS: readonly (readonly [string, string])[] = [
+  [`'radial'`, 'From the impact point outward (the default of every built-in effect).'],
+  [`'linear'`, 'Across the page, left to right.'],
+  [
+    `{ type: 'linear', angle }`,
+    'Along an angle in degrees: 90 is top to bottom, 180 right to left.',
+  ],
+  [`'spiral'`, 'Once around the impact point, moving outward.'],
+  [`'random'`, 'Any order (fixed by the seed option).'],
+  [`'reading-order'`, 'Row by row, each left to right.'],
+];
+
 const OPTIONS: readonly (readonly [string, string, string])[] = [
   [
     'effect',
     `'shatter'`,
-    'Effect name or effect object: shatter, explode, implode, flip, assemble, or one you registered.',
+    'Effect name, effect object or composition: shatter, explode, implode, flip, assemble, one you registered, or { motion, stagger, … } (see Compositions).',
   ],
   ['duration', 'the effect’s own, else 1000', 'Motion phase length in ms, not counting the crack.'],
   [
@@ -161,6 +173,31 @@ shatter.destroy(); // frees the WebGL context; idempotent
       </p>
       <h3>Events</h3>
       <Table head={['Event', 'Payload and meaning']} rows={EVENTS} />
+
+      <h2 id="compositions">Compositions</h2>
+      <p>
+        An effect can be put together from parts. Each part loads on first use, so a page only
+        downloads the parts it plays. Pass a composition anywhere an effect goes, or register it
+        under a name.
+      </p>
+      <Code lang="ts">{`
+shatter.transition({ commit, effect: { motion: 'explode', stagger: 'linear' } });
+
+shatter.registerEffect({
+  name: 'curtain',
+  motion: 'flip',                          // how the pieces move: a built-in effect or one you registered
+  pattern: 'impact',                       // how the page breaks (more patterns are coming)
+  material: 'glass',                       // the surface (more materials are coming)
+  stagger: { type: 'linear', angle: 90 },  // the order the pieces start in
+  timing: { duration: 1400 },              // motion length, ms
+});
+// then effect: 'curtain' or data-shatter-effect="curtain"
+`}</Code>
+      <Table head={['Stagger', 'Order the pieces start in']} rows={STAGGERS} />
+      <p>
+        Back plays the reverse of a composition too: <code>flip</code> compositions turn back, and
+        every other one runs backwards in time.
+      </p>
 
       <h2 id="react">React, React Router, Next.js</h2>
       <p>The three adapters have the same shape.</p>

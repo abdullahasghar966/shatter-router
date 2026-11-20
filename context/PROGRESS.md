@@ -93,6 +93,7 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
 | 2026-11-15 | runtime `dist/runtime.js` (lazy) | 7.76 kB | 8 KB | Milestone 11: + priming capture on first intent (ADR-043) |
 | 2026-11-20 | runtime `dist/runtime.js` (lazy) | 8.68 kB | 9 KB | Milestone 13: + navigation memory, mirror planning (ADR-047; budget raised from 8 KB). Engine 20.05 kB of 22 KB (+0.24: reverse wrapper); core 1.83 kB |
+| 2026-11-20 | engine core `dist/engine.js` (lazy) | 11.45 kB | 15 KB | Milestone 14: effects as lazy plugins (ADR-048). Motions `dist/effects/*.js`: shatter 1.01, explode 1.35, implode 1.29, flip 0.87, assemble 1.26 kB (2 KB each); pattern `impact` 8.19 kB incl. d3-delaunay (9 KB). Runtime 9.0 kB (budget raised to 10 KB); core 1.84 kB |
 | 2026-11-15 | debug `dist/debug.js` (lazy, debug mode only) | 3.44 kB | 5 KB (own) | Milestone 10: debug panel and seam check (ADR-041). Runtime 7.55 kB of 8 KB (+0.32: panel loading, `exclusive()`, draw stats); engine 19.76 kB |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
@@ -347,6 +348,12 @@ Seams of the reversed effects (Back, `backForward: 'mirror'`), local Windows 11,
 | Next `shatter:reverse` last frame | 0.1318 | 0.0021 |
 
 Every falling effect (`shatter`, `explode`, `implode`) plays reversed on Back and replays on Forward with no fallback; the docs playground keeps its settings through Back and a reload.
+
+### Effect architecture (Milestone 14, 2026-11-20)
+
+- **Sizes:** the engine chunk went from 20.05 kB to an 11.45 kB core plus lazy parts (table above). A page that only plays `shatter` loads 11.45 + 1.01 + 8.19 = 20.65 kB of engine code, the same as before; each further effect adds about 1 kB instead of all five being in the first load.
+- **No regression (local, Chromium + WebKit, full suite 245 passed / 15 skipped before the new tests):** every first- and last-frame seam is identical to M13 to four decimals (e.g. Chromium first-shatter 0.0936 %, last-flip 0.1647 %, last-explode-reverse 0.1006 %); draw calls per frame 1 for every effect; allocations beyond boxed numbers 0–16 B per run; fracture 160 shards median 0.80 ms.
+- **Compositions:** the vanilla example's `sweep` (shatter's motion, linear stagger) plays, lands and reverses on Back; first-frame seam 0.0831 % Chromium, 0.0272 % WebKit. The docs playground's stagger control plays `shatter stagger=linear`.
 
 ### Release readiness (Milestone 12, 2026-11-20)
 

@@ -34,6 +34,7 @@ import {
 import { GLDevice, GLError, type GLProgram } from './gl';
 import { FrameLoop, type LoopStats } from './loop';
 import { Overlay } from './overlay';
+import { composeEffect } from './compose';
 import { reverseEffect, REVERSE_SUFFIX } from './effects/reverse';
 import { MATERIALS, MOTIONS, PATTERNS, PHYSICS_DAMPING } from './plugins';
 import { PAGE_FRAGMENT, PAGE_VERTEX, shardFragmentSource, shardVertexSource } from './shaders';
@@ -306,24 +307,7 @@ export class Engine {
     // A registered effect object may serve as the motion; compositions do not nest.
     const own = registered.get(spec.motion);
     const motion = own && !isComposition(own) ? own : await this.loadMotion(spec.motion);
-    const duration = spec.timing?.duration ?? motion.duration;
-    const pattern = spec.pattern ?? motion.pattern;
-    const stagger = spec.stagger ?? motion.stagger;
-    const seedPoints = motion.seedPoints?.bind(motion);
-    const effect: ShatterEffect = {
-      name: effectName(spec),
-      needsIncomingSnapshot: motion.needsIncomingSnapshot,
-      crack: motion.crack,
-      ...(motion.layers === undefined ? {} : { layers: motion.layers }),
-      ...(duration === undefined ? {} : { duration }),
-      ...(pattern === undefined ? {} : { pattern }),
-      ...(stagger === undefined ? {} : { stagger }),
-      ...(seedPoints ? { seedPoints } : {}),
-      shardAttributes: (ctx) => motion.shardAttributes(ctx),
-      vertexChunk: motion.vertexChunk,
-      ...(motion.fragmentChunk === undefined ? {} : { fragmentChunk: motion.fragmentChunk }),
-      isComplete: (t, state) => motion.isComplete(t, state),
-    };
+    const effect = composeEffect(spec, motion);
     const damping = this.physical.get(motion);
     if (damping !== undefined) this.physical.set(effect, damping);
     this.composed.set(spec, effect);

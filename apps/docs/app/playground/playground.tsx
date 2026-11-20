@@ -19,6 +19,8 @@ import {
   EFFECT_NAMES,
   LIMITS,
   type PlaygroundConfig,
+  STAGGERS,
+  staggerOf,
 } from './config';
 
 /** Sliders fire on every step; browsers limit replaceState calls (Safari throws). */
@@ -38,13 +40,22 @@ const SCENES = [
   { title: 'Shards', note: 'scene two of two', colors: ['#2cb5a0', '#c3f3e8'] },
 ] as const;
 
+/** The site's `?budget=<ms>` test switch, read once like `providers.tsx` does. */
+function captureBudget(): { captureBudget?: number } {
+  const raw = new URLSearchParams(window.location.search).get('budget');
+  const value = Number(raw);
+  return raw !== null && Number.isFinite(value) ? { captureBudget: value } : {};
+}
+
 async function optionsFor(config: PlaygroundConfig): Promise<ShatterOptions> {
+  const stagger = staggerOf(config.stagger);
   const physics =
     config.physics === 'rapier'
       ? (await import('shatter-router/rapier')).rapier({ floor: config.floor })
       : 'procedural';
   return {
-    effect: config.effect,
+    // A stagger makes the effect a composition of parts (ADR-048).
+    effect: stagger ? { motion: config.effect, stagger } : config.effect,
     shards: config.shards === 0 ? 'auto' : config.shards,
     ...(config.duration === 0 ? {} : { duration: config.duration }),
     gravity: config.gravity,
@@ -55,6 +66,8 @@ async function optionsFor(config: PlaygroundConfig): Promise<ShatterOptions> {
     physics,
     ...(config.seed === 0 ? {} : { seed: config.seed }),
     debug: config.debug,
+    // Like the site's own instance, `?budget=<ms>` (e2e on slow machines).
+    ...captureBudget(),
     // reducedMotion stays at its default: the playground respects the
     // user's setting like any other page.
   };
@@ -105,6 +118,9 @@ export function Playground(): ReactNode {
       const pane = new Pane({ container, title: 'Options' });
       pane.addBinding(params, 'effect', {
         options: Object.fromEntries(EFFECT_NAMES.map((name) => [name, name])),
+      });
+      pane.addBinding(params, 'stagger', {
+        options: Object.fromEntries(STAGGERS.map((name) => [name, name])),
       });
       pane.addBinding(params, 'shards', { ...LIMITS.shards, label: 'shards (0 = auto)' });
       pane.addBinding(params, 'duration', {

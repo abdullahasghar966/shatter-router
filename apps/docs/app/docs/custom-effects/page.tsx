@@ -36,7 +36,9 @@ interface ShatterEffect {
   crack: boolean;                      // play the crack before the motion
   layers?: 1 | 2;                      // 2: also draw the incoming page's shards
   duration?: number;                   // preferred motion length, ms
-  seedPoints?(ctx): Float32Array;      // custom Voronoi seeds
+  stagger?: Stagger;                   // order the shards start in (default 'radial')
+  pattern?: string;                    // how the page breaks (default 'impact')
+  seedPoints?(ctx): Float32Array;      // custom Voronoi seeds for 'impact'
   shardAttributes(ctx): { data: Float32Array }; // 8 floats per shard
   vertexChunk: string;                 // GLSL: void shardMotion(Shard shard, inout Pose pose)
   fragmentChunk?: string;              // GLSL: void shardFragment(inout vec4 color)
@@ -50,6 +52,12 @@ interface ShatterEffect {
         from the click), the impact point, the viewport and a seeded random function. It returns{' '}
         <code>SHARD_ATTRIBUTE_FLOATS</code> (8) floats per shard. They arrive in GLSL as two{' '}
         <code>vec4</code>: <code>shard.a</code> and <code>shard.b</code>.
+      </p>
+      <p>
+        <code>ctx.order[i]</code> (in GLSL, <code>shard.order</code>) says when the shard starts
+        relative to the others: 0 first, 1 last, by the effect&apos;s <code>stagger</code>. Base
+        your delays on it and your effect works with every stagger, including compositions like{' '}
+        <code>{`{ motion: 'ripple-out', stagger: 'spiral' }`}</code>.
       </p>
       <p>
         For <code>ripple-out</code> that is a direction away from the click, a delay that grows with

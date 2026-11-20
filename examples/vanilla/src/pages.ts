@@ -100,6 +100,11 @@ export const effectsPage: Page = {
         <li><a href="/work" data-shatter-effect="${name}">${name}</a> — ${text}</li>`,
         ).join('')}
       </ul>
+      <h2>Composed</h2>
+      <ul class="effects">
+        <li><a href="/work" data-shatter-effect="sweep">sweep</a> — shatter's motion, pieces
+        leaving left to right (a composition, registered in main.ts).</li>
+      </ul>
     </section>`,
 };
 

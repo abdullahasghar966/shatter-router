@@ -38,6 +38,9 @@ const shatter = createShatter({
   ...(duration === undefined ? {} : { duration }),
 });
 
+// A composition of parts (ADR-048): shatter's motion with a left-to-right stagger.
+shatter.registerEffect({ name: 'sweep', motion: 'shatter', stagger: 'linear' });
+
 // Debug mode: lifecycle events go to `window.__shatterEvents` for the e2e
 // suite, so a test can check what one navigation did (not the hook's last values).
 // `__shatterEventTimes` holds each event's `performance.now()` (the performance

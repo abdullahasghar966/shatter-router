@@ -30,7 +30,7 @@ export const rippleOut: ShatterEffect = {
   duration: 1100,
 
   shardAttributes(ctx: EffectContext): ShardAttributes {
-    const { shards, origin, maxRadius, random } = ctx;
+    const { shards, origin, random } = ctx;
     const seconds = ctx.duration / 1000;
     const data = new Float32Array(shards.length * SHARD_ATTRIBUTE_FLOATS);
     shards.forEach((shard, i) => {
@@ -44,8 +44,9 @@ export const rippleOut: ShatterEffect = {
       const o = i * SHARD_ATTRIBUTE_FLOATS;
       data[o] = ux;
       data[o + 1] = uy;
-      // The wave front: farther shards start later.
-      data[o + 2] = (shard.distance / Math.max(1, maxRadius)) * SPREAD * seconds;
+      // The wave front: shards start in stagger order (radial by default:
+      // farther from the click, later), so any stagger works with it.
+      data[o + 2] = (ctx.order[i] ?? 0) * SPREAD * seconds;
       data[o + 3] = LIFE * seconds;
       data[o + 4] = (0.6 + random() * 0.8) * Math.PI * 0.5;
       data[o + 5] = 60 + random() * 120;
