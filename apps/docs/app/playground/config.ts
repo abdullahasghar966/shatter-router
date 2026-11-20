@@ -34,6 +34,67 @@ export const DEFAULTS: PlaygroundConfig = {
 
 export const EFFECT_NAMES = ['shatter', 'explode', 'implode', 'flip', 'assemble', 'ripple-out'];
 
+type NumberKey = {
+  [K in keyof PlaygroundConfig]: PlaygroundConfig[K] extends number ? K : never;
+}[keyof PlaygroundConfig];
+
+/** The panel's slider ranges; values read from a URL are clamped to them. */
+export const LIMITS: Readonly<Record<NumberKey, { min: number; max: number; step: number }>> = {
+  shards: { min: 0, max: 400, step: 1 },
+  duration: { min: 0, max: 4000, step: 50 },
+  gravity: { min: 0, max: 8000, step: 100 },
+  impulse: { min: 0, max: 3000, step: 50 },
+  thickness: { min: 0, max: 24, step: 1 },
+  seed: { min: 0, max: 9999, step: 1 },
+};
+
+const KEYS = Object.keys(DEFAULTS) as (keyof PlaygroundConfig)[];
+
+/**
+ * The query string for the settings: only the ones that differ from the
+ * defaults, so a fresh playground has a clean URL. Back to the playground,
+ * a reload and a shared link all restore them (ADR-047). Other parameters in
+ * `current` are kept.
+ */
+export function configToSearch(config: PlaygroundConfig, current = ''): string {
+  const params = new URLSearchParams(current);
+  for (const key of KEYS) {
+    params.delete(key);
+    const value = config[key];
+    if (value === DEFAULTS[key]) continue;
+    if (key === 'glassTint' && String(value).toLowerCase() === DEFAULTS.glassTint) continue;
+    params.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+  }
+  const search = params.toString();
+  return search ? `?${search}` : '';
+}
+
+/** The settings in a query string; anything missing or invalid keeps its default. */
+export function configFromSearch(search: string): PlaygroundConfig {
+  const params = new URLSearchParams(search);
+  const config: PlaygroundConfig = { ...DEFAULTS };
+  const effect = params.get('effect');
+  if (effect && EFFECT_NAMES.includes(effect)) config.effect = effect;
+  for (const key of Object.keys(LIMITS) as NumberKey[]) {
+    const raw = params.get(key);
+    if (raw === null || raw.trim() === '') continue;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) continue;
+    const { min, max } = LIMITS[key];
+    config[key] = Math.min(max, Math.max(min, Math.round(value)));
+  }
+  const tint = params.get('glassTint');
+  if (tint && /^#[0-9a-f]{6}$/i.test(tint)) config.glassTint = tint.toLowerCase();
+  const physics = params.get('physics');
+  if (physics === 'procedural' || physics === 'rapier') config.physics = physics;
+  for (const key of ['chromatic', 'floor', 'debug'] as const) {
+    const raw = params.get(key);
+    if (raw === '1' || raw === 'true') config[key] = true;
+    else if (raw === '0' || raw === 'false') config[key] = false;
+  }
+  return config;
+}
+
 /**
  * The `createShatter({...})` call that matches the settings. Options left at
  * their defaults are omitted (the effect is always shown).

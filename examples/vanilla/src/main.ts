@@ -13,7 +13,8 @@ const outlet: HTMLElement = app;
 // machines measure the seam instead of tripping the fallback.
 // `?seed=<n>` makes the fracture deterministic; `?shards=<n>` fixes the count;
 // `?duration=<ms>` sets the motion length. `?physics=rapier` (with `&floor`)
-// drives falling shards with Rapier, loaded lazily.
+// drives falling shards with Rapier, loaded lazily. `?backForward=<mode>`
+// picks the back/forward behaviour ('mirror' by default).
 const params = new URLSearchParams(location.search);
 const number = (name: string): number | undefined => {
   const value = Number(params.get(name));
@@ -25,8 +26,11 @@ const budget = number('budget');
 const duration = number('duration');
 const physics =
   params.get('physics') === 'rapier' ? rapier({ floor: params.has('floor') }) : undefined;
+const BACK_FORWARD = ['mirror', 'reverse', 'same', 'none'] as const;
+const backForward = BACK_FORWARD.find((mode) => mode === params.get('backForward'));
 const shatter = createShatter({
   ...(physics ? { physics } : {}),
+  ...(backForward ? { backForward } : {}),
   debug: params.has('debug') ? { panel: params.has('panel') } : false,
   ...(seed === undefined ? {} : { seed }),
   ...(shards === undefined ? {} : { shards }),

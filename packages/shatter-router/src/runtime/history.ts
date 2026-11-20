@@ -10,7 +10,9 @@ import type { Point } from '../core/types';
  * entry after the position (dropping the ones after it, as browsers do); a
  * replace overwrites the current one. On `popstate` the arriving page is
  * looked for just before the position (Back) or just after it (Forward),
- * then further away (`history.go(n)`). It is kept in `sessionStorage`, so it
+ * then further away (`history.go(n)`). A page that rewrote its own query
+ * with `history.replaceState` (filters, the docs playground) is still found:
+ * the entries next to the position also match by pathname. It is kept in `sessionStorage`, so it
  * survives reloads within the tab, and capped at `MAX_ENTRIES`.
  */
 
@@ -77,8 +79,10 @@ export class HistoryMemory {
   pop(key: string): PopResult {
     const here = this.entries[this.position] ?? null;
     let found = -1;
-    if (this.entries[this.position - 1]?.key === key) found = this.position - 1;
-    else if (this.entries[this.position + 1]?.key === key) found = this.position + 1;
+    const before = this.entries[this.position - 1];
+    const after = this.entries[this.position + 1];
+    if (before?.key === key) found = this.position - 1;
+    else if (after?.key === key) found = this.position + 1;
     else {
       // history.go(n): the nearest matching entry.
       let best = Infinity;
@@ -89,6 +93,10 @@ export class HistoryMemory {
           found = index;
         }
       });
+      // The page changed its own query since it was recorded.
+      const path = pathOf(key);
+      if (found < 0 && before && pathOf(before.key) === path) found = this.position - 1;
+      else if (found < 0 && after && pathOf(after.key) === path) found = this.position + 1;
     }
     if (found < 0) {
       // A navigation Shatter never saw: start over from here.
@@ -97,6 +105,8 @@ export class HistoryMemory {
       this.write();
       return { direction: 'unknown', entry: here };
     }
+    const arrived = this.entries[found];
+    if (arrived && arrived.key !== key) this.entries[found] = { ...arrived, key };
     const back = found < this.position;
     // Going back several steps reverses the most recent arrival only.
     const result: PopResult = back
@@ -134,6 +144,11 @@ export class HistoryMemory {
       // Storage full or blocked: the memory still works for this page's life.
     }
   }
+}
+
+function pathOf(key: string): string {
+  const query = key.indexOf('?');
+  return query < 0 ? key : key.slice(0, query);
 }
 
 /** The memory key of the current location. */

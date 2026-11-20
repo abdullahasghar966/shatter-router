@@ -113,6 +113,9 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **`git worktree remove` fails on Windows with "Filename too long"** when the worktree has `node_modules`; delete it with PowerShell `Remove-Item -LiteralPath '\\?\<path>' -Recurse`, then `git worktree prune`.
 - **GLSL ES 3.00:** a global may not be initialised from a uniform, but a plain global can be assigned in `main()`; effect chunks keep reading `uTime` while the engine evaluates `shardMotion` at two times. `normalize()` of constants is a valid constant expression.
 
+- **The lazy runtime can first load for a Back** (session 3, M13): anything it reads from `location` at construction may already describe the arriving page. The navigation memory dropped its saved state after a reload followed by Back until it was keyed to the URL at `createShatter` time (ADR-047).
+- **`writeUrl` in the playground first replaced the whole query** and would have dropped the site's own `?debug&budget=…` parameters; it merges now. `URLSearchParams.toString()` writes a valueless `debug` as `debug=` (still `has('debug')`).
+
 ## Approaches that did not work
 
 - **CSS `zoom` on the cloned root in Chromium** (to lay out at device resolution): moves text lines by one device pixel at DPR 2 (seam 0.06 % → 0.59 %). Chromium needs the copy laid out in CSS pixels.
@@ -170,3 +173,5 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **The V8 sampling heap profiler attributes allocations in inlined callees to the optimised caller:** Rapier's getters showed up as allocations in our `write()` after TurboFan inlined them. Use a Node GC-count probe to separate them.
 - **Rapier 0.21 (`rapier3d-compat`) getters allocate** although they take a target object: `translation(target)` → `rbTranslation(handle, scratch)`, and the wasm writes each float back through the `__wbg_set_index` import, which boxes the numbers. `World.step()` allocates too (`intoRaw` of the gravity vector, event glue).
 - **SwiftShader headless Chromium on this laptop:** 160 shards at 1440x900 run at 31–34 fps (falling effects) and 13–15 fps (`flip`/`assemble`, two layers), with 51–108 ms long tasks. The same page runs at 60 fps on the RTX 4050 with no long tasks.
+- **Python on Windows writes CRLF in text mode** (`open(p, 'w')`): scripted edits turned LF files into CRLF in the working copy (git normalised them on commit). Use `io.open(p, 'w', newline='')`.
+- **Browsers rate-limit `history.replaceState`** (Safari throws a `SecurityError` after about 100 calls in 30 s): a slider bound to the URL must not write on every step. The playground writes on Tweakpane's `event.last` and debounces the rest (250 ms).

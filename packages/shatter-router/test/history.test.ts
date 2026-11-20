@@ -68,6 +68,18 @@ describe('HistoryMemory (ADR-047)', () => {
     });
   });
 
+  it('finds a neighbour whose page rewrote its own query', () => {
+    const memory = new HistoryMemory('/playground', new MemoryStorage());
+    memory.record('/docs', 'explode', null);
+    expect(memory.pop('/playground?effect=flip')).toEqual({
+      direction: 'back',
+      entry: { key: '/docs', effect: 'explode', origin: null },
+    });
+    // The entry takes the page's current key.
+    expect(memory.snapshot().entries[0]?.key).toBe('/playground?effect=flip');
+    expect(memory.pop('/docs').direction).toBe('forward');
+  });
+
   it('a replace overwrites the current entry', () => {
     const memory = new HistoryMemory('/', new MemoryStorage());
     memory.record('/a', 'explode', null);

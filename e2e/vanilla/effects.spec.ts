@@ -123,7 +123,7 @@ test.describe('vanilla example: every effect', () => {
   test("back/forward with backForward 'reverse': shatter back becomes assemble", async ({
     page,
   }) => {
-    await page.goto(`${BASE}/${QUERY}`);
+    await page.goto(`${BASE}/${QUERY}&backForward=reverse`);
     await waitForShatterReady(page);
     await page.getByRole('link', { name: 'Work', exact: true }).click();
     await waitForIdle(page);
@@ -136,4 +136,72 @@ test.describe('vanilla example: every effect', () => {
     expect((await effectHook(page)).lastEffect).toBe('assemble');
     expect((await hookState(page)).fallback).toBeNull();
   });
+
+  // backForward: 'mirror' (the default, ADR-047).
+  for (const effect of ['shatter', 'explode', 'implode'] as const) {
+    test(`Back plays ${effect} in reverse; Forward replays it`, async ({ page }) => {
+      await page.goto(`${BASE}/effects${QUERY}`);
+      await waitForShatterReady(page);
+      await page.getByRole('link', { name: effect, exact: true }).click();
+      await waitForIdle(page);
+      expect((await effectHook(page)).lastEffect).toBe(effect);
+
+      await clearLifecycleEvents(page);
+      await page.goBack();
+      await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
+      await waitForIdle(page);
+      await expect(page.locator('h1')).toHaveText('Five ways to break.');
+      expect((await effectHook(page)).lastEffect).toBe(`${effect}:reverse`);
+      expect((await hookState(page)).fallback).toBeNull();
+
+      await clearLifecycleEvents(page);
+      await page.goForward();
+      await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
+      await waitForIdle(page);
+      await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
+      expect((await effectHook(page)).lastEffect).toBe(effect);
+    });
+  }
+
+  for (const effect of ['shatter', 'explode'] as const) {
+    test(`${effect}:reverse: the first frame is the page being left`, async ({
+      page,
+    }, testInfo) => {
+      await page.goto(`${BASE}/effects${QUERY}`);
+      await waitForShatterReady(page);
+      await page.getByRole('link', { name: effect, exact: true }).click();
+      await waitForIdle(page);
+      await page.mouse.move(4, 400);
+      const live = await page.screenshot();
+      await pauseAt(page, 'fractured');
+      await page.goBack();
+      await waitForPause(page, 'fractured');
+      const overlay = await page.screenshot();
+      await check(page, testInfo, `first-${effect}-reverse`, live, overlay);
+      await resumeAndFinish(page);
+      await expect(page.locator('h1')).toHaveText('Five ways to break.');
+    });
+
+    test(`${effect}:reverse: the last frame matches the page returned to`, async ({
+      page,
+    }, testInfo) => {
+      await page.goto(`${BASE}/effects${QUERY}`);
+      await waitForShatterReady(page);
+      await page.getByRole('link', { name: effect, exact: true }).click();
+      await waitForIdle(page);
+      await page.mouse.move(4, 400);
+      await pauseAt(page, 'settled');
+      await page.goBack();
+      await waitForPause(page, 'settled');
+      const overlay = await page.screenshot();
+      await page.evaluate(() => {
+        (window as HookWindow).__SHATTER_TEST__?.resume();
+      });
+      await waitForIdle(page);
+      await expect(page.locator('h1')).toHaveText('Five ways to break.');
+      expect((await effectHook(page)).lastEffect).toBe(`${effect}:reverse`);
+      const live = await page.screenshot();
+      await check(page, testInfo, `last-${effect}-reverse`, live, overlay);
+    });
+  }
 });
