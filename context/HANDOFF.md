@@ -20,8 +20,9 @@
 ## Next steps
 
 1. ~~Ritual for M12~~ **done**: PR #12 merged (`9e2777a`), tag `m12-release`, recorded in PROGRESS; every Definition-of-done item is met.
-2. **For the user to decide (not done on purpose):** publish to npm (`pnpm release` runs `pnpm build && changeset publish`; needs the user's npm login), and connect the GitHub repository to the Vercel project for automatic deploys (`npx vercel@62.1.0 git connect`, or in the Vercel dashboard). Until then, redeploy with `npx --yes vercel@62.1.0 deploy --prod --yes` from the repo root (the CLI is signed in on this machine; `.vercel/` links the project).
-3. After any change to the site: re-run Lighthouse and the landing capture (`e2e/docs/landing.spec.ts` with `SHATTER_PERF=1`) and update `apps/docs/lib/measurements.ts` and PROGRESS.
+2. **Deploys are automatic** (2026-11-20, at the user's request): the GitHub repository is connected to the Vercel project `shatter-router`. A push to `main` (every merged PR) deploys https://shatter-router.vercel.app; other branches and PRs get preview deployments. A manual redeploy still works: `npx --yes vercel@62.1.0 deploy --prod --yes` from the repo root.
+3. **For the user to decide (not done on purpose):** publish to npm (`pnpm release` runs `pnpm build && changeset publish`; needs the user's npm login).
+4. After any change to the site: re-run Lighthouse and the landing capture (`e2e/docs/landing.spec.ts` with `SHATTER_PERF=1`) and update `apps/docs/lib/measurements.ts` and PROGRESS.
 
 ## Open problems / blockers
 
@@ -33,7 +34,7 @@
 
 ## Questions waiting on the user
 
-- Publish `shatter-router@0.1.0` to npm? Connect the repository to Vercel for automatic deploys?
+- Publish `shatter-router@0.1.0` to npm?
 
 ## Working tree
 
