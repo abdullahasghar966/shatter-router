@@ -46,6 +46,9 @@ test.describe('vanilla example: back and forward', () => {
 
   test('a capture adds no history entry (the capture sandbox frame, ADR-044)', async ({ page }) => {
     await page.goto(`${BASE}/about${QUERY}`);
+    // Let the lazy chunks finish loading first: Firefox logs a module load
+    // cut short by the next navigation as a warning.
+    await waitForShatterReady(page);
     await page.goto(`${BASE}/work${QUERY}`);
     await waitForShatterReady(page);
     const before = await page.evaluate(() => history.length);
