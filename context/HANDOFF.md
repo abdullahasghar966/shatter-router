@@ -1,53 +1,44 @@
 # Hand-off
 
-- **Last updated:** 2026-11-15 (session 3, Milestone 11 built and verified locally; ritual next)
+- **Last updated:** 2026-11-20 (session 3, Milestone 12 built, deployed and verified; its PR is the last open step)
 - **Session:** 3
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
+- **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045)
 
 ## Where we are
 
-- **Current milestone:** 11 — Docs site (complete locally; PR, CI, merge and tag next)
-- **Current branch:** `milestone/11-docs-site` (from `main` at `c3175ef`)
-- **Last commit:** see `git log -1` (`feat(docs): the docs site`)
-- **Latest tag:** `m10-performance` (on `c3175ef`)
+- **Current milestone:** 12 — Release readiness (complete locally and deployed; PR, CI, merge and tag next)
+- **Current branch:** `milestone/12-release` (from `main` at `ecb969c`)
+- **Last commit:** see `git log -1` (`chore(release): deploy the docs site to Vercel and close out milestone 12`)
+- **Latest tag:** `m11-docs-site` (on `ecb969c`)
 
 ## Done so far
 
-- Milestones 0–10 merged and tagged (see `PROGRESS.md`; ADR-001..043). Latest: M10 Performance pass (PR #10, `c3175ef`, `m10-performance`):
-  - GLSL minified at build (ADR-039): engine 19.76 of 22 KB.
-  - Section 8 budgets measured and enforced by `e2e/vanilla/performance.spec.ts` (ADR-040). RTX 4050: 60 fps for every effect at 1440x900 with 160 shards, 1 draw call per frame, no long tasks, capture ~22 ms. Exact allocation tracking (`e2e/alloc.ts`) shows 0 B per frame beyond boxed numbers, after fixing the array destructuring in `draw()` and `for...of` in `isComplete`.
-  - Debug panel (ADR-041): lazy `dist/debug.js` 3.44 kB, `debug: true | { panel: false }`, seam check by tab capture.
-- What works: core + `shatter-router/react`, `/react-router` (`createShatterBrowserRouter` in data mode), `/next` (`waitFor`, `data-shatter-pending`), `/rapier`; five effects with first- and last-frame seam tests; back/forward effects with scroll restoration; Rapier physics with procedural fallback; glass shading; debug panel. Examples: vanilla (4173: `/effects`, `?physics=rapier&floor`, `?debug&panel`, `csp.html`, `csp-wasm.html`), react-router (4174), next (4175; `NEXT_TELEMETRY_DISABLED=1` locally). Review scripts belong in `coverage/` (git-ignored; Playwright wipes `test-results/`).
+- Milestones 0–11 merged and tagged (see `PROGRESS.md`; ADR-001..045). M11: the docs site `apps/docs` (PR #11, `ecb969c`), the priming capture (ADR-043) and the Firefox history fix for modern-screenshot's sandbox frame (ADR-044).
+- M12 on its branch: README (demo GIF `media/shatter-demo.gif` from `scripts/record-demo.mjs`, quick start, features, measured numbers, browser support, roadmap), package README, `CHANGELOG.md` and version 0.1.0 (Changesets), CONTRIBUTING, issue forms, `npm pack --dry-run` (49 files, 187.4 kB), final full run green, Definition of done checked in PROGRESS, docs site deployed to Vercel (Lighthouse live 99–100 / 100).
+- What works: everything in the master prompt; see the Definition of done table in `PROGRESS.md`.
 
-## Milestone 11 (docs site, section 13): what was built
+## Next steps
 
-- `apps/docs` (Next 16 App Router, port 4176 for e2e, built by `pnpm build:examples`): landing hero (a click breaks the whole page in place with `assemble`, ADR-042), effects gallery and detail pages (each card navigates with its own effect, the custom `ripple-out` included: `apps/docs/effects/ripple-out.ts`, registered in `app/providers.tsx`), playground (Tweakpane 4.0.5, its own instance, "Copy config"), and 9 docs pages. Measurements live in `apps/docs/lib/measurements.ts`, copied from PROGRESS.
-- Library: priming capture on first intent (ADR-043; runtime 7.76 kB). Landing capture on GPU: median 82 ms (48–88, 2 outliers of 129 and 156 in 12). Lighthouse mobile: 97–99 / 100 on every main page.
-
-## Next 3 steps
-
-1. **Ritual for M11:** PR "Milestone 11: Docs site", three-engine CI (`e2e/docs/*` runs on all three; Firefox has not run the docs suite yet, so watch for Firefox-only issues such as console warnings), merge `--merge`, tag `m11-docs-site`, record in PROGRESS, branch `milestone/12-release`.
-2. **Milestone 12 (release readiness, section 12):** README that opens with a GIF/video of `shatter` on the docs site (record with Playwright video in installed Chrome), a 3-line quick start, a feature list, real performance numbers, browser support, roadmap (section 14 + region support from ADR-042); CHANGELOG via Changesets, LICENSE (exists in the package), CONTRIBUTING (incl. `SHATTER_PERF=1`, local Firefox caveat), issue templates, `npm pack --dry-run`, final full test run.
-3. Check the Definition of done (section 15) item by item and record it in PROGRESS.
-
-## Deferred (tracked, not forgotten)
-
-- README items (M12): document `debug: { panel: false }`, the seam check's tab-capture prompt, `SHATTER_PERF=1` for contributors, `scrollbar-gutter: stable`, CSP, browser support incl. ADR-016, the popstate note from ADR-026.
+1. **Ritual for M12:** PR "Milestone 12: Release readiness", three-engine CI, merge `--merge`, tag `m12-release` on `main`, record the PR, merge commit and tag in PROGRESS (row 12 and the Definition-of-done row "All 13 milestones").
+2. **For the user to decide (not done on purpose):** publish to npm (`pnpm release` runs `pnpm build && changeset publish`; needs the user's npm login), and connect the GitHub repository to the Vercel project for automatic deploys (`npx vercel@62.1.0 git connect`, or in the Vercel dashboard). Until then, redeploy with `npx --yes vercel@62.1.0 deploy --prod --yes` from the repo root (the CLI is signed in on this machine; `.vercel/` links the project).
+3. After any change to the site: re-run Lighthouse and the landing capture (`e2e/docs/landing.spec.ts` with `SHATTER_PERF=1`) and update `apps/docs/lib/measurements.ts` and PROGRESS.
 
 ## Open problems / blockers
 
-- Local Firefox and Playwright's full Chromium cannot launch on this machine (side-by-side error, LEARNINGS); CI runs Firefox headed under xvfb (ADR-015). For headed or real-GPU runs, use installed Chrome (`channel: 'chrome'`).
+- Local Firefox and Playwright's full Chromium cannot launch on this machine (side-by-side error, LEARNINGS); CI runs Firefox headed under xvfb (ADR-015). For headed or real-GPU runs, use installed Chrome 157 (`channel: 'chrome'`).
 - Windows WebKit crashes on a View Transition right after a CSP-blocked image: that test is `fixme` on win32 only.
-- The Claude desktop browser pane throttles frames: use headless Playwright for visual checks and numbers.
-- Local e2e: `--workers=2` (software GL is slow with more).
+- The Claude desktop browser pane throttles frames: use Playwright for visual checks and numbers.
+- Local e2e: `--workers=2`. Don't measure captures while the e2e suite is running (it doubled them).
+- `pnpm` is not on the PATH of PowerShell terminal tabs; use `npx` there.
 
 ## Questions waiting on the user
 
-- None.
+- Publish `shatter-router@0.1.0` to npm? Connect the repository to Vercel for automatic deploys?
 
 ## Working tree
 
-- Clean, everything pushed after the commit that carries this file.
+- Clean, everything pushed after the commit that carries this file. `.env.local` (Vercel OIDC token) and `.vercel/` exist locally and are git-ignored.
 
 ## Resume commands (PowerShell)
 
@@ -55,7 +46,7 @@
 cd "D:\Shatter Router"
 git fetch --all --tags
 git status
-git switch milestone/11-docs-site
+git switch milestone/12-release
 pnpm install
 pnpm build
 pnpm build:examples
@@ -65,13 +56,15 @@ pnpm test
 pnpm test:e2e --project=chromium --project=webkit --workers=2   # Firefox cannot launch on this machine
 pnpm size
 # real-GPU budgets (installed Chrome, headed):
-# $env:SHATTER_PERF=1; npx playwright test e2e/vanilla/performance.spec.ts --project=chromium --workers=1
+# $env:SHATTER_PERF=1; npx playwright test e2e/vanilla/performance.spec.ts e2e/docs/landing.spec.ts --project=chromium --workers=1
+# deploy the docs site (from the repo root):
+# npx --yes vercel@62.1.0 deploy --prod --yes
 # a fresh clone needs a repo-local identity (ADR-002):
 # git config user.name "Abdullah Asghar"; git config user.email "203540047+abdullahasghar966@users.noreply.github.com"
 ```
 
 ## Read first
 
-- `SHATTER_ROUTER_MASTER_PROMPT.md` sections 12, 14, 15 and A.5
-- `context/DECISIONS.md` ADR-042, ADR-043; `context/PROGRESS.md` (all measurements for the README)
-- `apps/docs/` (the site the README GIF shows), `packages/shatter-router/package.json` (`files`, exports), `.changeset/`
+- `SHATTER_ROUTER_MASTER_PROMPT.md` sections 12, 15 and A.5
+- `context/PROGRESS.md` (Definition of done table, Release readiness), `context/DECISIONS.md` ADR-042..045
+- `README.md`, `CONTRIBUTING.md`, `.vercelignore`

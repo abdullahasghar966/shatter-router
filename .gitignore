@@ -32,3 +32,5 @@ Thumbs.db
 # local tooling
 .claude/
 .vercel/
+# Vercel CLI link and its OIDC token (never commit)
+.env*

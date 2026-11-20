@@ -29,6 +29,6 @@ import { ShatterProvider, ShatterLink } from 'shatter-router/next';
 - Effects: `shatter`, `explode`, `implode`, `flip`, `assemble`, or your own.
 - Navigation always completes: no WebGL2, reduced motion, a slow capture or an error fall back to a crossfade or an instant swap.
 
-Documentation, performance numbers, browser support and the roadmap: [github.com/abdullahasghar966/shatter-router](https://github.com/abdullahasghar966/shatter-router#readme).
+Live demo and docs: [shatter-router.vercel.app](https://shatter-router.vercel.app). Performance numbers, browser support and the roadmap: [github.com/abdullahasghar966/shatter-router](https://github.com/abdullahasghar966/shatter-router#readme).
 
 MIT licensed.

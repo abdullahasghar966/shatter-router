@@ -2,6 +2,8 @@
 
 **Break the page.** WebGL2 glass-shatter page transitions for single-page apps: vanilla, React, React Router and Next.js.
 
+**[Live demo and docs: shatter-router.vercel.app](https://shatter-router.vercel.app)**. Every link on the site breaks the page.
+
 ![A click on "See every effect" breaks the docs site's landing page into glass shards that tumble away, revealing the effects gallery underneath.](media/shatter-demo.gif)
 
 ```bash
@@ -53,7 +55,7 @@ Any browser with **WebGL2** gets the effect; every other browser still navigates
 
 ## Learn more
 
-The docs site is in [`apps/docs`](apps/docs). It covers getting started for each router, the API reference, writing a custom effect, performance, accessibility, CSP and troubleshooting.
+The docs site, [shatter-router.vercel.app](https://shatter-router.vercel.app) (source in [`apps/docs`](apps/docs)), covers getting started for each router, the API reference, writing a custom effect, performance, accessibility, CSP and troubleshooting.
 
 Quick notes:
 

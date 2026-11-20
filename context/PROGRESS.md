@@ -323,9 +323,30 @@ Headless (software GL), first-frame seam on the landing page: Chromium 0.0008 %,
 
 The way there: the first run scored 96/94 Performance, with Accessibility 86 on the playground (Tweakpane's inputs had no names). Splitting the italic and dropping its preload made pages with italic above the fold score 94 (LCP 3.0 s against 2.5 s). Inlining CSS changed little. Removing italic text above the fold gave 97 everywhere.
 
+### Release readiness (Milestone 12, 2026-11-20)
+
+- **Package:** `shatter-router@0.1.0` (Changesets: first-release changeset → `CHANGELOG.md`). `npm pack --dry-run`: 49 files, 187.4 kB packed, 705.7 kB unpacked (`dist` with source maps, `README.md`, `LICENSE`, `CHANGELOG.md`, `package.json`). Not published to npm: publishing is the user's call (`pnpm release`).
+- **README demo:** `media/shatter-demo.gif`, 640x400, 33 frames at ~30 fps, 2.05 MB (`scripts/record-demo.mjs`: installed Chrome on the GPU, DevTools screencast, `gifenc`).
+- **Final full run (local, Windows 11):** build, typecheck, lint, format, 335 unit tests, every size budget (core 1.8, react 2.57, react-router 4.14, next 4.28, rapier 0.263, rapier-backend 1.44, runtime 7.76, debug 3.44, engine 19.81, capture 12.6 kB), e2e Chromium + WebKit 225 passed, 15 skipped.
+- **Deployment (ADR-045):** https://shatter-router.vercel.app (Vercel project `shatter-router`, built remotely from the monorepo root). All routes 200 (unknown → 404 page). Live in installed Chrome 157 on the GPU (`coverage/live-check.mjs`): hero `assemble`, navigation `shatter` and the custom `ripple-out` played; captures 79.1–80.9 ms; 136–144 fps (144 Hz display); no console errors. One of three cold runs reported a `capture-budget` fallback (not reproduced). **Lighthouse 12.6.0 mobile on the live site:** `/` 99 / 100 (LCP 1.1 s, TBT 120 ms), `/effects` 100 / 100, `/docs/getting-started` 99 / 100, `/playground` 100 / 100 (Performance / Accessibility).
+
+### Definition of done (section 15), checked 2026-11-20
+
+| Item | State |
+| --- | --- |
+| All 13 milestones complete, with measured numbers | M0–M11 merged and tagged; M12 in its PR at the time of writing (merge and `m12-release` tag recorded in the table above once done) |
+| A merged PR and a pushed tag per milestone, every branch kept | PRs #1–#11 merged with `--merge`, tags `m00-setup` … `m11-docs-site`; no branch deleted |
+| Context files current, a fresh session could continue from them | Yes (HANDOFF, PROGRESS, DECISIONS ADR-001..045, LEARNINGS) |
+| CI green: typecheck, lint, unit, e2e on three engines, size-limit | Yes on every merged PR (PR #11 final run: Chromium, Firefox, WebKit) |
+| Seam tests pass for every effect | Yes: first frame for all five built-ins, last frame for `flip`/`assemble`, the docs landing page |
+| Every effect works in the vanilla, React Router and Next.js examples | Yes (`e2e/vanilla/effects.spec.ts`, `e2e/react-router/transitions.spec.ts`, `e2e/next/transitions.spec.ts`) |
+| Navigation always completes when every optional feature fails | Yes (`e2e/vanilla/fallbacks.spec.ts`: no WebGL, reduced motion, capture over budget, strict CSP; unit tests for every fallback reason) |
+| README: GIF of `shatter` on the docs site, 3-line quick start, features, real numbers, browser support, roadmap | Yes |
+| Nothing stubbed, mocked in production code, or marked TODO | Checked with `git grep -nE "TODO|FIXME|XXX"` over `packages apps examples` (no hits) |
+
 ### Not measured yet
 
-Nothing from section 8 is left. Re-run Lighthouse and the landing capture when the site changes (M12 README GIF).
+Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing capture when the site changes.
 
 ## Test counts
 
@@ -342,3 +363,4 @@ Nothing from section 8 is left. Re-run Lighthouse and the landing capture when t
 | 9 | 318 tests in 23 files (+ `shading.test.ts` 7: tint parsing, fade-in, aberration, shader gates, options) | unchanged suites; every first/last-frame seam identical to M7. Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #9 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
 | 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged. PR #10 CI (final run): Chromium 106 passed, Firefox 92 (14 skipped), WebKit 92 (14 skipped); CI allocations beyond boxed numbers: 0 B for shatter, implode, flip, assemble and 96 B for explode over 18–34 frames |
 | 11 | 335 tests in 26 files (+ `prime.test.ts` 4: one priming capture on the first intent and disposed, none after a transition, none with reduced motion, none after destroy) | + `e2e/docs/site.spec.ts` (every page with no console errors, header navigation with focus, every gallery card with its own effect incl. the custom `ripple-out`, the hero breaking in place, the playground panel/stage/copy, the 404 page) and `e2e/docs/landing.spec.ts` (landing seam, landing capture time). Local: Chromium + WebKit 223 passed, 15 skipped. PR #11 CI (final run, after the sandbox fix ADR-044): green on Chromium, Firefox (105 passed, 14 skipped) and WebKit |
+| 12 | 335 tests in 26 files (unchanged) | + `history.spec.ts`: a capture adds no history entry (ADR-044). Final local run: Chromium + WebKit 225 passed, 15 skipped |
