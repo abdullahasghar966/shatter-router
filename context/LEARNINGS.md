@@ -114,6 +114,7 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **GLSL ES 3.00:** a global may not be initialised from a uniform, but a plain global can be assigned in `main()`; effect chunks keep reading `uTime` while the engine evaluates `shardMotion` at two times. `normalize()` of constants is a valid constant expression.
 
 - **The lazy runtime can first load for a Back** (session 3, M13): anything it reads from `location` at construction may already describe the arriving page. The navigation memory dropped its saved state after a reload followed by Back until it was keyed to the URL at `createShatter` time (ADR-047).
+- **`explode` was not at rest at its own t = 0** (session 4, M13): its stretch along the velocity starts at full strength. Forward it was hidden (the rest pose is drawn until the motion starts); `explode:reverse` ends on t = 0 and its last-frame seam measured 10.1 % (one block 82.8 %). The stretch now ramps in over 50 ms (0.10 % after). An effect's pose at t = 0 is only guaranteed to be the rest pose if a test checks it.
 - **`writeUrl` in the playground first replaced the whole query** and would have dropped the site's own `?debug&budget=…` parameters; it merges now. `URLSearchParams.toString()` writes a valueless `debug` as `debug=` (still `has('debug')`).
 
 ## Approaches that did not work

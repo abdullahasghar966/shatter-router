@@ -164,6 +164,8 @@ describe('built-in effects', () => {
       (s.attributes[o + 1] ?? 0) * (shard.centroid.y - ctx.origin.y);
     expect(outward).toBeGreaterThan(0);
     expect(explodeEffect.vertexChunk).toContain('fall = max(0.0, t - GRAVITY_DELAY)');
+    // The stretch builds up from 0, so the motion starts exactly at rest (ADR-047).
+    expect(explodeEffect.vertexChunk).toContain('smoothstep(0.0, STRETCH_RAMP, t)');
   });
 
   it('assemble: the incoming layer lands by the end, the outgoing one is gone by then', () => {

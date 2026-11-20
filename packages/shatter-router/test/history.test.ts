@@ -158,6 +158,8 @@ describe('reverseEffect (ADR-047)', () => {
     expect(glsl).toContain('uTime = max(0.0, uDuration - now);');
     // uTime is restored for anything that runs after the motion.
     expect(glsl).toContain('uTime = now;');
+    // The last frame is the rest pose, exactly.
+    expect(glsl).toContain('if (now >= uDuration) return;');
   });
 
   it('samples the incoming page on layer 1 and keeps the base fragment', () => {

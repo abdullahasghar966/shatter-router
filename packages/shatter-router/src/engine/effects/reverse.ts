@@ -13,8 +13,9 @@ export const REVERSE_SUFFIX = ':reverse';
  * `shardMotion` at `uDuration - uTime` (`uTime` is a writable global,
  * ADR-038). The first frame shows layer 1 at the effect's end pose (gone or
  * transparent), so it is the outgoing page: the first-frame seam holds. The
- * last frame shows layer 1 at rest, which is the incoming page: the
- * last-frame seam holds. Only effects that end off the page can be reversed
+ * last frame (uTime >= uDuration) draws layer 1 at the rest pose, exactly,
+ * which is the incoming page: the last-frame seam holds even for an effect
+ * that is not quite at rest at its own t = 0. Only effects that end off the page can be reversed
  * like this; `flip` and `assemble` have their own reverses.
  */
 export function reverseEffect(base: ShatterEffect): ShatterEffect {
@@ -34,6 +35,8 @@ void shardMotion(Shard shard, inout Pose pose) {
   // The page being left stays at rest under the returning pieces.
   if (shard.layer == 0) return;
   float now = uTime;
+  // The last frame is the page at rest, exactly, whatever the effect does at t = 0.
+  if (now >= uDuration) return;
   uTime = max(0.0, uDuration - now);
   forwardMotion(shard, pose);
   uTime = now;
