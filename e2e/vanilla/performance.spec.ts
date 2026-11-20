@@ -254,10 +254,14 @@ test.describe('vanilla example: performance (section 8)', () => {
       // Tracking runs the loop unoptimised, which boxes doubles (12 B each,
       // see HEAP_NUMBER_BYTES); any real object costs more. Measured: a
       // per-frame array destructuring (fixed in M10) added 35 B per frame, a
-      // planted 8-field object 32 B. Noise: one-offs up to ~120 B per run and,
-      // in some runs, ~15 B per frame in `explode`'s offset maths (boxed
-      // numbers that V8 pads to 16 B). Limit: 20 B per frame, at least 400 B.
-      expect(allocations.oursExcessBytes).toBeLessThan(Math.max(400, frames * 20));
+      // planted 8-field object 32 B. Noise: one-offs up to ~120 B per run;
+      // `explode` also checks 160 shards with closed-form maths every frame,
+      // thousands of boxed numbers per run, a varying share of which V8 pads
+      // to 16 B: 0–832 B per run whatever the frame count (PR #14 CI: 576 B).
+      // Limit: 20 B per frame, at least 400 B (1000 B for `explode`; the other
+      // four effects still catch a per-frame object in shared code at 400 B).
+      const floor = effect === 'explode' ? 1000 : 400;
+      expect(allocations.oursExcessBytes).toBeLessThan(Math.max(floor, frames * 20));
     });
   }
 });
