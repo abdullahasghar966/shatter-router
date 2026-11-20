@@ -1,6 +1,6 @@
 # Production-grade plan: Shatter Router and its site
 
-Written 2026-11-20 after the user's review of https://shatter-router.vercel.app. Status: **proposal, waiting for the user's decisions (section 9)**. Nothing here is built yet.
+Written 2026-11-20 after the user's review of https://shatter-router.vercel.app. Status: **approved 2026-11-20 (decisions in section 9, ADR-046); in progress from M13.**
 
 ## 1. What the review said, and what the code shows
 
@@ -161,11 +161,15 @@ Order matters: 13 fixes the bug you saw first; 14 must come before 15–17 or th
 - **Mobile GPUs:** many pieces plus particles. Mitigation: device tiers (exists), per-pattern piece caps, automatic quality scaling.
 - **Effort:** this is roughly as much work again as M0–M12. Each milestone ships on its own, so the site improves step by step.
 
-## 9. Decisions needed from you
+## 9. Decisions (2026-11-20, ADR-046)
 
-1. **Art direction:** A "Material lab" (recommended), B "Glass gallery", or C "Foundry"? Or describe or link sites you like.
-2. **Order:** start with M13 (the Back bug) and the redesign (M19) in parallel, or features first?
-3. **Sound:** include opt-in procedural sound (M17), or leave it out?
-4. **Scope of v1.0:** all of M13–M21, or a subset (for example 13, 14, 16, 19, 20, 21 first)?
-5. **Domain:** keep `shatter-router.vercel.app` or use a custom domain?
-6. **npm:** publish 0.1.0 now, or wait for 1.0?
+The user decided items 1 and 3 and added text and button animations. The rest was left to "whatever is best for a production-grade project", decided as follows:
+
+1. **Art direction: A "Material lab"** (section 4.1).
+2. **Sound: yes, for every feature where it suits.** Opt-in procedural WebAudio for transitions (per motion and material), cursor and button interactions, the theme switch and the scrollbar, muted until the visitor turns it on (a site toggle, remembered). Never under reduced motion or before a user gesture.
+3. **Text and button animations: yes.** Headline reveals, letter-level effects on hover, text that cracks and reassembles, buttons that crack on press and heal, magnetic and charge states. All have reduced-motion variants (part of M19, with motion tokens shared with the library).
+4. **Scope of v1.0: all of M13–M21.**
+5. **Order:** M13 (the Back bug), M14 (effect architecture, needed so the rest fits), M19 (redesign), M15 (patterns), M16 (motions and materials), M17 (interaction, cursor, sound), M20 (site features), M18 (region transitions), M21 (production foundations and the 1.0 release).
+6. **Domain:** keep `shatter-router.vercel.app` (a custom domain needs a purchase, the user's call).
+7. **npm:** publish at 1.0 (M21), with the user's npm login.
+

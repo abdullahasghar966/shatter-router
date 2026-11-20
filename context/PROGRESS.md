@@ -22,6 +22,15 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 10  | Performance pass              | ☑      | `milestone/10-performance`    | [#10](https://github.com/abdullahasghar966/shatter-router/pull/10) | `c3175ef` | `m10-performance` |
 | 11  | Docs site                     | ☑      | `milestone/11-docs-site`      | [#11](https://github.com/abdullahasghar966/shatter-router/pull/11) | `ecb969c` | `m11-docs-site` |
 | 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
+| 13  | Navigation memory             | ◐      | `milestone/13-navigation-memory` |     |           |             |
+| 14  | Effect architecture           | ☐      | `milestone/14-effect-architecture` |     |           |             |
+| 15  | Fracture patterns             | ☐      | `milestone/15-patterns`        |     |           |             |
+| 16  | Motions and materials         | ☐      | `milestone/16-motions-materials` |     |           |             |
+| 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
+| 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
+| 19  | Site redesign (Material lab)  | ☐      | `milestone/19-redesign`        |     |           |             |
+| 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
+| 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
 ## Installed dependency versions
 
