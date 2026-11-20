@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting guide
+    url: https://shatter-router.vercel.app/docs/troubleshooting
+    about: Fallback reasons, blank images, iframes, CSP, and what to check first.

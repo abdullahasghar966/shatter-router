@@ -1,0 +1,13 @@
+# Deploying apps/docs from the monorepo root: Vercel installs and builds
+# everything itself, so local build output and test artefacts stay behind.
+node_modules
+**/node_modules
+**/.next
+**/dist
+coverage
+test-results
+playwright-report
+media
+context/screenshots
+.vercel
+.env*

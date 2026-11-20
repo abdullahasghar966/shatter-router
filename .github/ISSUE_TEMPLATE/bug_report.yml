@@ -1,0 +1,57 @@
+name: Bug report
+description: Something breaks, looks wrong, or falls back when it shouldn't.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Debug mode helps a lot: `createShatter({ debug: true })` shows phase timings and the fallback reason, and its seam check shows where the glass differs from the page.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      description: A link to a page or repository, or the smallest steps that show it.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: shatter-router version
+      placeholder: '0.1.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Entry point
+      options:
+        - shatter-router (vanilla)
+        - shatter-router/react
+        - shatter-router/react-router
+        - shatter-router/next
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser, version and OS
+      placeholder: Chrome 157, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: fallback
+    attributes:
+      label: Fallback reason (if the effect did not play)
+      description: From `shatter.on('fallback', ({ reason }) => …)` or the debug panel.
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Console output, a screenshot or a recording, the seam-check result.
