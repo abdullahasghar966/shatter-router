@@ -21,7 +21,7 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 9   | Glass shading polish          | ☑      | `milestone/09-glass-shading`  | [#9](https://github.com/abdullahasghar966/shatter-router/pull/9) | `48476d2` | `m09-glass-shading` |
 | 10  | Performance pass              | ☑      | `milestone/10-performance`    | [#10](https://github.com/abdullahasghar966/shatter-router/pull/10) | `c3175ef` | `m10-performance` |
 | 11  | Docs site                     | ☑      | `milestone/11-docs-site`      | [#11](https://github.com/abdullahasghar966/shatter-router/pull/11) | `ecb969c` | `m11-docs-site` |
-| 12  | Release readiness             | ◐      | `milestone/12-release`        |     |           |             |
+| 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
 
 ## Installed dependency versions
 
@@ -334,8 +334,8 @@ The way there: the first run scored 96/94 Performance, with Accessibility 86 on 
 
 | Item | State |
 | --- | --- |
-| All 13 milestones complete, with measured numbers | M0–M11 merged and tagged; M12 in its PR at the time of writing (merge and `m12-release` tag recorded in the table above once done) |
-| A merged PR and a pushed tag per milestone, every branch kept | PRs #1–#11 merged with `--merge`, tags `m00-setup` … `m11-docs-site`; no branch deleted |
+| All 13 milestones complete, with measured numbers | Yes: M0–M12 merged and tagged (`m12-release` on `9e2777a`, PR #12, 2026-11-20) |
+| A merged PR and a pushed tag per milestone, every branch kept | PRs #1–#12 merged with `--merge`, tags `m00-setup` … `m12-release`; no branch deleted |
 | Context files current, a fresh session could continue from them | Yes (HANDOFF, PROGRESS, DECISIONS ADR-001..045, LEARNINGS) |
 | CI green: typecheck, lint, unit, e2e on three engines, size-limit | Yes on every merged PR (PR #11 final run: Chromium, Firefox, WebKit) |
 | Seam tests pass for every effect | Yes: first frame for all five built-ins, last frame for `flip`/`assemble`, the docs landing page |
