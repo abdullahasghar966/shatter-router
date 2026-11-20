@@ -123,6 +123,7 @@ export function useShatterNavigate(): ShatterNavigateFunction {
       }
       await context.transition({
         commit,
+        ...(info.replace ? { replace: true } : {}),
         ...(hash ? { scroll: 'none' as const } : {}),
         ...(options.origin ? { origin: options.origin } : {}),
         ...(options.effect ? { effect: options.effect } : {}),

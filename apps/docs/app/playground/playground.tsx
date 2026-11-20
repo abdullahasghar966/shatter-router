@@ -11,7 +11,27 @@ import {
 import { flushSync } from 'react-dom';
 import { createShatter, type Shatter, type ShatterOptions } from 'shatter-router';
 import { rippleOut } from '../../effects/ripple-out';
-import { configCode, DEFAULTS, EFFECT_NAMES, type PlaygroundConfig } from './config';
+import {
+  configCode,
+  configFromSearch,
+  configToSearch,
+  DEFAULTS,
+  EFFECT_NAMES,
+  LIMITS,
+  type PlaygroundConfig,
+} from './config';
+
+/** Sliders fire on every step; browsers limit replaceState calls (Safari throws). */
+const URL_WRITE_DELAY_MS = 250;
+
+/** Keeps the settings in the address bar, without a history entry. */
+function writeUrl(config: PlaygroundConfig): void {
+  const { pathname, search, hash } = window.location;
+  const next = configToSearch(config, search);
+  if (next === search) return;
+  const url = `${pathname}${next}${hash}`;
+  window.history.replaceState(window.history.state, '', url);
+}
 
 const SCENES = [
   { title: 'Glass', note: 'scene one of two', colors: ['#ff6a45', '#ffc2a8'] },
@@ -61,7 +81,9 @@ function nameControls(container: HTMLElement): void {
 /**
  * The playground: a stage that breaks on click with the panel's settings,
  * using its own Shatter instance (the site's instance keeps the site's
- * options). The instance is rebuilt on the next click after a change.
+ * options). The instance is rebuilt on the next click after a change. The
+ * settings live in the URL's query, so Back, a reload and a shared link
+ * bring them back.
  */
 export function Playground(): ReactNode {
   const [config, setConfig] = useState<PlaygroundConfig>(DEFAULTS);
@@ -74,41 +96,49 @@ export function Playground(): ReactNode {
   useEffect(() => {
     let disposed = false;
     let dispose = (): void => undefined;
+    let pending: number | undefined;
     void import('tweakpane').then(({ Pane }) => {
       const container = paneHost.current;
       if (disposed || !container) return;
-      const params: PlaygroundConfig = { ...DEFAULTS };
+      const params = configFromSearch(window.location.search);
+      setConfig({ ...params });
       const pane = new Pane({ container, title: 'Options' });
       pane.addBinding(params, 'effect', {
         options: Object.fromEntries(EFFECT_NAMES.map((name) => [name, name])),
       });
-      pane.addBinding(params, 'shards', { min: 0, max: 400, step: 1, label: 'shards (0 = auto)' });
+      pane.addBinding(params, 'shards', { ...LIMITS.shards, label: 'shards (0 = auto)' });
       pane.addBinding(params, 'duration', {
-        min: 0,
-        max: 4000,
-        step: 50,
+        ...LIMITS.duration,
         label: 'duration ms (0 = effect)',
       });
       const motion = pane.addFolder({ title: 'Motion' });
-      motion.addBinding(params, 'gravity', { min: 0, max: 8000, step: 100 });
-      motion.addBinding(params, 'impulse', { min: 0, max: 3000, step: 50 });
+      motion.addBinding(params, 'gravity', LIMITS.gravity);
+      motion.addBinding(params, 'impulse', LIMITS.impulse);
       motion.addBinding(params, 'physics', {
         options: { procedural: 'procedural', rapier: 'rapier' },
       });
       motion.addBinding(params, 'floor', { label: 'floor (rapier)' });
       const glass = pane.addFolder({ title: 'Glass' });
-      glass.addBinding(params, 'thickness', { min: 0, max: 24, step: 1 });
+      glass.addBinding(params, 'thickness', LIMITS.thickness);
       glass.addBinding(params, 'glassTint', { label: 'tint' });
       glass.addBinding(params, 'chromatic');
       const more = pane.addFolder({ title: 'More', expanded: false });
-      more.addBinding(params, 'seed', { min: 0, max: 9999, step: 1, label: 'seed (0 = random)' });
+      more.addBinding(params, 'seed', { ...LIMITS.seed, label: 'seed (0 = random)' });
       more.addBinding(params, 'debug');
       pane.addButton({ title: 'Reset' }).on('click', () => {
         Object.assign(params, DEFAULTS);
         pane.refresh();
       });
-      pane.on('change', () => {
+      pane.on('change', (event) => {
         setConfig({ ...params });
+        window.clearTimeout(pending);
+        // The end of a drag (or a select, a toggle) is written at once.
+        if (event.last) writeUrl(params);
+        else {
+          pending = window.setTimeout(() => {
+            writeUrl(params);
+          }, URL_WRITE_DELAY_MS);
+        }
       });
       nameControls(container);
       dispose = () => {
@@ -117,6 +147,7 @@ export function Playground(): ReactNode {
     });
     return () => {
       disposed = true;
+      window.clearTimeout(pending);
       dispose();
     };
   }, []);

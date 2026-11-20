@@ -15,6 +15,8 @@ import type {
 export interface RuntimeHost {
   readonly options: ShatterOptions;
   readonly effects: ReadonlyMap<string, ShatterEffect>;
+  /** `pathname + search` when Shatter was created: the page the memory starts on (ADR-047). */
+  readonly startKey: string;
   emit<K extends ShatterEventName>(event: K, payload: ShatterEventMap[K]): void;
 }
 
@@ -48,6 +50,7 @@ export class ShatterFacade implements Shatter {
   private runtime: ShatterRuntime | null = null;
   private loading: Promise<ShatterRuntime | null> | null = null;
   private destroyed = false;
+  private readonly startKey = isBrowser() ? location.pathname + location.search : '';
 
   constructor(
     private readonly options: ShatterOptions,
@@ -126,6 +129,7 @@ export class ShatterFacade implements Shatter {
         this.runtime = module.createRuntime({
           options: this.options,
           effects: this.effects,
+          startKey: this.startKey,
           emit: (event, payload) => {
             this.emit(event, payload);
           },

@@ -36,6 +36,7 @@ import {
 import { GLDevice, GLError, type GLProgram } from './gl';
 import { FrameLoop, type LoopStats } from './loop';
 import { Overlay } from './overlay';
+import { reverseEffect, REVERSE_SUFFIX } from './effects/reverse';
 import { PAGE_FRAGMENT, PAGE_VERTEX, shardFragmentSource, shardVertexSource } from './shaders';
 
 export { GLError } from './gl';
@@ -127,6 +128,8 @@ export class Engine {
   private readonly viewProjection = new Float32Array(16);
   private readonly quad = new Float32Array(4 * QUAD_FLOATS);
   private readonly programs = new Map<ShatterEffect, EffectProgram>();
+  /** Time-reversed effects, one per base effect (ADR-047). */
+  private readonly reversed = new Map<ShatterEffect, ShatterEffect>();
   private camera: PixelCamera | null = null;
   private resources: PageResources | null = null;
   private texture: WebGLTexture | null = null;
@@ -211,6 +214,17 @@ export class Engine {
     registered: ReadonlyMap<string, ShatterEffect>,
   ): ShatterEffect {
     if (typeof effect !== 'string') return effect;
+    if (effect.endsWith(REVERSE_SUFFIX)) {
+      // `'<name>:reverse'`: the time reverse of an effect (ADR-047), built
+      // once per base effect so its shader program is cached too.
+      const base = this.resolveEffect(effect.slice(0, -REVERSE_SUFFIX.length), registered);
+      let reversed = this.reversed.get(base);
+      if (!reversed) {
+        reversed = reverseEffect(base);
+        this.reversed.set(base, reversed);
+      }
+      return reversed;
+    }
     const found = registered.get(effect) ?? BUILT_IN_EFFECTS.get(effect);
     if (!found) throw new GLError(`Unknown effect "${effect}"`);
     return found;

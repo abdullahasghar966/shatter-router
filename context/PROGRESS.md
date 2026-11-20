@@ -22,6 +22,15 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 10  | Performance pass              | ☑      | `milestone/10-performance`    | [#10](https://github.com/abdullahasghar966/shatter-router/pull/10) | `c3175ef` | `m10-performance` |
 | 11  | Docs site                     | ☑      | `milestone/11-docs-site`      | [#11](https://github.com/abdullahasghar966/shatter-router/pull/11) | `ecb969c` | `m11-docs-site` |
 | 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
+| 13  | Navigation memory             | ◐      | `milestone/13-navigation-memory` | (PR pending) |           |             |
+| 14  | Effect architecture           | ☐      | `milestone/14-effect-architecture` |     |           |             |
+| 15  | Fracture patterns             | ☐      | `milestone/15-patterns`        |     |           |             |
+| 16  | Motions and materials         | ☐      | `milestone/16-motions-materials` |     |           |             |
+| 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
+| 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
+| 19  | Site redesign (Material lab)  | ☐      | `milestone/19-redesign`        |     |           |             |
+| 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
+| 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
 ## Installed dependency versions
 
@@ -83,6 +92,7 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
 | 2026-11-15 | runtime `dist/runtime.js` (lazy) | 7.76 kB | 8 KB | Milestone 11: + priming capture on first intent (ADR-043) |
+| 2026-11-20 | runtime `dist/runtime.js` (lazy) | 8.68 kB | 9 KB | Milestone 13: + navigation memory, mirror planning (ADR-047; budget raised from 8 KB). Engine 20.05 kB of 22 KB (+0.24: reverse wrapper); core 1.83 kB |
 | 2026-11-15 | debug `dist/debug.js` (lazy, debug mode only) | 3.44 kB | 5 KB (own) | Milestone 10: debug panel and seam check (ADR-041). Runtime 7.55 kB of 8 KB (+0.32: panel loading, `exclusive()`, draw stats); engine 19.76 kB |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
@@ -323,6 +333,21 @@ Headless (software GL), first-frame seam on the landing page: Chromium 0.0008 %,
 
 The way there: the first run scored 96/94 Performance, with Accessibility 86 on the playground (Tweakpane's inputs had no names). Splitting the italic and dropping its preload made pages with italic above the fold score 94 (LCP 3.0 s against 2.5 s). Inlining CSS changed little. Removing italic text above the fold gave 97 everywhere.
 
+### Navigation memory (Milestone 13, 2026-11-20)
+
+Seams of the reversed effects (Back, `backForward: 'mirror'`), local Windows 11, headless, % of pixels differing (target ≤ 0.5 %):
+
+| Test | Chromium | WebKit |
+| --- | --- | --- |
+| vanilla `shatter:reverse` first frame (page being left) | 0.1706 | 0.0000 (raw 0.1281) |
+| vanilla `shatter:reverse` last frame (page returned to) | 0.1082 | 0.0225 (raw 0.3952) |
+| vanilla `explode:reverse` first frame | 0.1667 | 0.0000 (raw 0.1281) |
+| vanilla `explode:reverse` last frame | 0.1006 (10.1113 before the stretch ramp) | 0.0225 (raw 0.3952) |
+| React Router `shatter:reverse` last frame | 0.1313 | 0.0021 (0.5316 with WebKit's focus ring, see LEARNINGS) |
+| Next `shatter:reverse` last frame | 0.1318 | 0.0021 |
+
+Every falling effect (`shatter`, `explode`, `implode`) plays reversed on Back and replays on Forward with no fallback; the docs playground keeps its settings through Back and a reload.
+
 ### Release readiness (Milestone 12, 2026-11-20)
 
 - **Package:** `shatter-router@0.1.0` (Changesets: first-release changeset → `CHANGELOG.md`). `npm pack --dry-run`: 49 files, 187.4 kB packed, 705.7 kB unpacked (`dist` with source maps, `README.md`, `LICENSE`, `CHANGELOG.md`, `package.json`). Not published to npm: publishing is the user's call (`pnpm release`).
@@ -364,3 +389,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged. PR #10 CI (final run): Chromium 106 passed, Firefox 92 (14 skipped), WebKit 92 (14 skipped); CI allocations beyond boxed numbers: 0 B for shatter, implode, flip, assemble and 96 B for explode over 18–34 frames |
 | 11 | 335 tests in 26 files (+ `prime.test.ts` 4: one priming capture on the first intent and disposed, none after a transition, none with reduced motion, none after destroy) | + `e2e/docs/site.spec.ts` (every page with no console errors, header navigation with focus, every gallery card with its own effect incl. the custom `ripple-out`, the hero breaking in place, the playground panel/stage/copy, the 404 page) and `e2e/docs/landing.spec.ts` (landing seam, landing capture time). Local: Chromium + WebKit 223 passed, 15 skipped. PR #11 CI (final run, after the sandbox fix ADR-044): green on Chromium, Firefox (105 passed, 14 skipped) and WebKit |
 | 12 | 335 tests in 26 files (unchanged) | + `history.spec.ts`: a capture adds no history entry (ADR-044). Final local run: Chromium + WebKit 225 passed, 15 skipped |
+| 13 | 361 tests in 26 files (+ `history.test.ts` 16: memory, Back/Forward/`go(n)`, replace, cap, reload, storage failures, query rewrites, reverse wrapper GLSL; + 9 mirror tests in `effects.test.ts`; adapter tests assert `replace`) | + vanilla: each falling effect reversed and replayed, first- and last-frame seams of `shatter:reverse` and `explode:reverse`; React Router and Next: reverse, last-frame seam, replay (`e2e/mirror.ts`); docs: playground settings through Back and reload. Local: Chromium + WebKit 245 passed, 15 skipped (4 WebKit tests that hit a 26–53 min machine stall passed on rerun) |

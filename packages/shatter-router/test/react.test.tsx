@@ -257,6 +257,7 @@ describe('ShatterProvider and hooks (shatter-router/react)', () => {
     });
     expect(shatter.requests[0]?.effect).toBe('implode');
     expect(shatter.requests[0]?.origin).toEqual({ x: 5, y: 6 });
+    expect(shatter.requests[0]?.replace).toBe(true);
     expect(navigate).toHaveBeenCalledWith('/work', { replace: true, state: undefined });
   });
 

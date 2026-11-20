@@ -8,7 +8,12 @@ import {
 } from '../src/core/effect';
 import { mulberry32 } from '../src/core/random';
 import { settle, SETTLE_GLSL, SETTLE_STIFFNESS } from '../src/core/spring';
-import type { Shatter, ShatterOptions, ShatterTestHook } from '../src/core/types';
+import type {
+  Shatter,
+  ShatterOptions,
+  ShatterTestHook,
+  TransitionRequest,
+} from '../src/core/types';
 import { assembleEffect } from '../src/engine/effects/assemble';
 import { explodeEffect } from '../src/engine/effects/explode';
 import { flipEffect } from '../src/engine/effects/flip';
@@ -159,6 +164,8 @@ describe('built-in effects', () => {
       (s.attributes[o + 1] ?? 0) * (shard.centroid.y - ctx.origin.y);
     expect(outward).toBeGreaterThan(0);
     expect(explodeEffect.vertexChunk).toContain('fall = max(0.0, t - GRAVITY_DELAY)');
+    // The stretch builds up from 0, so the motion starts exactly at rest (ADR-047).
+    expect(explodeEffect.vertexChunk).toContain('smoothstep(0.0, STRETCH_RAMP, t)');
   });
 
   it('assemble: the incoming layer lands by the end, the outgoing one is gone by then', () => {
@@ -260,6 +267,9 @@ describe("runtime: backForward (master prompt §6, 'reverse' mapping)", () => {
     instances.push(shatter);
     return shatter;
   }
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
   afterEach(() => {
     for (const shatter of instances.splice(0)) shatter.destroy();
   });
@@ -272,7 +282,7 @@ describe("runtime: backForward (master prompt §6, 'reverse' mapping)", () => {
     ['flip', 'flip'],
   ])("'reverse' plays %s backwards as %s", async (forward, back) => {
     const world = new FakeWorld();
-    const shatter = create(world, { effect: forward });
+    const shatter = create(world, { effect: forward, backForward: 'reverse' });
     await shatter.transition({ commit: () => undefined, direction: 'back' });
     expect(world.resolved[0]).toBe(back);
     await shatter.transition({ commit: () => undefined, direction: 'forward' });
@@ -288,7 +298,7 @@ describe("runtime: backForward (master prompt §6, 'reverse' mapping)", () => {
 
   it('never maps a user-registered effect, even one named like a built-in', async () => {
     const world = new FakeWorld();
-    const shatter = create(world, { effect: 'shatter' });
+    const shatter = create(world, { effect: 'shatter', backForward: 'reverse' });
     const own: ShatterEffect = { ...shatterEffect, name: 'shatter' };
     shatter.registerEffect(own);
     await shatter.transition({ commit: () => undefined, direction: 'back' });
@@ -321,5 +331,130 @@ describe("runtime: backForward (master prompt §6, 'reverse' mapping)", () => {
     await shatter.transition({ commit: () => undefined });
     expect(world.calls).toContain('replaceEffect:shatter');
     slow.open();
+  });
+});
+
+describe("runtime: backForward 'mirror' (default, ADR-047)", () => {
+  const instances: Shatter[] = [];
+  function create(world: FakeWorld, options: ShatterOptions = {}): Shatter {
+    const shatter = createShatterWith({ precapture: false, ...options }, world.deps);
+    instances.push(shatter);
+    return shatter;
+  }
+  /** A link click: the commit pushes `path`. */
+  function go(shatter: Shatter, path: string, extra: Partial<TransitionRequest> = {}) {
+    return shatter.transition({
+      commit: () => {
+        history.pushState(null, '', path);
+      },
+      ...extra,
+    });
+  }
+  /** A history traversal: the URL has already changed when the transition starts. */
+  function pop(shatter: Shatter, path: string) {
+    history.replaceState(null, '', path);
+    return shatter.transition({ commit: () => undefined, direction: 'back' });
+  }
+  beforeEach(() => {
+    sessionStorage.clear();
+    history.replaceState(null, '', '/');
+  });
+  afterEach(() => {
+    for (const shatter of instances.splice(0)) shatter.destroy();
+  });
+
+  it('Back plays the time reverse of the arriving effect, from the same point', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    await go(shatter, '/a', { effect: 'explode', origin: { x: 10, y: 20 } });
+    await pop(shatter, '/');
+    expect(world.resolved).toEqual(['explode', 'explode:reverse']);
+    expect(world.origins).toEqual([
+      { x: 10, y: 20 },
+      { x: 10, y: 20 },
+    ]);
+    expect(world.directions).toEqual(['forward', 'forward']);
+  });
+
+  it('Forward replays the effect that brought the user to the page', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    await go(shatter, '/a', { effect: 'implode', origin: { x: 5, y: 6 } });
+    await pop(shatter, '/');
+    await pop(shatter, '/a');
+    expect(world.resolved).toEqual(['implode', 'implode:reverse', 'implode']);
+    expect(world.origins.at(-1)).toEqual({ x: 5, y: 6 });
+    expect(world.directions.at(-1)).toBe('forward');
+  });
+
+  it('flip turns back the other way and assemble reverses as shatter', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    await go(shatter, '/a', { effect: 'flip' });
+    await go(shatter, '/b', { effect: 'assemble' });
+    await pop(shatter, '/a');
+    await pop(shatter, '/');
+    expect(world.resolved).toEqual(['flip', 'assemble', 'shatter', 'flip']);
+    expect(world.directions.slice(2)).toEqual(['back', 'back']);
+  });
+
+  it('a custom effect that ends on the new page runs backwards as itself', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    shatter.registerEffect({ ...flipEffect, name: 'turn' });
+    await go(shatter, '/a', { effect: 'turn' });
+    await pop(shatter, '/');
+    expect(world.resolved).toEqual(['turn', 'turn']);
+    expect(world.directions).toEqual(['forward', 'back']);
+  });
+
+  it('a custom effect that ends off the page is time-reversed', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    shatter.registerEffect({ ...shatterEffect, name: 'ripple-out' });
+    await go(shatter, '/a', { effect: 'ripple-out' });
+    await pop(shatter, '/');
+    expect(world.resolved).toEqual(['ripple-out', 'ripple-out:reverse']);
+  });
+
+  it('an effect object is remembered by name and reversed on Back', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    const own: ShatterEffect = { ...shatterEffect, name: 'own' };
+    await go(shatter, '/a', { effect: own });
+    await pop(shatter, '/');
+    expect(world.resolved).toEqual(['own:reverse']);
+  });
+
+  it('without a memory (the landing page) Back reverses the default effect', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world, { effect: 'explode' });
+    await pop(shatter, '/elsewhere');
+    expect(world.resolved).toEqual(['explode:reverse']);
+  });
+
+  it('a replace overwrites the current entry instead of adding one', async () => {
+    const world = new FakeWorld();
+    const shatter = create(world);
+    await go(shatter, '/a', { effect: 'explode' });
+    await shatter.transition({
+      commit: () => {
+        history.replaceState(null, '', '/a?tab=2');
+      },
+      effect: 'implode',
+      replace: true,
+    });
+    await pop(shatter, '/');
+    expect(world.resolved.at(-1)).toBe('implode:reverse');
+  });
+
+  it('the memory survives a reload of the same page', async () => {
+    const world = new FakeWorld();
+    const first = create(world);
+    await go(first, '/a', { effect: 'implode' });
+    first.destroy();
+    const second = create(world);
+    await pop(second, '/');
+    expect(world.resolved.at(-1)).toBe('implode:reverse');
   });
 });

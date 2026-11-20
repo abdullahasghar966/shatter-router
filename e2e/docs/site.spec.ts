@@ -140,6 +140,40 @@ test.describe('docs site', () => {
     }
   });
 
+  test('playground: the settings live in the URL, so Back and a reload restore them', async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/playground${QUERY}`);
+    await waitForShatterReady(page);
+    const code = page.getByTestId('config-code');
+    const select = page.locator('.pane-host select').first();
+    await select.selectOption('explode');
+    await expect(code).toContainText("effect: 'explode',");
+    // Written with replaceState: the site's own parameters stay.
+    await expect.poll(() => new URL(page.url()).searchParams.get('effect')).toBe('explode');
+    expect(new URL(page.url()).searchParams.has('debug')).toBe(true);
+    const historyLength = await page.evaluate(() => history.length);
+
+    await clearLifecycleEvents(page);
+    await page.getByRole('link', { name: 'Docs', exact: true }).click();
+    await settle(page);
+    await expect(page.locator('h1')).toHaveText('How a page breaks');
+    expect(await page.evaluate(() => history.length)).toBe(historyLength + 1);
+
+    await clearLifecycleEvents(page);
+    await page.goBack();
+    await settle(page);
+    await expect(page.locator('h1')).toHaveText('Tune the glass.');
+    // The page that rewrote its own query is still found in the memory.
+    expect(await lastEffect(page)).toBe('shatter:reverse');
+    await expect(code).toContainText("effect: 'explode',");
+    await expect(select).toHaveValue('explode');
+
+    await page.reload();
+    await expect(page.locator('.pane-host select').first()).toHaveValue('explode');
+    await expect(page.getByTestId('config-code')).toContainText("effect: 'explode',");
+  });
+
   test.describe('not found', () => {
     test.use({ expectedConsole: /Failed to load resource: .*404/ });
     test('an unknown route shows the 404 page', async ({ page }) => {

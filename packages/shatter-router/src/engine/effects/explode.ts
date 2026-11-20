@@ -15,6 +15,8 @@ const GRAVITY_DELAY = 0.25;
 const MAX_STRETCH = 0.6;
 /** Fraction of the motion phase after which shards fade out. */
 const FADE_START = 0.55;
+/** Seconds over which the stretch builds up: at t = 0 the pose is exactly at rest (ADR-047). */
+const STRETCH_RAMP = 0.05;
 
 /** Screen-plane position offset of a shard at `t` s (the shader's formula, for completion checks). */
 function offsetAt(vx: number, vy: number, delay: number, gravity: number, t: number): Float64Array {
@@ -35,7 +37,8 @@ const OFFSET = new Float64Array(2);
  * velocity, slowing with drag, then falling.
  *
  *   pos(t) = centre + v0·(1 − e^(−k t'))/k + ½ g max(0, t' − 0.25)²
- *   stretch along v: 1 + 0.6·|v(t)|/|v0|, |v(t)| = |v0|·e^(−k t')
+ *   stretch along v: 1 + 0.6·|v(t)|/|v0|, |v(t)| = |v0|·e^(−k t'),
+ *   ramped in over the first 50 ms so the motion starts exactly at rest
  *
  * Shard.a = (v0.x, v0.y, v0.z, delay), Shard.b = (axis.x, axis.y, axis.z, ω).
  */
@@ -73,6 +76,7 @@ const float DRAG = ${DRAG.toFixed(3)};
 const float GRAVITY_DELAY = ${GRAVITY_DELAY.toFixed(3)};
 const float MAX_STRETCH = ${MAX_STRETCH.toFixed(3)};
 const float FADE_START = ${FADE_START.toFixed(3)};
+const float STRETCH_RAMP = ${STRETCH_RAMP.toFixed(3)};
 
 void shardMotion(Shard shard, inout Pose pose) {
   float t = max(0.0, uTime - shard.a.w);
@@ -87,7 +91,7 @@ void shardMotion(Shard shard, inout Pose pose) {
   mat3 stretch = mat3(1.0);
   if (speed > 1e-3) {
     vec3 d = vec3(v / speed, 0.0);
-    float k = MAX_STRETCH * decay * min(1.0, speed / (2.0 * uImpulse));
+    float k = MAX_STRETCH * decay * min(1.0, speed / (2.0 * uImpulse)) * smoothstep(0.0, STRETCH_RAMP, t);
     stretch += k * mat3(d.x * d, d.y * d, d.z * d);
   }
   pose.rotate = stretch * axisAngle(shard.b.xyz, shard.b.w * t);

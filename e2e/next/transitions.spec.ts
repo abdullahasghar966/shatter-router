@@ -2,6 +2,7 @@ import type { Page, TestInfo } from '@playwright/test';
 import { APPS } from '../../playwright.config';
 import { expect, test } from '../fixtures';
 import { hookState, waitForIdle } from '../hook';
+import { expectMirror } from '../mirror';
 import {
   compareScreenshots,
   pauseAt,
@@ -165,5 +166,19 @@ test.describe('Next.js example: first-frame seam', () => {
     await waitForShatterReady(page);
     await firstFrameSeam(page, testInfo, 'top');
     await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
+  });
+});
+
+test.describe('Next.js example: backForward mirror (ADR-047)', () => {
+  test('Back plays the reverse of the arriving effect and lands on the page; Forward replays it', async ({
+    page,
+  }, testInfo) => {
+    await expectMirror(page, testInfo, {
+      start: `${BASE}/${QUERY}`,
+      startTitle: 'Break the page.',
+      link: 'About',
+      nextTitle: 'Links that behave.',
+      effect: 'shatter',
+    });
   });
 });

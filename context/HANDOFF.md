@@ -1,29 +1,32 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 3, all 13 milestones merged and tagged; the project is complete)
-- **Session:** 3
+- **Last updated:** 2026-11-20 (session 4, M13 implemented, e2e and ritual in progress)
+- **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
-- **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045)
+- **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** none. M12 Release readiness merged (PR #12, `9e2777a`, tag `m12-release`); this record goes in through `docs/context-12`.
-- **Current branch:** `main` once `docs/context-12` is merged.
+- **Current milestone:** 13 — Navigation memory (first of M13–M21 in `context/PLAN-PRODUCTION.md`, ADR-046)
+- **Current branch:** `milestone/13-navigation-memory` (from `main` at `a7b980c`, with `plan/production-grade` merged in)
 - **Latest tag:** `m12-release` (on `9e2777a`)
 
 ## Done so far
 
-- Milestones 0–11 merged and tagged (see `PROGRESS.md`; ADR-001..045). M11: the docs site `apps/docs` (PR #11, `ecb969c`), the priming capture (ADR-043) and the Firefox history fix for modern-screenshot's sandbox frame (ADR-044).
-- M12 on its branch: README (demo GIF `media/shatter-demo.gif` from `scripts/record-demo.mjs`, quick start, features, measured numbers, browser support, roadmap), package README, `CHANGELOG.md` and version 0.1.0 (Changesets), CONTRIBUTING, issue forms, `npm pack --dry-run` (49 files, 187.4 kB), final full run green, Definition of done checked in PROGRESS, docs site deployed to Vercel (Lighthouse live 99–100 / 100).
-- What works: everything in the master prompt; see the Definition of done table in `PROGRESS.md`.
+- Milestones 0–12 merged and tagged (`PROGRESS.md`; ADR-001..045). The master prompt's Definition of done is met (PROGRESS table). The docs site is live and deploys from `main` automatically.
+- The user then asked for a production-grade library and site. `context/PLAN-PRODUCTION.md` holds the analysis and the plan, which the user approved (art direction A "Material lab", sound wherever it suits, text and button animations; the rest decided as recorded in its section 9 and ADR-046).
 
-## Next steps
+## Next steps (M13: navigation memory, plan 3.6)
+**Status (session 4):** M13 done locally: unit 361, typecheck, lint, format, sizes (runtime 8.68 of 9 kB), e2e Chromium + WebKit 245 passed / 15 skipped; measurements in PROGRESS; ADR-047. **Left:** the ritual: PR, three-engine CI green, merge with `--merge`, tag `m13-navigation-memory`, mark row 13 ☑. Then M14 (effect architecture).
 
-1. ~~Ritual for M12~~ **done**: PR #12 merged (`9e2777a`), tag `m12-release`, recorded in PROGRESS; every Definition-of-done item is met.
-2. **Deploys are automatic** (2026-11-20, at the user's request): the GitHub repository is connected to the Vercel project `shatter-router`. A push to `main` (every merged PR) deploys https://shatter-router.vercel.app; other branches and PRs get preview deployments. A manual redeploy still works: `npx --yes vercel@62.1.0 deploy --prod --yes` from the repo root.
-3. **For the user to decide (not done on purpose):** publish to npm (`pnpm release` runs `pnpm build && changeset publish`; needs the user's npm login).
-4. After any change to the site: re-run Lighthouse and the landing capture (`e2e/docs/landing.spec.ts` with `SHATTER_PERF=1`) and update `apps/docs/lib/measurements.ts` and PROGRESS.
+1. **History memory in the runtime:** remember, per visited URL (pathname + search), the effect and impact point that brought you there, as a stack with a position (sessionStorage, capped). On a popstate transition, compare the arriving URL with the entries before and after the position to tell Back from Forward. Back plays the reverse of the effect that brought you to the page you are leaving, from the stored origin; Forward replays the effect. `backForward: 'mirror'` becomes the default; `'reverse' | 'same' | 'none'` stay. `TransitionRequest.replace` lets adapters replace the current entry.
+2. **True reverse for every effect** without its own incoming snapshot (`shatter`, `explode`, `implode`, custom ones like `ripple-out`): an engine-side wrapper effect `<name>:reverse` with `layers: 2` and `needsIncomingSnapshot`. Layer 0 is the outgoing page at rest; layer 1 is the incoming page running the effect's `shardMotion` at `uDuration - uTime` (`uTime` is a writable global, ADR-038). The first frame is the outgoing page and the last frame is the incoming page at rest (both seams testable). `flip` keeps turning the other way, and `assemble`'s reverse stays `shatter`.
+3. **Docs site:** the playground keeps its settings in the URL (read on mount, `history.replaceState` on change), so Back and shared links restore them.
+4. Tests: unit (memory, direction detection, mirror mapping, reverse wrapper GLSL), e2e on vanilla, React Router and Next (Back plays the reverse of the forward effect, Forward replays it; first- and last-frame seams of the reverse). Then the ritual and tag `m13-navigation-memory`.
 
+## Deferred (tracked, not forgotten)
+
+- npm publish: at 1.0 (M21), with the user's npm login.
 ## Open problems / blockers
 
 - Local Firefox and Playwright's full Chromium cannot launch on this machine (side-by-side error, LEARNINGS); CI runs Firefox headed under xvfb (ADR-015). For headed or real-GPU runs, use installed Chrome 157 (`channel: 'chrome'`).
@@ -34,7 +37,7 @@
 
 ## Questions waiting on the user
 
-- Publish `shatter-router@0.1.0` to npm?
+- None (the plan's decisions are recorded in its section 9).
 
 ## Working tree
 
@@ -46,7 +49,7 @@
 cd "D:\Shatter Router"
 git fetch --all --tags
 git status
-git switch main
+git switch milestone/13-navigation-memory
 pnpm install
 pnpm build
 pnpm build:examples

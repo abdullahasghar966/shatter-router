@@ -76,6 +76,10 @@ export class FakeWorld {
   shading: { tint: readonly [number, number, number]; chromatic: boolean } | null = null;
   /** Effect names passed to resolveEffect, in order. */
   readonly resolved: string[] = [];
+  /** Impact points passed to fracture, in order. */
+  readonly origins: ({ x: number; y: number } | undefined)[] = [];
+  /** Directions passed to prepareMotion, in order. */
+  readonly directions: string[] = [];
   readonly overlay = document.createElement('div');
   readonly snapshots: FakeSnapshot[] = [];
   /** Hold the matching phase until opened (or aborted, for crack/animate). */
@@ -117,6 +121,11 @@ export class FakeWorld {
         world.resolved.push(effect);
         const registeredEffect = registered.get(effect);
         if (registeredEffect) return registeredEffect;
+        // '<name>:reverse' wraps a known effect and always needs the new page.
+        const base = effect.endsWith(':reverse') ? effect.slice(0, -':reverse'.length) : null;
+        if (base !== null && (registered.has(base) || base in FAKE_BUILT_INS)) {
+          return { ...testEffect, name: effect, needsIncomingSnapshot: true };
+        }
         const needsIncoming = FAKE_BUILT_INS[effect];
         if (needsIncoming === undefined) throw new Error(`Unknown effect "${effect}"`);
         return { ...testEffect, name: effect, needsIncomingSnapshot: needsIncoming };
@@ -127,8 +136,9 @@ export class FakeWorld {
         if (world.coverGate) await world.coverGate.promise;
         if (world.coverError) throw world.coverError;
       },
-      fracture() {
+      fracture(options: { origin?: { x: number; y: number } }) {
         world.calls.push('fracture');
+        world.origins.push(options.origin);
         return { shardCount: 40, vertexCount: 480, fractureMs: 1 };
       },
       setIncoming() {
@@ -144,8 +154,9 @@ export class FakeWorld {
         world.calls.push('startPhysics');
         return true;
       },
-      prepareMotion() {
+      prepareMotion(options: { direction: string }) {
         world.calls.push('prepareMotion');
+        world.directions.push(options.direction);
         return {} as EffectState;
       },
       async crack(options: { signal?: AbortSignal } = {}) {

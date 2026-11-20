@@ -16,6 +16,7 @@ import type { Snapshot } from '../core/snapshot';
 import type {
   FallbackReason,
   PausePoint,
+  Point,
   Shatter,
   ShatterEventMap,
   ShatterEventName,
@@ -24,6 +25,7 @@ import type {
   TransitionRequest,
 } from '../core/types';
 import { readViewport, type ViewportMetrics } from '../core/viewport';
+import { HistoryMemory, locationKey } from './history';
 
 /** The parts of the engine the controller uses (lets tests drive the state machine). */
 export type EngineLike = Pick<
@@ -113,6 +115,16 @@ interface Run {
   committed: boolean;
   /** Settles when the run is completely over. Never rejects. */
   done: Promise<void>;
+  /** The effect, impact point and motion direction, decided when the run starts. */
+  readonly plan: Plan;
+}
+
+/** What a transition plays (ADR-047). */
+interface Plan {
+  readonly effect: string | ShatterEffect;
+  readonly origin: Point | undefined;
+  /** `uDirection`: a reversed effect runs forward in reverse time. */
+  readonly direction: 'forward' | 'back';
 }
 
 interface Settings {
@@ -126,7 +138,7 @@ interface Settings {
   readonly captureBudget: number;
   readonly readyTimeout: number;
   readonly reducedMotion: 'crossfade' | 'instant' | 'ignore';
-  readonly backForward: 'reverse' | 'same' | 'none';
+  readonly backForward: 'mirror' | 'reverse' | 'same' | 'none';
   readonly physics: PhysicsPlugin | null;
   readonly seed: number | undefined;
   readonly debug: boolean;
@@ -134,6 +146,15 @@ interface Settings {
 }
 
 const DEFAULT_MOTION_MS = 1000;
+
+/** `sessionStorage`, or null where it is blocked (sandboxed frames, privacy modes). */
+function sessionStore(): Storage | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
 
 /** First signs of a user's intent that start the priming capture (ADR-043). */
 const PRIME_EVENTS = ['pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
@@ -172,7 +193,7 @@ function settingsFrom(options: ShatterOptions): Settings {
     captureBudget: options.captureBudget ?? 250,
     readyTimeout: options.readyTimeout ?? 1500,
     reducedMotion: options.reducedMotion ?? 'crossfade',
-    backForward: options.backForward ?? 'reverse',
+    backForward: options.backForward ?? 'mirror',
     physics:
       options.physics === undefined || options.physics === 'procedural' ? null : options.physics,
     seed: options.seed,
@@ -217,6 +238,12 @@ class Runtime implements ShatterRuntime {
   private panel: DebugPanel | null = null;
   /** A debug seam check in progress: transitions wait for it. */
   private busy: Promise<unknown> | null = null;
+  /** Which effect brought the user to each page (ADR-047). */
+  // Keyed to the page Shatter was created on: the lazy runtime may first load
+  // for a Back, when the URL has already changed.
+  private readonly memory: HistoryMemory;
+  /** Effect objects passed in options or requests, by name (for the memory). */
+  private readonly seen = new Map<string, ShatterEffect>();
   /** The capturer has captured once (warm), or a priming capture is on its way. */
   private primed = false;
   private removePrimeListeners: (() => void) | null = null;
@@ -226,6 +253,7 @@ class Runtime implements ShatterRuntime {
     private readonly deps: ShatterDeps,
   ) {
     this.settings = settingsFrom(host.options);
+    this.memory = new HistoryMemory(host.startKey, sessionStore());
     this.machine = new StateMachine(() => performance.now());
     this.hook = this.settings.debug ? this.installHook() : null;
     if (this.hook && this.settings.panel) this.openPanel(this.hook);
@@ -330,6 +358,7 @@ class Runtime implements ShatterRuntime {
       committing: false,
       committed: false,
       done: Promise.resolve(),
+      plan: this.plan(request),
     };
     this.current = run;
     const outcome = this.execute(run);
@@ -392,7 +421,7 @@ class Runtime implements ShatterRuntime {
       if (engine.contextLost) throw new Fallback('context-lost');
       const viewport = readViewport(window);
       if (viewport.pinchZoomed) throw new Fallback('pinch-zoom');
-      const effect = engine.resolveEffect(this.effectFor(request), this.host.effects);
+      const effect = engine.resolveEffect(run.plan.effect, this.registry());
 
       const { snapshot, precaptured } = await this.snapshotFor(run, loaded, viewport);
       // A real capture warmed the capturer: no priming capture needed.
@@ -410,7 +439,7 @@ class Runtime implements ShatterRuntime {
 
       // Fracture before the router runs so the geometry work overlaps the
       // time the new route needs to render.
-      const origin = request.origin ?? { x: viewport.width / 2, y: viewport.height / 2 };
+      const origin = run.plan.origin ?? { x: viewport.width / 2, y: viewport.height / 2 };
       const { count, tier } = engine.resolveShardCount(settings.shards, snapshot.duration);
       const seed = settings.seed;
       const stats = engine.fracture({
@@ -443,7 +472,7 @@ class Runtime implements ShatterRuntime {
         if (incoming) {
           engine.setIncoming(incoming);
         } else {
-          motionEffect = engine.resolveEffect(SUBSTITUTE_EFFECT, this.host.effects);
+          motionEffect = engine.resolveEffect(SUBSTITUTE_EFFECT, this.registry());
           engine.replaceEffect(motionEffect);
         }
       }
@@ -453,7 +482,7 @@ class Runtime implements ShatterRuntime {
         duration: settings.duration ?? motionEffect.duration ?? DEFAULT_MOTION_MS,
         gravity: settings.gravity,
         impulse: settings.impulse,
-        direction,
+        direction: run.plan.direction,
         ...(seed === undefined ? {} : { seed }),
       });
       // Physics drives the falling effects when a backend is loaded; anything
@@ -533,6 +562,7 @@ class Runtime implements ShatterRuntime {
       throw new CommitError(error);
     }
     run.committed = true;
+    this.remember(run);
   }
 
   /** The fallback chain after the effect: View Transition crossfade, else an instant swap. */
@@ -554,6 +584,7 @@ class Runtime implements ShatterRuntime {
       }
     });
     run.committed = true;
+    this.remember(run);
   }
 
   /** After the new page is live: release input, move focus, announce, go idle. */
@@ -581,15 +612,66 @@ class Runtime implements ShatterRuntime {
   }
 
   /**
-   * The effect to play: the request's or the default, mapped for back/forward
-   * navigations when `backForward` is `'reverse'`. User-registered effects
-   * (and effect objects) are never mapped.
+   * Decides what a transition plays (ADR-047). Forward: the requested
+   * effect. Back/forward through history, with `backForward: 'mirror'`
+   * (default): Back plays the reverse of the effect that brought the user to
+   * the page being left, from the same point; Forward replays the effect
+   * that brought them to the page they return to. Without a memory (the
+   * landing page), the reverse of the default effect.
    */
-  private effectFor(request: TransitionRequest): string | ShatterEffect {
+  private plan(request: TransitionRequest): Plan {
     const chosen = request.effect ?? this.settings.effect;
-    if (request.direction !== 'back' || this.settings.backForward !== 'reverse') return chosen;
-    if (typeof chosen !== 'string' || this.host.effects.has(chosen)) return chosen;
-    return REVERSED[chosen] ?? chosen;
+    if (typeof chosen !== 'string') this.seen.set(chosen.name, chosen);
+    if (request.direction !== 'back') {
+      return { effect: chosen, origin: request.origin, direction: 'forward' };
+    }
+    const pop = this.memory.pop(locationKey(window.location));
+    const mode = this.settings.backForward;
+    if (mode === 'mirror') {
+      if (pop.direction === 'forward' && pop.entry?.effect) {
+        return {
+          effect: pop.entry.effect,
+          origin: request.origin ?? pop.entry.origin ?? undefined,
+          direction: 'forward',
+        };
+      }
+      const left = pop.direction === 'back' ? pop.entry : null;
+      const name = left?.effect ?? (typeof chosen === 'string' ? chosen : chosen.name);
+      return { ...this.mirrorOf(name), origin: request.origin ?? left?.origin ?? undefined };
+    }
+    const reversed =
+      mode === 'reverse' && typeof chosen === 'string' && !this.host.effects.has(chosen)
+        ? (REVERSED[chosen] ?? chosen)
+        : chosen;
+    return { effect: reversed, origin: request.origin, direction: 'back' };
+  }
+
+  /** The reverse of an effect: its own for `flip`/`assemble`, else its time reverse. */
+  private mirrorOf(name: string): Pick<Plan, 'effect' | 'direction'> {
+    if (name === 'flip') return { effect: 'flip', direction: 'back' };
+    if (name === 'assemble') return { effect: 'shatter', direction: 'back' };
+    const custom = this.registry().get(name);
+    // A custom effect that ends on the new page runs as is, with uDirection = -1.
+    if (custom?.needsIncomingSnapshot) return { effect: name, direction: 'back' };
+    return { effect: `${name}:reverse`, direction: 'forward' };
+  }
+
+  /** A forward navigation committed: remember how the user got here. */
+  private remember(run: Run): void {
+    if (run.request.direction === 'back') return;
+    const { effect, origin } = run.plan;
+    this.memory.record(
+      locationKey(window.location),
+      typeof effect === 'string' ? effect : effect.name,
+      origin ?? null,
+      run.request.replace ?? false,
+    );
+  }
+
+  /** Registered effects plus effect objects passed to transitions (by name). */
+  private registry(): ReadonlyMap<string, ShatterEffect> {
+    if (this.seen.size === 0) return this.host.effects;
+    return new Map([...this.seen, ...this.host.effects]);
   }
 
   /**

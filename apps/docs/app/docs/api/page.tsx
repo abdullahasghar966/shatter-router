@@ -44,8 +44,8 @@ const OPTIONS: readonly (readonly [string, string, string])[] = [
   ],
   [
     'backForward',
-    `'reverse'`,
-    `Effect for back/forward: 'reverse' (shatter becomes assemble and so on), 'same', or 'none'.`,
+    `'mirror'`,
+    `Effect for back/forward. 'mirror': Back plays the exact reverse of the effect that brought you to the page, from the same point, and Forward replays it. 'reverse' (shatter becomes assemble and so on), 'same', or 'none'.`,
   ],
   ['seed', 'random', 'Makes fracture layouts and motion deterministic.'],
   [
@@ -145,6 +145,7 @@ await shatter.transition({
   origin: { x: 640, y: 360 },          // impact point, viewport px (default: centre)
   effect: 'flip',                      // per-call effect
   direction: 'forward',                // or 'back'
+  replace: false,                      // true: the commit replaces the history entry
   scroll: 'top',                       // 'top' | 'none' | { x, y }
 });
 
