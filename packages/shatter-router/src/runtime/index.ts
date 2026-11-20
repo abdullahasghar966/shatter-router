@@ -239,7 +239,9 @@ class Runtime implements ShatterRuntime {
   /** A debug seam check in progress: transitions wait for it. */
   private busy: Promise<unknown> | null = null;
   /** Which effect brought the user to each page (ADR-047). */
-  private readonly memory = new HistoryMemory(locationKey(window.location), sessionStore());
+  // Keyed to the page Shatter was created on: the lazy runtime may first load
+  // for a Back, when the URL has already changed.
+  private readonly memory: HistoryMemory;
   /** Effect objects passed in options or requests, by name (for the memory). */
   private readonly seen = new Map<string, ShatterEffect>();
   /** The capturer has captured once (warm), or a priming capture is on its way. */
@@ -251,6 +253,7 @@ class Runtime implements ShatterRuntime {
     private readonly deps: ShatterDeps,
   ) {
     this.settings = settingsFrom(host.options);
+    this.memory = new HistoryMemory(host.startKey, sessionStore());
     this.machine = new StateMachine(() => performance.now());
     this.hook = this.settings.debug ? this.installHook() : null;
     if (this.hook && this.settings.panel) this.openPanel(this.hook);
@@ -608,11 +611,6 @@ class Runtime implements ShatterRuntime {
     if (run.cancel.signal.aborted) throw new Cancelled();
   }
 
-  /**
-   * The effect to play: the request's or the default, mapped for back/forward
-   * navigations when `backForward` is `'reverse'`. User-registered effects
-   * (and effect objects) are never mapped.
-   */
   /**
    * Decides what a transition plays (ADR-047). Forward: the requested
    * effect. Back/forward through history, with `backForward: 'mirror'`
