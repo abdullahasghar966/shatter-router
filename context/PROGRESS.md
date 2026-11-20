@@ -19,8 +19,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 7   | Remaining effects             | ☑      | `milestone/07-effects`        | [#7](https://github.com/abdullahasghar966/shatter-router/pull/7) | `d6054ae` | `m07-effects` |
 | 8   | Rapier mode                   | ☑      | `milestone/08-rapier`         | [#8](https://github.com/abdullahasghar966/shatter-router/pull/8) | `13d4fb6` | `m08-rapier` |
 | 9   | Glass shading polish          | ☑      | `milestone/09-glass-shading`  | [#9](https://github.com/abdullahasghar966/shatter-router/pull/9) | `48476d2` | `m09-glass-shading` |
-| 10  | Performance pass              | ◐      | `milestone/10-performance`    |     |           |             |
-| 11  | Docs site                     | ☐      | `milestone/11-docs-site`      |     |           |             |
+| 10  | Performance pass              | ☑      | `milestone/10-performance`    | [#10](https://github.com/abdullahasghar966/shatter-router/pull/10) | `c3175ef` | `m10-performance` |
+| 11  | Docs site                     | ◐      | `milestone/11-docs-site`      |     |           |             |
 | 12  | Release readiness             | ☐      | `milestone/12-release`        |     |           |             |
 
 ## Installed dependency versions
@@ -82,6 +82,7 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | `shatter-router/react` (`dist/react.js`, incl. core) | 2.46 kB | 6 KB (ADR-027) | Milestone 5; react, react-dom excluded (peers) |
 | 2026-11-15 | `shatter-router/react-router` (`dist/react-router.js`, incl. core) | 3.35 kB | 6 KB (ADR-027) | Milestone 5; react-router excluded (peer) |
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
+| 2026-11-15 | runtime `dist/runtime.js` (lazy) | 7.76 kB | 8 KB | Milestone 11: + priming capture on first intent (ADR-043) |
 | 2026-11-15 | debug `dist/debug.js` (lazy, debug mode only) | 3.44 kB | 5 KB (own) | Milestone 10: debug panel and seam check (ADR-041). Runtime 7.55 kB of 8 KB (+0.32: panel loading, `exclusive()`, draw stats); engine 19.76 kB |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
@@ -292,9 +293,39 @@ Real GPU: `SHATTER_PERF=1 npx playwright test e2e/vanilla/performance.spec.ts --
 - **Capture:** 20.7–23.5 ms on `/effects` at 1440x900 (budget 120 ms on the docs landing page: re-measure in M11).
 - Headless Chromium (SwiftShader) for comparison: 31–34 fps for the falling effects, 13–15 fps for `flip`/`assemble`, long tasks 51–108 ms (software rasterising), draw calls still 1 per frame. Headless WebKit: 10.6–11.1 fps, no long tasks reported. These are environment limits, so CI prints the numbers without enforcing them.
 
+### Docs site (Milestone 11, `apps/docs`, ADR-042/043)
+
+**Capture on the docs landing page**, 1440x900, installed Chrome 157 headed on the RTX 4050 (`SHATTER_PERF=1 npx playwright test e2e/docs/landing.spec.ts --project=chromium --workers=1`; one pointer move, 1 s, then three hero clicks), 2026-11-15:
+
+| Build | Captures (ms) | Notes |
+|---|---|---|
+| First version (Newsreader with `opsz`, no priming) | 164.4 / 91.5 / 51.3; 170.5 / 92.6 / 51.2 | cold first capture over budget |
+| + priming capture on first intent (ADR-043) | 98.4 / 95.9 / 54.8; 118.4 / 205.7 / 134.2; 102.1 / 161.5 / 112.3 | heavy fonts still inlined into every capture |
+| + Newsreader without `opsz`, light preloads (final) | 82.3 / 83.7 / 50.6; 86.3 / 78.6 / 52.7; 87.9 / **156.2** / **129.1**; 86.0 / 81.3 / 50.5 | 10 of 12 ≤ 120 ms, median 82 ms |
+
+Probe (`coverage/capture-probe.mjs`, before the font change): with web fonts blocked, captures took 146.6 / 61.2 / 47.5 ms, against 163.2 / 100.3 / 53.5 ms with them. A CPU profile of the cold capture: 133 ms "(program)" (native style and SVG raster), 24 ms `getPropertyValue`, 21 ms `texImage2D`.
+
+Headless (software GL), first-frame seam on the landing page: Chromium 0.0008 %, WebKit 0.0000 % (raw 0.1168 %). Captures: Chromium 105–199 ms, WebKit 74–221 ms (before priming, software).
+
+**Lighthouse 12.6.0, mobile** (simulated slow 4G, 4× CPU), production build on localhost, installed Chrome 157:
+
+| Page | Performance | Accessibility | LCP | TBT | CLS |
+|---|---|---|---|---|---|
+| `/` | 97 (97) | 100 | 2.5 s | 20–30 ms | 0.001 |
+| `/effects` | 97 (97) | 100 | 2.5 s | 70–80 ms | 0 |
+| `/effects/flip` | 97 | 100 | 2.5 s | 30 ms | 0 |
+| `/playground` | 97 | 100 | 2.5 s | 90 ms | 0.002 |
+| `/docs` | 97 | 100 | 2.5 s | 30 ms | 0 |
+| `/docs/getting-started` | 97 | 100 | 2.5 s | 40 ms | 0.004 |
+| `/docs/api` | 97 | 100 | 2.5 s | 30 ms | 0.002 |
+| `/docs/custom-effects` | 97 | 100 | 2.5 s | 20 ms | 0 |
+| `/docs/performance` | 99 | 100 | 2.0 s | 30 ms | 0.002 |
+
+The way there: the first run scored 96/94 Performance, with Accessibility 86 on the playground (Tweakpane's inputs had no names). Splitting the italic and dropping its preload made pages with italic above the fold score 94 (LCP 3.0 s against 2.5 s). Inlining CSS changed little. Removing italic text above the fold gave 97 everywhere.
+
 ### Not measured yet
 
-Lighthouse, and capture on the docs landing page (M11).
+Nothing from section 8 is left. Re-run Lighthouse and the landing capture when the site changes (M12 README GIF).
 
 ## Test counts
 
@@ -309,4 +340,5 @@ Lighthouse, and capture on the docs landing page (M11).
 | 7 | 301 tests in 20 files (+ `effects.test.ts` 29: spring, every effect, incoming capture and substitution, `settled` pause, backForward) | + `e2e/vanilla/effects.spec.ts` 13 per engine (each effect plays, fractured first frame per effect, last-frame seams for flip/assemble, back = assemble). Local: Chromium + WebKit, full suite 165 passed, 9 skipped. PR #7 CI: Chromium 87 passed, Firefox 79, WebKit 79 |
 | 8 | 311 tests in 22 files (+ `rapier.test.ts` 8 with the real Rapier WASM, `rapier.bench.test.ts` 2) | + `e2e/vanilla/rapier.spec.ts` 4 per engine (Rapier shatter, floor pile, flip stays procedural, CSP without wasm-unsafe-eval stays procedural). Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #8 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
 | 9 | 318 tests in 23 files (+ `shading.test.ts` 7: tint parsing, fade-in, aberration, shader gates, options) | unchanged suites; every first/last-frame seam identical to M7. Local: Chromium + WebKit, full suite 173 passed, 9 skipped. PR #9 CI: Chromium 91 passed, Firefox 83, WebKit 83 |
-| 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged |
+| 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged. PR #10 CI (final run): Chromium 106 passed, Firefox 92 (14 skipped), WebKit 92 (14 skipped); CI allocations beyond boxed numbers: 0 B for shatter, implode, flip, assemble and 96 B for explode over 18–34 frames |
+| 11 | 335 tests in 26 files (+ `prime.test.ts` 4: one priming capture on the first intent and disposed, none after a transition, none with reduced motion, none after destroy) | + `e2e/docs/site.spec.ts` (every page with no console errors, header navigation with focus, every gallery card with its own effect incl. the custom `ripple-out`, the hero breaking in place, the playground panel/stage/copy, the 404 page) and `e2e/docs/landing.spec.ts` (landing seam, landing capture time). Local: Chromium + WebKit 223 passed, 15 skipped |

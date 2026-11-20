@@ -172,8 +172,12 @@ export class DomCapturer implements Capturer {
       // Bounds waiting for media and fetching assets.
       timeout: 2000,
     }).then((context) => {
-      if (this.destroyed) destroyContext(context);
-      else this.context = context;
+      if (this.destroyed) {
+        destroyContext(context);
+      } else {
+        context.sandbox ??= createSandbox(this.doc);
+        this.context = context;
+      }
       return context;
     });
     return this.contextPromise;
@@ -193,6 +197,30 @@ export class DomCapturer implements Capturer {
     context.onCloneNode = null;
     context.onCreateForeignObjectSvg = null;
   }
+}
+
+/**
+ * The hidden iframe modern-screenshot reads default styles from. The library
+ * makes its own by appending the frame and then setting `srcdoc`: navigating
+ * a frame that is already in the document adds a session-history entry in
+ * Firefox, so the user's next Back press went nowhere visible (PR #11 CI).
+ * A frame whose `srcdoc` is set before it is inserted loads as its initial
+ * navigation, which never adds history (ADR-044). Same attributes as the
+ * library's; `destroyContext` removes it.
+ */
+function createSandbox(doc: Document): HTMLIFrameElement | undefined {
+  const body = doc.body as HTMLElement | null;
+  if (!body) return undefined;
+  const sandbox = doc.createElement('iframe');
+  sandbox.width = '0';
+  sandbox.height = '0';
+  sandbox.style.visibility = 'hidden';
+  sandbox.style.position = 'fixed';
+  sandbox.setAttribute('aria-hidden', 'true');
+  sandbox.tabIndex = -1;
+  sandbox.srcdoc = '<!DOCTYPE html><meta charset="UTF-8"><title></title><body>';
+  body.append(sandbox);
+  return sandbox;
 }
 
 /** Entry point of the lazily loaded capture chunk. */
