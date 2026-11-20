@@ -15,6 +15,8 @@ export default defineConfig(
       '**/playwright-report/**',
       '**/test-results/**',
       '**/next-env.d.ts',
+      // Out-of-band tools (the README demo recorder), run by hand with Node.
+      'scripts/**',
     ],
   },
   js.configs.recommended,

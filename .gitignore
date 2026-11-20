@@ -31,3 +31,4 @@ Thumbs.db
 
 # local tooling
 .claude/
+.vercel/

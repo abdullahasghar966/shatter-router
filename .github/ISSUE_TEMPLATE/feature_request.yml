@@ -1,0 +1,20 @@
+name: Feature request
+description: An idea for an option, an effect, an adapter or anything else.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The situation and why the current API doesn't cover it.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like
+      description: The API or behaviour you have in mind. Sketches welcome.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
