@@ -25,7 +25,7 @@ That's it: every `ShatterLink` navigation now captures the page, puts it under g
 - **Seamless.** The first frame of every effect is the page itself: a capture of the live DOM on a pixel-exact camera. Seam tests on Chromium, Firefox and WebKit keep it under 0.5 % of pixels.
 - **Six ways to break.** `shatter`, `explode`, `implode`, `flip`, `assemble`, plus a public effect interface (8 floats per shard and a GLSL function) for your own.
 - **Glass that looks like glass.** Crack propagation, thickness, edge light, a glint, colour fringing on fast shards, all exactly zero at rest.
-- **Any router.** `shatter-router` (vanilla), `/react`, `/react-router`, `/next`; back/forward with scroll restoration; the Next adapter waits for `loading.tsx` boundaries to settle.
+- **Any router.** `shatter-router` (vanilla), `/react`, `/react-router`, `/next`; Back plays the exact reverse of the effect that brought you to a page, Forward replays it, with scroll restoration; the Next adapter waits for `loading.tsx` boundaries to settle.
 - **Real physics, optionally.** `physics: rapier({ floor: true })` drops the shards into Rapier, loaded only when used.
 - **Always navigates.** No WebGL2, reduced motion (a 200 ms crossfade instead), a slow capture, a strict CSP, an error anywhere: the page still changes.
 - **Accessible.** Focus moves to the new page's heading, the new title is announced, Escape skips, links keep their native behaviour (modifier clicks, `target`, `download`).

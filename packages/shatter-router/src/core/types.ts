@@ -49,7 +49,15 @@ export interface ShatterOptions {
   reducedMotion?: 'crossfade' | 'instant' | 'ignore';
   /**
    * Effect for back/forward navigations (`direction: 'back'`):
-   * - `'reverse'` (default): the visual reverse where one exists: `shatter`,
+   * - `'mirror'` (default, ADR-047): Shatter remembers, per tab, which effect
+   *   and impact point brought the user to each page. Back plays the time
+   *   reverse of the effect that brought them to the page they leave (the
+   *   pieces of the earlier page fly back the way they left), from the same
+   *   point; Forward replays the effect. `flip` turns the other way,
+   *   `assemble` reverses as `shatter`; custom effects that end on the new
+   *   page run with `uDirection = -1`. Without a memory, the reverse of the
+   *   default effect;
+   * - `'reverse'`: the visual reverse where one exists: `shatter`,
    *   `explode` and `implode` become `assemble` (the new page flies together),
    *   `assemble` becomes `shatter`, `flip` turns the other way; custom effects
    *   play as they are, with `uDirection = -1`;
