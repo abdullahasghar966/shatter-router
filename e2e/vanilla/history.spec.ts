@@ -43,4 +43,20 @@ test.describe('vanilla example: back and forward', () => {
     await expect(page.locator('h1')).toHaveText('Links that behave.');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });
+
+  test('a capture adds no history entry (the capture sandbox frame, ADR-044)', async ({ page }) => {
+    await page.goto(`${BASE}/about${QUERY}`);
+    await page.goto(`${BASE}/work${QUERY}`);
+    await waitForShatterReady(page);
+    const before = await page.evaluate(() => history.length);
+    // The first pointer move primes the capturer (ADR-043): its first capture
+    // creates the hidden frame the capture library reads default styles from.
+    await page.mouse.move(300, 300);
+    await page.waitForFunction(() => document.querySelector('iframe[srcdoc]') !== null);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => history.length)).toBe(before);
+    // Back leaves the page at once (no invisible frame entry to go through first).
+    await page.goBack();
+    await expect(page).toHaveURL(`${BASE}/about${QUERY}`);
+  });
 });

@@ -436,3 +436,12 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Alternatives considered:** a priming capture at idle after load (a 150 ms long task on every visit); priming inside the capturer's `warmUp` (same problem); `font-display: optional` (first visits would show the fallback face).
 - **Consequences:** Measured (12 captures, 4 runs, after one pointer move and 1 s): 48–88 ms, median 82 ms; 2 outliers of 129 and 156 ms in one run (cause not isolated; the capture is wall-clock time across async image decoding). The e2e assertion uses each run's median. If a visitor clicks within a few ms of their very first pointer move, the click's capture is still the cold one. Lighthouse mobile: 97–99 Performance, 100 Accessibility on every main page.
 
+## ADR-044 — The capturer makes modern-screenshot's sandbox frame itself
+
+- **Date:** 2026-11-20
+- **Status:** accepted
+- **Context:** PR #11 CI, Firefox: the Next example's "same-page hash link" test found `page.goBack()` still on `#links`. The retry logged "This page is in Quirks Mode" from `about:blank`. modern-screenshot 4.7.0 (`getSandBox`, `dist/index.mjs` lines 660–679) creates its hidden default-styles iframe on the first capture by appending it to `<body>` and only then setting `srcdoc`. Navigating a frame that is already in the document adds a joint session-history entry in Firefox: the next Back press goes "back" inside the invisible frame. This always happened on the first capture of a page; the priming capture (ADR-043) moved that capture to an idle moment, right before the test pressed Back.
+- **Decision:** `DomCapturer` creates the frame itself as soon as the library context exists: same attributes (0×0, hidden, `position: fixed`) plus `aria-hidden` and `tabindex=-1`, with `srcdoc` set **before** insertion, so it loads as the frame's initial navigation (no history entry). It's handed to the library as `context.sandbox`, which the library uses when present and removes in `destroyContext`.
+- **Alternatives considered:** filtering the warning and the URL in the test (it is a real Back-button bug); a patched modern-screenshot (a fork to maintain); creating the frame lazily on the first capture (same timing as before).
+- **Consequences:** E2E `history.spec.ts` checks on every engine that a capture leaves `history.length` unchanged and that Back leaves the page at once. Bumping modern-screenshot needs a look at `getSandBox`.
+
