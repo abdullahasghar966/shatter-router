@@ -1,16 +1,15 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 3, Milestone 12 built, deployed and verified; its PR is the last open step)
+- **Last updated:** 2026-11-20 (session 3, all 13 milestones merged and tagged; the project is complete)
 - **Session:** 3
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045)
 
 ## Where we are
 
-- **Current milestone:** 12 — Release readiness (complete locally and deployed; PR, CI, merge and tag next)
-- **Current branch:** `milestone/12-release` (from `main` at `ecb969c`)
-- **Last commit:** see `git log -1` (`chore(release): deploy the docs site to Vercel and close out milestone 12`)
-- **Latest tag:** `m11-docs-site` (on `ecb969c`)
+- **Current milestone:** none. M12 Release readiness merged (PR #12, `9e2777a`, tag `m12-release`); this record goes in through `docs/context-12`.
+- **Current branch:** `main` once `docs/context-12` is merged.
+- **Latest tag:** `m12-release` (on `9e2777a`)
 
 ## Done so far
 
@@ -20,7 +19,7 @@
 
 ## Next steps
 
-1. **Ritual for M12:** PR "Milestone 12: Release readiness", three-engine CI, merge `--merge`, tag `m12-release` on `main`, record the PR, merge commit and tag in PROGRESS (row 12 and the Definition-of-done row "All 13 milestones").
+1. ~~Ritual for M12~~ **done**: PR #12 merged (`9e2777a`), tag `m12-release`, recorded in PROGRESS; every Definition-of-done item is met.
 2. **For the user to decide (not done on purpose):** publish to npm (`pnpm release` runs `pnpm build && changeset publish`; needs the user's npm login), and connect the GitHub repository to the Vercel project for automatic deploys (`npx vercel@62.1.0 git connect`, or in the Vercel dashboard). Until then, redeploy with `npx --yes vercel@62.1.0 deploy --prod --yes` from the repo root (the CLI is signed in on this machine; `.vercel/` links the project).
 3. After any change to the site: re-run Lighthouse and the landing capture (`e2e/docs/landing.spec.ts` with `SHATTER_PERF=1`) and update `apps/docs/lib/measurements.ts` and PROGRESS.
 
@@ -46,7 +45,7 @@
 cd "D:\Shatter Router"
 git fetch --all --tags
 git status
-git switch milestone/12-release
+git switch main
 pnpm install
 pnpm build
 pnpm build:examples
