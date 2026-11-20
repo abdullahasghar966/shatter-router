@@ -56,7 +56,7 @@ export interface ShatterOptions {
    * - `'same'`: the same effect as forward (with `uDirection = -1`);
    * - `'none'`: no effect, the page swaps instantly (fallback reason `'disabled'`).
    */
-  backForward?: 'reverse' | 'same' | 'none';
+  backForward?: 'mirror' | 'reverse' | 'same' | 'none';
   /** Makes fracture layouts and motion deterministic. Default: random each time. */
   seed?: number;
   /**
@@ -88,6 +88,8 @@ export interface TransitionRequest {
   origin?: Point;
   /** Per-call effect override. */
   effect?: string | ShatterEffect;
+  /** Replace the current history entry instead of adding one (navigation memory, ADR-047). */
+  replace?: boolean;
   /** Navigation direction. Default `'forward'`. */
   direction?: 'forward' | 'back';
   /**
