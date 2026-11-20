@@ -236,6 +236,7 @@ describe('Next.js adapter', () => {
     expect(seen).toEqual(['About']);
     expect(app.pushes).toEqual(['/about']);
     expect(shatter.requests[0]?.effect).toBe('implode');
+    expect(shatter.requests[0]?.replace).toBe(true);
   });
 
   it('holds back/forward until captured, then lets the router render', async () => {

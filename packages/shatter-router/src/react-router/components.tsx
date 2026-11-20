@@ -209,6 +209,7 @@ function useRouterTransition(): (
       const hash = hashOf(to);
       await context.transition({
         commit: () => bridge.commit(go, hash ? { hash } : {}),
+        ...(navigateOptions.replace ? { replace: true } : {}),
         ...(hash ? { scroll: 'none' as const } : {}),
         ...(origin ? { origin } : {}),
         ...(effect ? { effect } : {}),

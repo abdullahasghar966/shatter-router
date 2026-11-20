@@ -178,6 +178,7 @@ describe('React Router adapter, declarative mode', () => {
     await click(anchor(container, 'About'));
     await settle();
     expect(shatter.committed).toHaveLength(1);
+    expect(shatter.requests[0]?.replace).toBe(true);
     expect(actions).toHaveLength(2);
   });
 

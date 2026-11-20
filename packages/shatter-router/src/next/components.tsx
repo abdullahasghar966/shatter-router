@@ -210,6 +210,7 @@ function useNextTransition(): ShatterNavigateFunction {
       const keepScroll = options.scroll === false || url.hash !== '';
       await context.transition({
         commit: () => adapter.commit(href, replace),
+        ...(replace ? { replace: true } : {}),
         ...(keepScroll ? { scroll: 'none' as const } : {}),
         ...(options.origin ? { origin: options.origin } : {}),
         ...(options.effect ? { effect: options.effect } : {}),
