@@ -55,6 +55,7 @@ struct Shard {
   vec2 center;     // "centroid" is a reserved word in GLSL ES 3.00
   vec4 a;
   vec4 b;
+  float order;     // 0 first .. 1 last, by the effect's stagger (ADR-048)
 };
 
 struct Pose {
@@ -145,6 +146,7 @@ void main() {
   shard.center = aCentroid;
   shard.a = texelFetch(uShardData, ivec2(0, id), 0);
   shard.b = texelFetch(uShardData, ivec2(1, id), 0);
+  shard.order = texelFetch(uShardData, ivec2(2, id), 0).x;
 
   Pose pose = restPose();
   vec2 velocity = vec2(0.0);

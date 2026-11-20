@@ -48,7 +48,7 @@ export const flipEffect: ShatterEffect = {
       const o = i * SHARD_ATTRIBUTE_FLOATS;
       data[o] = Math.cos(angle);
       data[o + 1] = Math.sin(angle);
-      data[o + 2] = r * STAGGER * total;
+      data[o + 2] = (ctx.order[i] ?? r) * STAGGER * total;
       data[o + 3] = FLIP * total;
     });
     return { data };

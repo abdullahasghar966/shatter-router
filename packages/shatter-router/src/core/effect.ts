@@ -2,7 +2,8 @@
  * The public effect plugin interface (master prompt, section 6).
  *
  * An effect decides how each shard moves. The engine breaks the page into
- * Voronoi shards, asks the effect for 8 floats of per-shard data, uploads them
+ * shards with the effect's fracture `pattern` (Voronoi `impact` by default),
+ * orders them by its `stagger`, asks the effect for 8 floats of per-shard data, uploads them
  * to a float texture and runs the effect's GLSL `shardMotion` function in the
  * vertex shader for every vertex of every shard, every frame, in one draw
  * call. All built-in effects are written against this interface only.
@@ -29,6 +30,7 @@
  *                    // (not "centroid": that is a reserved word in GLSL ES 3.00)
  *   vec4 a;          // floats 0..3 of this shard's ShardAttributes
  *   vec4 b;          // floats 4..7
+ *   float order;     // 0 (first) .. 1 (last) by the effect's stagger: ctx.order[id]
  * };
  * struct Pose {
  *   vec3 translate;  // CSS px, added to the centre; +z points at the viewer
@@ -126,6 +128,43 @@ export interface FractureContext {
   readonly random: Random;
 }
 
+/**
+ * The order in which shards start (ADR-048), as `EffectContext.order`:
+ * `'radial'` (default) from the impact point outward; `'linear'` across the
+ * page (left to right, or along `angle` degrees, 90 = top to bottom);
+ * `'spiral'` around the impact point; `'random'`; `'reading-order'` row by
+ * row, left to right.
+ */
+export type Stagger =
+  | 'radial'
+  | 'linear'
+  | 'spiral'
+  | 'random'
+  | 'reading-order'
+  | { readonly type: 'linear'; readonly angle: number };
+
+/**
+ * An effect put together from parts (ADR-048), usable wherever an effect
+ * name or object is: `effect: { motion: 'explode', stagger: 'linear' }`. The
+ * parts load on demand.
+ */
+export interface EffectComposition {
+  /** Name for `registerEffect`, links and the navigation memory. Default: derived from the parts. */
+  readonly name?: string;
+  /** How the shards move: a built-in effect name or a registered effect. */
+  readonly motion: string;
+  /** Fracture pattern. Default: the motion's own (`'impact'`). */
+  readonly pattern?: string;
+  /** Surface. Only `'glass'` so far. */
+  readonly material?: 'glass';
+  /** Order in which shards start. Default: the motion's own (`'radial'`). */
+  readonly stagger?: Stagger;
+  readonly timing?: {
+    /** Motion length in ms. Default: the motion's own. */
+    readonly duration?: number;
+  };
+}
+
 /** Everything an effect knows when it builds per-shard data and decides completion. */
 export interface EffectContext {
   readonly width: number;
@@ -146,6 +185,12 @@ export interface EffectContext {
   /** Camera distance from the z = 0 plane, CSS px (for projecting positions). */
   readonly cameraZ: number;
   readonly random: Random;
+  /**
+   * Per shard (by index), when it starts relative to the others: 0 first, 1
+   * last, from the effect's `stagger` (radial by default: the distance from
+   * the impact point over `maxRadius`). Also `Shard.order` in GLSL.
+   */
+  readonly order: Float32Array;
 }
 
 /** Floats per shard in `ShardAttributes.data`: two vec4 (`Shard.a`, `Shard.b`). */
@@ -177,7 +222,11 @@ export interface ShatterEffect {
   readonly layers?: 1 | 2;
   /** Preferred motion length in ms when the user did not set `duration`. */
   readonly duration?: number;
-  /** Custom seed layout `[x0, y0, x1, y1, …]`; default is impact-biased blue noise. */
+  /** Fracture pattern (ADR-048). Default `'impact'`: Voronoi cells, denser near the impact. */
+  readonly pattern?: string;
+  /** Order in which shards start, as `EffectContext.order`. Default `'radial'`. */
+  readonly stagger?: Stagger;
+  /** Custom seed layout `[x0, y0, x1, y1, …]` for the `impact` pattern; default is impact-biased blue noise. */
   seedPoints?(ctx: FractureContext): Float32Array;
   /** Per-shard data for the vertex shader. */
   shardAttributes(ctx: EffectContext): ShardAttributes;

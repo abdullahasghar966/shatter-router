@@ -261,11 +261,12 @@ async function seamCheck(
       const wireframe = engine.wireframe;
       engine.wireframe = false;
       try {
+        const effect = await engine.loadEffect('shatter', new Map());
         const captured = live ? null : pixelsOf(snapshot.source);
         await engine.cover(snapshot);
         const { count } = engine.resolveShardCount(host.shards, snapshot.duration);
         engine.fracture({
-          effect: engine.resolveEffect('shatter', new Map()),
+          effect,
           origin: { x: viewport.width / 2, y: viewport.height / 2 },
           count,
           thickness: host.thickness,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
-import type { ShatterEffect } from '../core/effect';
+import type { EffectSource } from '../core/compose';
 import { classifyLinkClick, getLinkEffect } from '../core/links';
 import { createShatter } from '../core/shatter';
 import type { Point, Shatter, ShatterOptions } from '../core/types';
@@ -61,11 +61,7 @@ export function clickOrigin(event: MouseEvent<HTMLAnchorElement>): Point {
 }
 
 /** Starts a transition for an intercepted click on a link to `url`. */
-export type LinkStart = (
-  origin: Point,
-  effect: string | ShatterEffect | undefined,
-  url: URL,
-) => void;
+export type LinkStart = (origin: Point, effect: EffectSource | undefined, url: URL) => void;
 
 /**
  * The click handler of every Shatter link component. Runs the app's own
@@ -77,7 +73,7 @@ export type LinkStart = (
  */
 export function useShatterClick(
   onClick: ((event: MouseEvent<HTMLAnchorElement>) => void) | undefined,
-  effect: string | ShatterEffect | undefined,
+  effect: EffectSource | undefined,
   start: LinkStart | null,
 ): (event: MouseEvent<HTMLAnchorElement>) => void {
   return useCallback(

@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-import type { EffectState, ShatterEffect } from '../../src/core/effect';
+import { type EffectSource, effectName, isComposition } from '../../src/core/compose';
+import type { EffectComposition, EffectState, ShatterEffect } from '../../src/core/effect';
 import type { CapturerLike, EngineLike, Loaded, ShatterDeps } from '../../src/runtime/index';
 import type { Snapshot } from '../../src/core/snapshot';
 
@@ -74,7 +75,7 @@ export class FakeWorld {
   readonly calls: string[] = [];
   /** The shading the runtime set on the engine (glassTint, chromatic). */
   shading: { tint: readonly [number, number, number]; chromatic: boolean } | null = null;
-  /** Effect names passed to resolveEffect, in order. */
+  /** Effect names passed to loadEffect, in order. */
   readonly resolved: string[] = [];
   /** Impact points passed to fracture, in order. */
   readonly origins: ({ x: number; y: number } | undefined)[] = [];
@@ -112,24 +113,33 @@ export class FakeWorld {
       lastLoopStats: { frames: 61, durationMs: 1000, worstFrameMs: 17 },
       drawStats: { calls: 0, frames: 0 },
       readPixels: () => ({ width: 2, height: 1, data: new Uint8Array(8) }),
-      resolveEffect(
-        effect: string | ShatterEffect,
-        registered: ReadonlyMap<string, ShatterEffect>,
+      async loadEffect(
+        effect: EffectSource,
+        registered: ReadonlyMap<string, ShatterEffect | EffectComposition>,
       ) {
-        world.calls.push('resolveEffect');
-        if (typeof effect !== 'string') return effect;
-        world.resolved.push(effect);
-        const registeredEffect = registered.get(effect);
-        if (registeredEffect) return registeredEffect;
+        world.calls.push('loadEffect');
+        await Promise.resolve();
+        if (typeof effect !== 'string' && !isComposition(effect)) return effect;
+        const name = effectName(effect);
+        world.resolved.push(name);
+        const found = registered.get(name);
+        const spec = typeof effect === 'string' ? found : effect;
+        if (spec && !isComposition(spec)) return spec;
+        // A composition takes its motion's needs.
+        const motion = spec ? spec.motion : name;
+        const own = registered.get(motion);
+        if (own && !isComposition(own)) return { ...own, name };
         // '<name>:reverse' wraps a known effect and always needs the new page.
-        const base = effect.endsWith(':reverse') ? effect.slice(0, -':reverse'.length) : null;
+        const base = motion.endsWith(':reverse') ? motion.slice(0, -':reverse'.length) : null;
         if (base !== null && (registered.has(base) || base in FAKE_BUILT_INS)) {
-          return { ...testEffect, name: effect, needsIncomingSnapshot: true };
+          return { ...testEffect, name, needsIncomingSnapshot: true };
         }
-        const needsIncoming = FAKE_BUILT_INS[effect];
-        if (needsIncoming === undefined) throw new Error(`Unknown effect "${effect}"`);
-        return { ...testEffect, name: effect, needsIncomingSnapshot: needsIncoming };
+        const needsIncoming = FAKE_BUILT_INS[motion];
+        if (needsIncoming === undefined) throw new Error(`Unknown effect "${motion}"`);
+        return { ...testEffect, name, needsIncomingSnapshot: needsIncoming };
       },
+      /** Fetching chunks ahead of time is not observable in these tests. */
+      preloadEffect: () => Promise.resolve(),
       resolveShardCount: () => ({ count: 40, tier: 'low' as const }),
       async cover() {
         world.calls.push('cover');

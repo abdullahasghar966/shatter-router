@@ -24,7 +24,7 @@ import {
   type NavLinkProps,
   type To,
 } from 'react-router';
-import type { ShatterEffect } from '../core/effect';
+import type { EffectSource } from '../core/compose';
 import type { Point, Shatter, ShatterOptions, TransitionRequest } from '../core/types';
 import { ShatterContext, type ShatterContextValue } from '../react/context';
 import {
@@ -178,7 +178,7 @@ export interface ShatterNavigateOptions extends Omit<
   'flushSync' | 'viewTransition'
 > {
   /** Effect for this navigation. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   /** Impact point in viewport coordinates. Default: the viewport centre. */
   origin?: Point;
 }
@@ -192,7 +192,7 @@ function useRouterTransition(): (
   to: To,
   navigateOptions: RouterNavigateOptions,
   origin: Point | undefined,
-  effect: string | ShatterEffect | undefined,
+  effect: EffectSource | undefined,
 ) => Promise<void> {
   const context = useContext(ShatterContext);
   const bridge = useContext(BridgeContext);
@@ -275,7 +275,7 @@ function useLinkStart(
 
 export interface ShatterLinkProps extends Omit<LinkProps, 'viewTransition'> {
   /** Effect for this link. Default: `data-shatter-effect` on the link or an ancestor, else the provider's. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   ref?: Ref<HTMLAnchorElement>;
 }
 
@@ -292,7 +292,7 @@ export function ShatterLink({ effect, onClick, ref, ...props }: ShatterLinkProps
 
 export interface ShatterNavLinkProps extends Omit<NavLinkProps, 'viewTransition'> {
   /** Effect for this link. Default: `data-shatter-effect` on the link or an ancestor, else the provider's. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   ref?: Ref<HTMLAnchorElement>;
 }
 

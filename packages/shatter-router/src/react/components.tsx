@@ -7,7 +7,7 @@ import {
   type Ref,
 } from 'react';
 import { flushSync } from 'react-dom';
-import type { ShatterEffect } from '../core/effect';
+import type { EffectSource } from '../core/compose';
 import type { Point, Shatter, ShatterOptions, TransitionRequest } from '../core/types';
 import { ShatterContext, type RouterNavigateInfo, type ShatterContextValue } from './context';
 import {
@@ -80,7 +80,7 @@ export function useShatter(): Shatter | null {
 
 export interface ShatterNavigateOptions {
   /** Effect for this navigation. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   /** Impact point in viewport coordinates. Default: the viewport centre. */
   origin?: Point;
   /** Replace the current history entry. Default false. */
@@ -137,7 +137,7 @@ export interface ShatterLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement
   /** A real URL: rendered as is, so the link works without JavaScript. */
   href: string;
   /** Effect for this link. Default: `data-shatter-effect` on the link or an ancestor, else the provider's. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   /** Replace the current history entry. */
   replace?: boolean;
   /** History state for the new entry. */

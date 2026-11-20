@@ -20,12 +20,14 @@ import { flipEffect } from '../src/engine/effects/flip';
 import { implodeEffect } from '../src/engine/effects/implode';
 import { shatterEffect } from '../src/engine/effects/shatter';
 import { fracture } from '../src/engine/fracture';
-import { BUILT_IN_EFFECTS } from '../src/engine/index';
+import { impactPattern } from '../src/engine/patterns/impact';
+import { staggerOrder } from '../src/engine/stagger';
+import { BUILT_IN_EFFECT_NAMES } from '../src/engine/index';
 import { createShatterWith } from '../src/runtime/index';
 import { FakeWorld, gate, until } from './helpers/fakes';
 
 function context(overrides: Partial<EffectContext> = {}): EffectContext {
-  const geometry = fracture({
+  const geometry = fracture(impactPattern, {
     width: 1440,
     height: 900,
     origin: { x: 700, y: 400 },
@@ -46,6 +48,7 @@ function context(overrides: Partial<EffectContext> = {}): EffectContext {
     direction: 'forward',
     cameraZ: 900 / 2 / Math.tan((40 * Math.PI) / 360),
     random: mulberry32(11),
+    order: staggerOrder('radial', geometry),
     ...overrides,
   };
 }
@@ -85,7 +88,7 @@ const NEW_EFFECTS = [explodeEffect, implodeEffect, flipEffect, assembleEffect];
 
 describe('built-in effects', () => {
   it('are all registered by name', () => {
-    expect([...BUILT_IN_EFFECTS.keys()].sort()).toEqual(
+    expect([...BUILT_IN_EFFECT_NAMES].sort()).toEqual(
       ['assemble', 'explode', 'flip', 'implode', 'shatter'].sort(),
     );
   });
@@ -204,7 +207,7 @@ describe('runtime: effects that end on the incoming page', () => {
     const shatter = create(world, { effect: 'flip' });
     await shatter.transition({ commit: () => undefined });
     expect(world.calls).toEqual([
-      'resolveEffect',
+      'loadEffect',
       'capture',
       'cover',
       'fracture',

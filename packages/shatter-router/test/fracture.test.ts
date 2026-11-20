@@ -8,11 +8,10 @@ import {
   fracture,
   MAX_SHARDS,
   MIN_SHARDS,
-  sampleSeeds,
   TIER_SHARDS,
   VERTEX_LAYOUT,
-  voronoiShards,
 } from '../src/engine/fracture';
+import { impactPattern, sampleSeeds, voronoiShards } from '../src/engine/patterns/impact';
 
 const W = 1440;
 const H = 900;
@@ -36,14 +35,14 @@ describe('fracture geometry', () => {
 
   it.each(origins)('conserves area within 0.01 % (origin %o)', (origin) => {
     for (const count of [12, 40, 160, 400]) {
-      const geometry = fracture({ width: W, height: H, origin, count, seed: 7 });
+      const geometry = fracture(impactPattern, { width: W, height: H, origin, count, seed: 7 });
       const total = geometry.shards.reduce((sum, shard) => sum + shard.area, 0);
       expect(Math.abs(total - W * H) / (W * H)).toBeLessThan(1e-4);
     }
   });
 
   it('gives every cell at least 3 vertices and a counter-clockwise (on screen) ring', () => {
-    const geometry = fracture({
+    const geometry = fracture(impactPattern, {
       width: W,
       height: H,
       origin: { x: 500, y: 300 },
@@ -63,7 +62,13 @@ describe('fracture geometry', () => {
   });
 
   it('keeps every UV in [0, 1] and every vertex inside the viewport', () => {
-    const geometry = fracture({ width: W, height: H, origin: { x: 0, y: 0 }, count: 400, seed: 3 });
+    const geometry = fracture(impactPattern, {
+      width: W,
+      height: H,
+      origin: { x: 0, y: 0 },
+      count: 400,
+      seed: 3,
+    });
     const { vertices, vertexCount } = geometry;
     for (let v = 0; v < vertexCount; v++) {
       const o = v * FLOATS_PER_VERTEX;
@@ -86,10 +91,28 @@ describe('fracture geometry', () => {
   });
 
   it('is deterministic with a seed and varies without one', () => {
-    const a = fracture({ width: W, height: H, origin: { x: 300, y: 200 }, count: 90, seed: 42 });
-    const b = fracture({ width: W, height: H, origin: { x: 300, y: 200 }, count: 90, seed: 42 });
+    const a = fracture(impactPattern, {
+      width: W,
+      height: H,
+      origin: { x: 300, y: 200 },
+      count: 90,
+      seed: 42,
+    });
+    const b = fracture(impactPattern, {
+      width: W,
+      height: H,
+      origin: { x: 300, y: 200 },
+      count: 90,
+      seed: 42,
+    });
     expect(Array.from(b.vertices)).toEqual(Array.from(a.vertices));
-    const c = fracture({ width: W, height: H, origin: { x: 300, y: 200 }, count: 90, seed: 43 });
+    const c = fracture(impactPattern, {
+      width: W,
+      height: H,
+      origin: { x: 300, y: 200 },
+      count: 90,
+      seed: 43,
+    });
     expect(Array.from(c.vertices)).not.toEqual(Array.from(a.vertices));
   });
 
@@ -109,7 +132,7 @@ describe('fracture geometry', () => {
   });
 
   it('packs shards near the impact (small near, large far)', () => {
-    const geometry = fracture({
+    const geometry = fracture(impactPattern, {
       width: W,
       height: H,
       origin: { x: 720, y: 450 },
@@ -125,7 +148,7 @@ describe('fracture geometry', () => {
 
   it('rejects slivers: seeds keep their distance and cells stay chunky', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
-      const geometry = fracture({
+      const geometry = fracture(impactPattern, {
         width: W,
         height: H,
         origin: { x: 640, y: 380 },
@@ -166,7 +189,7 @@ describe('fracture geometry', () => {
 
   it('uses a custom seed layout when given', () => {
     const seedPoints = Float32Array.from([200, 150, 600, 150, 200, 450, 600, 450]);
-    const geometry = fracture({
+    const geometry = fracture(impactPattern, {
       width: 800,
       height: 600,
       origin: { x: 0, y: 0 },
@@ -178,7 +201,7 @@ describe('fracture geometry', () => {
   });
 
   it('clamps an impact point outside the viewport', () => {
-    const geometry = fracture({
+    const geometry = fracture(impactPattern, {
       width: 800,
       height: 600,
       origin: { x: -50, y: 9000 },
@@ -189,9 +212,9 @@ describe('fracture geometry', () => {
   });
 
   it('rejects an empty viewport', () => {
-    expect(() => fracture({ width: 0, height: 600, origin: { x: 0, y: 0 }, count: 40 })).toThrow(
-      RangeError,
-    );
+    expect(() =>
+      fracture(impactPattern, { width: 0, height: 600, origin: { x: 0, y: 0 }, count: 40 }),
+    ).toThrow(RangeError);
   });
 });
 

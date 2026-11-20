@@ -98,7 +98,7 @@ describe('state machine: the full pipeline', () => {
     ]);
     expect(shatter.state).toBe('idle');
     expect(world.calls).toEqual([
-      'resolveEffect',
+      'loadEffect',
       'capture',
       'cover',
       'fracture',

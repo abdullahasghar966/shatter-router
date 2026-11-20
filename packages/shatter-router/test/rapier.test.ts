@@ -6,6 +6,7 @@ import {
   type PhysicsShard,
 } from '../src/core/physics';
 import { fracture } from '../src/engine/fracture';
+import { impactPattern } from '../src/engine/patterns/impact';
 import { createRapierBackend } from '../src/rapier/backend';
 import { rapier } from '../src/rapier/index';
 import { MAX_STEPS, RapierSimulation, STEP } from '../src/rapier/simulation';
@@ -14,7 +15,7 @@ const WIDTH = 800;
 const HEIGHT = 600;
 
 function setup(overrides: Partial<PhysicsSetup> = {}, delay = 0): PhysicsSetup {
-  const geometry = fracture({
+  const geometry = fracture(impactPattern, {
     width: WIDTH,
     height: HEIGHT,
     origin: { x: 400, y: 300 },

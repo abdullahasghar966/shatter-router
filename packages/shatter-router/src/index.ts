@@ -17,6 +17,7 @@ export type { ScrollTarget } from './core/ready';
 export type { ScrollLock } from './core/scroll-lock';
 export { SHARD_ATTRIBUTE_FLOATS } from './core/effect';
 export type {
+  EffectComposition,
   EffectContext,
   EffectPoint,
   EffectState,
@@ -25,6 +26,7 @@ export type {
   ShardAttributes,
   ShardInfo,
   ShatterEffect,
+  Stagger,
 } from './core/effect';
 export { classifyLinkClick, findAnchor, getLinkEffect } from './core/links';
 export type { LinkClickDecision, LinkClickEvent, LinkLocation, LinkSkipReason } from './core/links';

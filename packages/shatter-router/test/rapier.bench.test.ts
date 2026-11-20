@@ -2,6 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { PHYSICS_TRANSFORM_FLOATS, type PhysicsShard } from '../src/core/physics';
 import { fracture } from '../src/engine/fracture';
+import { impactPattern } from '../src/engine/patterns/impact';
 import { RapierSimulation, STEP } from '../src/rapier/simulation';
 
 // Reports the cost of one frame of physics (one fixed step plus the transform
@@ -12,7 +13,7 @@ beforeAll(async () => {
 });
 
 function shards(): PhysicsShard[] {
-  const geometry = fracture({
+  const geometry = fracture(impactPattern, {
     width: 1440,
     height: 900,
     origin: { x: 700, y: 400 },

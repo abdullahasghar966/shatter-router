@@ -40,6 +40,13 @@ export default defineConfig({
     capture: 'src/capture/index.ts',
     'rapier-backend': 'src/rapier/backend.ts',
     debug: 'src/debug/index.ts',
+    // Effect parts, one chunk each, loaded on first use (ADR-048).
+    'effects/shatter': 'src/engine/effects/shatter.ts',
+    'effects/explode': 'src/engine/effects/explode.ts',
+    'effects/implode': 'src/engine/effects/implode.ts',
+    'effects/flip': 'src/engine/effects/flip.ts',
+    'effects/assemble': 'src/engine/effects/assemble.ts',
+    'patterns/impact': 'src/engine/patterns/impact.ts',
   },
   // Optional peers stay external. tsup's automatic peer handling missed this
   // scoped one and inlined 4.2 MB of Rapier (LEARNINGS).
