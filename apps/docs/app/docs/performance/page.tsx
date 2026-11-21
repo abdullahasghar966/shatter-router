@@ -108,9 +108,9 @@ export default function Performance(): ReactNode {
         A capture copies every element of the page with its computed style, and inlines the web
         fonts it draws. Shatter Router already inlines only the font files whose characters the page
         uses and leaves your CSS custom properties out of the copy. What is left is up to the page:
-        each element and especially each pseudo-element (<code>::before</code>,{' '}
-        <code>::after</code>) adds a little to every navigation. Prefer backgrounds and borders for
-        decoration, and avoid splitting text into one element per letter.
+        each element and especially each pseudo-element (<code>::before</code>, <code>::after</code>
+        ) adds a little to every navigation. Prefer backgrounds and borders for decoration, and
+        avoid splitting text into one element per letter.
       </p>
 
       <h2>No garbage in the render loop</h2>
