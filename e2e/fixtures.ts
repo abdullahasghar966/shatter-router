@@ -24,9 +24,7 @@ const ENVIRONMENT_NOISE = [
  * effect" (it may lag a frame behind asynchronous panning). Firefox has no
  * scroll-driven animations by default, so the rail cannot avoid it there.
  */
-const SITE_NOTES = [
-  /scroll-linked positioning effect.*\{file: "http:\/\/localhost:4176\//,
-];
+const SITE_NOTES = [/scroll-linked positioning effect.*\{file: "http:\/\/localhost:4176\//];
 
 /**
  * Shared test fixture: every test fails if the page logs a console error or
