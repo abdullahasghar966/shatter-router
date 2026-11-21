@@ -98,10 +98,12 @@ export class DomCapturer implements Capturer {
     const context = await this.ensureContext();
     // Measure only after the await: the page may have scrolled meanwhile.
     const rootRect = doc.documentElement.getBoundingClientRect();
+    const win = doc.defaultView;
     const session = new CloneSession(doc, {
       width: viewport.width,
       height: viewport.height,
       rootRect,
+      scroll: { x: win?.scrollX ?? 0, y: win?.scrollY ?? 0 },
       layoutScale: this.layoutGrid === 'device' ? size.scale : 1,
     });
 

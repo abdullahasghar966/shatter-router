@@ -101,16 +101,20 @@ interface StickyFix {
 }
 
 /**
- * A scroll offset as the browser draws it: snapped to whole device pixels
- * (ADR-049). Firefox keeps fractional scroll positions (`scrollY` 240.75)
- * but paints the page shifted by a whole number of device pixels, so every
- * element keeps its own sub-pixel rounding. Shifting the copy by the exact
- * fraction instead rounds each line of text on its own, and some land a
- * pixel off. Chromium and WebKit already report whole-pixel offsets.
+ * How far a scrolled page is drawn shifted (ADR-049): the scroll amount
+ * rounded down to whole device pixels. Firefox keeps fractional scroll
+ * positions (`scrollY` 240.75) but paints the page shifted by the whole
+ * device pixels below it, so every element keeps its own sub-pixel rounding
+ * (measured in CI by e2e/vanilla/scroll-snap.spec.ts: rounding down matched
+ * the live page exactly at .25, .5 and .75; rounding to nearest did not).
+ * Shifting the copy by the exact fraction instead rounds each line of text on
+ * its own, and some land a pixel off. Chromium and WebKit report whole pixels.
  */
-export function snapScroll(offset: number, devicePixelRatio: number): number {
+export function snapScroll(scroll: number, devicePixelRatio: number): number {
   const ratio = devicePixelRatio > 0 ? devicePixelRatio : 1;
-  return Math.round(offset * ratio) / ratio;
+  // The epsilon keeps 480.99999999 (float noise for 481) from rounding down to 480.
+  const sign = scroll < 0 ? -1 : 1;
+  return (sign * Math.floor(Math.abs(scroll) * ratio + 1e-6)) / ratio;
 }
 
 export interface CloneGeometry {
@@ -119,6 +123,8 @@ export interface CloneGeometry {
   readonly height: number;
   /** Bounding box of the live root element, in viewport coordinates. */
   readonly rootRect: DOMRect;
+  /** The page's scroll position, read together with `rootRect`. */
+  readonly scroll: { readonly x: number; readonly y: number };
   /**
    * Factor the copy is laid out at: 1 to lay out in CSS pixels and let the
    * engine scale while rasterising, or the device scale to lay out in device pixels.
@@ -324,10 +330,14 @@ export class CloneSession {
     // WebKit (it misplaces layered HTML under SVG transforms) out of trouble,
     // and leaves the SVG viewport standing in for the real one, so
     // position: fixed content needs no correction.
-    // Snapped like the browser draws the scrolled page (ADR-049).
+    // By the scroll amount as the browser draws it, not its exact fraction
+    // (ADR-049): the root's own offset plus the dropped fraction.
+    const { scroll } = this.geometry;
     const ratio = this.win.devicePixelRatio;
-    clonedRoot.style.setProperty('margin-left', `${String(snapScroll(rootRect.left, ratio))}px`);
-    clonedRoot.style.setProperty('margin-top', `${String(snapScroll(rootRect.top, ratio))}px`);
+    const left = rootRect.left + scroll.x - snapScroll(scroll.x, ratio);
+    const top = rootRect.top + scroll.y - snapScroll(scroll.y, ratio);
+    clonedRoot.style.setProperty('margin-left', `${String(left)}px`);
+    clonedRoot.style.setProperty('margin-top', `${String(top)}px`);
     // Some engines snap box edges and glyphs to whole pixels of the grid the
     // SVG is laid out in. For those, lay the copy out in device pixels so the
     // snapping matches the live page.

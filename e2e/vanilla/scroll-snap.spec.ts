@@ -2,7 +2,7 @@ import { PNG } from 'pngjs';
 import { expect, test } from '../fixtures';
 
 /**
- * How does the browser paint a page scrolled to a fractional offset (ADR-049)?
+ * How the browser paints a page scrolled to a fractional offset (ADR-049).
  * Compares the live scrolled page with the same page unscrolled and pulled up
  * by a negative margin of the exact offset, or the offset rounded down, to
  * nearest, or up. The capture must shift its copy the way the browser paints.
@@ -61,8 +61,10 @@ test.describe('scroll offsets as painted (diagnostic for ADR-049)', () => {
       console.log(
         `[scroll-snap] ${testInfo.project.name} asked ${String(offset)} scrollY ${String(scrollY)}: ${JSON.stringify(results)}`,
       );
-      // One of the candidates must reproduce the live page exactly.
-      expect(Math.min(...Object.values(results))).toBe(0);
+      // The capture's rule (snapScroll: round down to device pixels) must
+      // reproduce the live page exactly. Firefox CI, 2026-11-21: floor 0 at
+      // .25, .5 and .75; round only at .25; exact and ceil never.
+      expect(results.floor).toBe(0);
     });
   }
 });
