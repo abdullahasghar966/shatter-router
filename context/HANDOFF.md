@@ -1,26 +1,30 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M15 merged and tagged; M16 starting)
+- **Last updated:** 2026-11-20 (session 4 end: M16 part 1 merged; part 2 next)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 16 — Motions and materials (`context/PLAN-PRODUCTION.md` sections 3.3–3.4; order M16 → M17 → M20 → M18 → M21)
-- **Current branch:** `milestone/16-motions` (from `main` at `fad5e63`)
-- **Latest tag:** `m15-patterns` (on `fad5e63`)
+- **Current milestone:** 16 — Motions and materials, part 2 (`context/PLAN-PRODUCTION.md` sections 3.3–3.4)
+- **Current branch:** `milestone/16-motions-2` (from `main` at `91b83d4`)
+- **Latest tag:** `m15-patterns` (on `fad5e63`). M16 is tagged `m16-motions` only when all its parts are merged.
 
 ## Done so far
 
-- Milestones 0–15 and 19 merged and tagged (`PROGRESS.md`; ADR-001..053). Live: https://shatter-router.vercel.app (Material lab redesign; eight fracture patterns).
+- Milestones 0–15 and 19 merged and tagged; M16 part 1 merged ([PR #19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`): `shatter` falls, `explode` blasts (ADR-054), `crackDuration`, web patterns aim at the requested count, `crackAt` allocation-free. Live: https://shatter-router.vercel.app.
 
-## Next steps (M16: motions and materials)
+## Next steps (M16 parts 2–3)
 
-1. **Shatter vs explode, unmistakable** (plan 3.3, the review's first complaint): `shatter` = `impact` cracks + `fall` (a long, visible crack phase, then the pane drops with little outward speed); `explode` = no crack, `radial` pattern, `blast` (white flash on impact, a shockwave ring bending the page outward, pieces flung at the camera with motion stretch, camera shake, then gravity). Side-by-side review of frozen frames.
-2. New motions in families (gravity: fall, crumble, rain; force: blast, vortex, wind, magnet; order: blinds, domino, slide, peel, fold; matter: dust, melt, ripple, glitch), each a lazy chunk with budget, true reverse (ADR-047) and seams; 0 B/frame allocations; 60 fps at 160 pieces on the GPU.
-3. Materials (glass, ice, mirror, obsidian, paper, metal, holo): shading parameters per material, zero lighting at rest (ADR-038); the site's material switcher then sets the transition's material too (ADR-050 left this to M16).
-4. Stagger/easing controls; docs and playground; ritual, tag `m16-motions`.
+1. **ADR-055, motion families** (plan 3.3), each motion a lazy chunk in `src/engine/effects/` registered in `plugins.ts` `MOTIONS`, with a size budget (2 kB) in `package.json`:
+   - gravity: `crumble` (bottom-up collapse), `rain` (columns drop; pairs with `strips`);
+   - force: `vortex` (spiral around the impact), `wind` (sweep with turbulence);
+   - order: `blinds` (strips rotate like shutters; pairs with `strips`), `domino` (cascade by order), `slide` (tiles slide out by stagger), `fold`;
+   - matter: `melt` (vertical drip), `ripple` (promote the docs' `ripple-out`), `glitch` (row offsets and RGB split).
+   Rules for each: the pose is exactly at rest at t = 0 (and every fragment term is 0); `isComplete` allocation-free; the shard data layout is 8 floats; delays from `ctx.order` so every stagger works; the time reverse ends on the page (ADR-047 wrapper); unit tests (attributes, t = 0 guards); e2e (plays and lands; first-frame seam; reverse last frame) — follow `e2e/vanilla/patterns.spec.ts` and `test/distinct.test.ts`.
+2. **ADR-056, materials** (plan 3.4): glass (today), ice, mirror, obsidian, paper, metal, holo as shading parameters (tint, rim, glint, chromatic, edge style) passed per transition (composition `material`), all lighting exactly 0 at rest (ADR-038). Then the site's material switcher (ADR-050) sets the transition material too.
+3. Stagger/easing controls in the playground (motion and material selects), docs tables, gallery entries per motion; production Lighthouse check; tag `m16-motions`.
 
 ## Deferred patterns (ADR-053)
 

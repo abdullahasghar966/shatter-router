@@ -368,7 +368,7 @@ Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scroll
 
 Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
 
-### Shatter vs explode (Milestone 16 part 1, 2026-11-22, ADR-054)
+### Shatter vs explode (Milestone 16 part 1, 2026-11-22, ADR-054; PR #19 merged `91b83d4`, CI green on all three engines, local 321 passed)
 
 - **Side by side (frozen frames at 40 / 180 / 420 ms, vanilla example, Chromium):** `shatter` shows the full crack web over the intact page, then pieces dropping near the impact, then a cascade of falling glass; `explode` shows a white flash and a spider web bursting toward the viewer, then pieces flung past the camera with motion stretch, then almost nothing left.
 - **Unit:** blast vs fall speeds ≥ 5× apart in the screen plane and in depth; `shatter` has no upward kick.
