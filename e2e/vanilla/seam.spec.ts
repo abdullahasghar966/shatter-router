@@ -117,8 +117,42 @@ test.describe('vanilla example: first-frame seam', () => {
     await expect(page.locator('h1')).toHaveText('Links that behave.');
   });
 
+  // A scroll offset between device pixels: browsers draw the page snapped to
+  // whole device pixels, so the capture must shift its copy the same way
+  // (ADR-049; Firefox CI measured 0.81–1.17 % before).
+  for (const offset of [240.25, 240.5, 240.75]) {
+    test(`scrolled to a fractional offset (${String(offset)} px)`, async ({ page }, testInfo) => {
+      await page.goto(`${BASE}/work${QUERY}`);
+      await waitForShatterReady(page);
+      const scrollY = await page.evaluate((y) => {
+        window.scrollTo(0, y);
+        return window.scrollY;
+      }, offset);
+      console.log(
+        `[scroll] ${testInfo.project.name} asked ${String(offset)}, scrollY ${String(scrollY)}`,
+      );
+      await seam(page, testInfo, `scrolled-${String(offset)}`, 'About', 'covered');
+      await expect(page.locator('h1')).toHaveText('Links that behave.');
+    });
+  }
+
   test.describe('at device pixel ratio 2', () => {
     test.use({ deviceScaleFactor: 2 });
+
+    for (const offset of [240.25, 240.75]) {
+      test(`scrolled to a fractional offset (${String(offset)} px)`, async ({ page }, testInfo) => {
+        await page.goto(`${BASE}/work${QUERY}`);
+        await waitForShatterReady(page);
+        const scrollY = await page.evaluate((y) => {
+          window.scrollTo(0, y);
+          return window.scrollY;
+        }, offset);
+        console.log(
+          `[scroll] ${testInfo.project.name} dpr2 asked ${String(offset)}, scrollY ${String(scrollY)}`,
+        );
+        await seam(page, testInfo, `scrolled-dpr2-${String(offset)}`, 'About', 'covered');
+      });
+    }
 
     test('texels map 1:1 to device pixels', async ({ page }, testInfo) => {
       await page.goto(`${BASE}/${QUERY}`);
