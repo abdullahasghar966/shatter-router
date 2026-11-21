@@ -132,6 +132,20 @@ describe.each(BUILT_IN_PATTERN_NAMES)('pattern %s (ADR-053)', (name) => {
   });
 });
 
+describe.each(['radial', 'rings'])('web pattern %s', (name) => {
+  // The web reaches past the corners: it must still put the requested number
+  // of pieces on the page (the frame-rate budget is measured at 160).
+  it.each([
+    { x: 720, y: 450 },
+    { x: 10, y: 10 },
+    { x: 1430, y: 450 },
+  ])('puts at least 85 % of 160 pieces on a 1440×900 page (impact $x,$y)', async (origin) => {
+    const pattern = await load(name);
+    const { shards } = fracture(pattern, { width: 1440, height: 900, origin, count: 160, seed: 2 });
+    expect(shards.length).toBeGreaterThanOrEqual(136);
+  });
+});
+
 describe('clipToBox (ADR-053)', () => {
   it('keeps a polygon inside, cuts one that crosses, drops one outside', () => {
     expect(clipToBox([10, 10, 20, 10, 20, 20, 10, 20], 100, 100)).toEqual([

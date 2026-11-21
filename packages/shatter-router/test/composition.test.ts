@@ -97,8 +97,8 @@ describe('stagger order (ADR-048)', () => {
     const linear = staggerOrder('linear', geometry);
     const data = shatterEffect.shardAttributes(context(linear)).data;
     geometry.shards.forEach((_, i) => {
-      // shatter: Shard.a.w = order × 0.12 s.
-      expect(data[i * 8 + 3]).toBeCloseTo((linear[i] ?? 0) * 0.12, 6);
+      // shatter: Shard.a.w = order × 0.22 s (ADR-054).
+      expect(data[i * 8 + 3]).toBeCloseTo((linear[i] ?? 0) * 0.22, 6);
     });
   });
 });

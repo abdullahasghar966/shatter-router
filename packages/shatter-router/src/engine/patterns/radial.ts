@@ -1,4 +1,4 @@
-import { farthestCorner, type FracturePattern, type PatternInput } from '../fracture';
+import { farthestCorner, type FracturePattern, type PatternInput, type Shard } from '../fracture';
 import { patternRandom, shardsFrom } from './shared';
 
 interface WebOptions {
@@ -60,32 +60,42 @@ export function web(input: PatternInput, options: WebOptions): number[][] {
   return polygons;
 }
 
+/**
+ * The web reaches past the farthest corner, so part of it is off the page
+ * (most of it when the impact is in a corner). Builds it, then scales the
+ * count by how many pieces landed on the page, up to three times, until at
+ * least 90 % of the requested pieces are on it.
+ */
+function aimed(input: PatternInput, options: (count: number) => WebOptions): Shard[] {
+  let count = input.count;
+  let shards = shardsFrom(web(input, options(count)), input);
+  for (let pass = 0; pass < 3 && shards.length < input.count * 0.9; pass++) {
+    count = Math.round((count * input.count) / Math.max(1, shards.length));
+    shards = shardsFrom(web({ ...input, count }, options(count)), input);
+  }
+  return shards;
+}
+
 /** `radial` (ADR-053): a windscreen's spider web, denser near the impact. */
 export const radialPattern: FracturePattern = {
   name: 'radial',
   cells: (input) =>
-    shardsFrom(
-      web(input, {
-        rays: Math.round(Math.min(28, Math.max(8, Math.sqrt(input.count) * 1.4))),
-        rayJitter: 0.55,
-        ringJitter: 0.45,
-        growth: 1.35,
-      }),
-      input,
-    ),
+    aimed(input, (count) => ({
+      rays: Math.round(Math.min(28, Math.max(8, Math.sqrt(count) * 1.4))),
+      rayJitter: 0.55,
+      ringJitter: 0.45,
+      growth: 1.35,
+    })),
 };
 
 /** `rings` (ADR-053): even concentric bands, cut into short arcs, for ripples. */
 export const ringsPattern: FracturePattern = {
   name: 'rings',
   cells: (input) =>
-    shardsFrom(
-      web(input, {
-        rays: Math.round(Math.min(40, Math.max(16, input.count / 6))),
-        rayJitter: 0,
-        ringJitter: 0,
-        growth: 1,
-      }),
-      input,
-    ),
+    aimed(input, (count) => ({
+      rays: Math.round(Math.min(40, Math.max(16, count / 6))),
+      rayJitter: 0,
+      ringJitter: 0,
+      growth: 1,
+    })),
 };

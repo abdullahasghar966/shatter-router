@@ -6,19 +6,22 @@ import {
   type ShatterEffect,
 } from '../../core/effect';
 
-/** Seconds between the first shard (at the impact) and the last one starting to move. */
-const STAGGER_S = 0.12;
+/** Seconds between the first shard (at the impact) and the last one starting to fall. */
+const STAGGER_S = 0.22;
+/** Outward speed as a share of the impulse: a pane falls, it is not thrown (ADR-054). */
+const OUTWARD = 0.32;
 /** Fraction of the motion phase after which shards fade out. */
 const FADE_START = 0.6;
 
 /**
- * `shatter` (default): after the crack, shards fly out from the impact point
- * (faster near it), tumble about a random axis, fall with gravity and fade.
+ * `shatter` (default): the pane falls (ADR-054). A long crack races out from
+ * the impact point; then the pieces drop under gravity, near the impact
+ * first, with little outward speed, turning slowly as heavy glass does.
  *
  * Per shard (master prompt 5.3):
  *   d      = normalize(centroid - origin), r = |centroid - origin| / maxR
  *   delay  = order * stagger (order = r for the default radial stagger),  t' = max(0, t - delay)
- *   v0     = d * impulse * (1 - 0.5 r) + jitter (incl. +z toward the camera)
+ *   v0     = d * 0.32 impulse * (1 - 0.5 r) + a little drift and lean toward the camera
  *   pos(t) = centroid + v0 t' + ½ g t'²,  rot(t) = axisAngle(axis, ω t')
  *   alpha  = 1 - smoothstep(fadeStart, 1, t / duration)
  *
@@ -28,7 +31,9 @@ export const shatterEffect: ShatterEffect = {
   name: 'shatter',
   needsIncomingSnapshot: false,
   crack: true,
-  duration: 1000,
+  // A long, visible crack: the cracks race out before anything falls (ADR-054).
+  crackDuration: 380,
+  duration: 1100,
 
   shardAttributes(ctx: EffectContext): ShardAttributes {
     const { shards, origin, maxRadius, impulse, random } = ctx;
@@ -49,11 +54,11 @@ export const shatterEffect: ShatterEffect = {
         uy = Math.sin(angle);
       }
       const r = Math.min(1, distance / Math.max(1, maxRadius));
-      const speed = impulse * (1 - 0.5 * r) * (0.8 + 0.4 * random());
-      // Jitter: a little sideways scatter, a small upward kick, and depth toward the viewer.
-      const jx = (random() - 0.5) * impulse * 0.15;
-      const jy = -random() * impulse * 0.12;
-      const vz = impulse * (0.12 + 0.45 * random()) * (1 - 0.4 * r);
+      const speed = impulse * OUTWARD * (1 - 0.5 * r) * (0.6 + 0.8 * random());
+      // Jitter: a little sideways drift, no upward kick (it falls), a slight lean toward the viewer.
+      const jx = (random() - 0.5) * impulse * 0.08;
+      const jy = random() * impulse * 0.05;
+      const vz = impulse * (0.04 + 0.16 * random()) * (1 - 0.4 * r);
 
       // Tumble axis: mostly in the screen plane so faces flip toward the viewer.
       const ax = random() * 2 - 1;
@@ -65,7 +70,8 @@ export const shatterEffect: ShatterEffect = {
         1.8,
         Math.max(0.6, Math.sqrt(meanArea / Math.max(1, shard.area))),
       );
-      const omega = (2.5 + 4 * random()) * sizeFactor * (random() < 0.5 ? -1 : 1);
+      // A slower tumble than a blast: heavy glass turning as it drops.
+      const omega = (1.6 + 2.6 * random()) * sizeFactor * (random() < 0.5 ? -1 : 1);
 
       const o = i * SHARD_ATTRIBUTE_FLOATS;
       data[o] = ux * speed + jx;

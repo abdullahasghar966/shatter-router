@@ -152,6 +152,8 @@ export class Engine {
   private crackRadius = 0;
   private flash = 0;
   private time = 0;
+  /** The crack's per-frame state, reused (ADR-040). */
+  private readonly crackFrame = { radius: 0, flash: 0, done: false };
   private drawCalls = 0;
   private drawnFrames = 0;
 
@@ -574,7 +576,13 @@ export class Engine {
       .run((now) => {
         if (this.isContextLost()) throw new GLError('WebGL context was lost while cracking');
         if (started < 0) started = now;
-        const frame = crackAt(now - started, maxRadius, CRACK_DURATION_MS, CRACK_HOLD_MS);
+        const frame = crackAt(
+          now - started,
+          maxRadius,
+          this.effect?.crackDuration ?? CRACK_DURATION_MS,
+          CRACK_HOLD_MS,
+          this.crackFrame,
+        );
         const done = frame.done || signal?.aborted === true;
         this.crackRadius = done ? maxRadius + 2 : frame.radius;
         this.flash = done ? 0 : frame.flash;

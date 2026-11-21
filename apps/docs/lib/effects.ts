@@ -14,9 +14,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   {
     name: 'shatter',
     title: 'Shatter',
-    summary: 'Cracks run out from the click, then the page falls apart under gravity.',
+    summary: 'The pane cracks from the click, then drops: heavy glass falling, not thrown.',
     motion:
-      'Crack lines race out from the impact point. Each shard flies out (faster near the impact), tumbles about a random axis so its glass edge catches the light, falls with gravity and fades. Farther shards start a little later. With physics: rapier() the shards collide on the way down.',
+      'A long crack races out from the impact point and holds for a moment. Then the pane drops: the pieces nearest the impact fall first, with little outward speed, turning slowly so their glass edges catch the light, and fade. With physics: rapier() the pieces collide on the way down.',
     ends: 'Every shard has fallen away or faded, revealing the new page underneath.',
     custom: false,
     colors: ['#ff5a36', '#ffb38a'],
@@ -24,9 +24,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   {
     name: 'explode',
     title: 'Explode',
-    summary: 'A blast from the impact point throws every shard at you, then they fall.',
+    summary: 'A blast: a white flash, a shockwave, and the page flung at you.',
     motion:
-      'No crack: the page bursts at once. Shards fly hard toward the viewer and outward, stretched along their velocity, slowed by drag, and only then start to fall.',
+      'No crack: the page breaks into a spider web at once. A white flash lights the impact, a shockwave lifts the page toward you as it passes and the view shakes; then the pieces fly hard at you and outward, stretched along their velocity, slowed by drag, and only then fall.',
     ends: 'Every shard has left the viewport.',
     custom: false,
     colors: ['#f6c945', '#ff7a45'],

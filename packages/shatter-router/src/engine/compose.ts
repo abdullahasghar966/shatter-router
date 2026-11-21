@@ -15,6 +15,7 @@ export function composeEffect(spec: EffectComposition, motion: ShatterEffect): S
     name: effectName(spec),
     needsIncomingSnapshot: motion.needsIncomingSnapshot,
     crack: motion.crack,
+    ...(motion.crackDuration === undefined ? {} : { crackDuration: motion.crackDuration }),
     ...(motion.layers === undefined ? {} : { layers: motion.layers }),
     ...(duration === undefined ? {} : { duration }),
     ...(pattern === undefined ? {} : { pattern }),

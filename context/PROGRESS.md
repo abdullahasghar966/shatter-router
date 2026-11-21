@@ -24,8 +24,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
-| 15  | Fracture patterns             | ◐      | `milestone/15-patterns`        |     |           |             |
-| 16  | Motions and materials         | ☐      | `milestone/16-motions-materials` |     |           |             |
+| 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
+| 16  | Motions and materials         | ◐      | `milestone/16-motions-materials` |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
@@ -368,6 +368,13 @@ Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scroll
 
 Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
 
+### Shatter vs explode (Milestone 16 part 1, 2026-11-22, ADR-054)
+
+- **Side by side (frozen frames at 40 / 180 / 420 ms, vanilla example, Chromium):** `shatter` shows the full crack web over the intact page, then pieces dropping near the impact, then a cascade of falling glass; `explode` shows a white flash and a spider web bursting toward the viewer, then pieces flung past the camera with motion stretch, then almost nothing left.
+- **Unit:** blast vs fall speeds ≥ 5× apart in the screen plane and in depth; `shatter` has no upward kick.
+- **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
+- **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
+
 ### Fracture patterns (Milestone 15, 2026-11-22, ADR-053)
 
 - **Chunks (gzip):** radial + rings 1.40 kB, triangles 1.26 kB, hex 1.05 kB, tiles + bricks + strips 1.36 kB (budget 2 kB each); engine core 11.55 kB.
@@ -429,3 +436,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 13 | 361 tests in 26 files (+ `history.test.ts` 16: memory, Back/Forward/`go(n)`, replace, cap, reload, storage failures, query rewrites, reverse wrapper GLSL; + 9 mirror tests in `effects.test.ts`; adapter tests assert `replace`) | + vanilla: each falling effect reversed and replayed, first- and last-frame seams of `shatter:reverse` and `explode:reverse`; React Router and Next: reverse, last-frame seam, replay (`e2e/mirror.ts`); docs: playground settings through Back and reload. Local: Chromium + WebKit 245 passed, 15 skipped (4 WebKit tests that hit a 26–53 min machine stall passed on rerun). PR #15 CI: Chromium, Firefox and WebKit green |
 | 14 | 394 tests in 29 files (+ `composition.test.ts` 25: stagger orders, compositions, lazy part loaders, runtime handling; `snap-scroll.test.ts` 8) | + vanilla: `sweep` composition plays, lands, reverses, first-frame seam; first-frame seams at fractional scroll offsets (240.25/.5/.75, DPR 1 and 2); `scroll-snap.spec.ts` paint diagnostic (5 page variants); docs: playground stagger plays a composition. Local Chromium + WebKit 271 passed, 15 skipped. PR #16 CI (final, `3968e70`): Chromium, Firefox (129 passed, 14 skipped) and WebKit green |
 | 19 | 405 tests in 31 files (+ `fonts.test.ts` 9: unicode-range parsing, subset pruning, pending faces; `sandbox.test.ts` 2) | + `e2e/docs/lab.spec.ts` (material switch plays a flip and persists, theme toggle persists, system dark followed, glass rail tracks/drags and keyboard scrolling works, entrances only on first load, a press ends the entrance, reduced motion) and landing seams in light and dark. Local Chromium + WebKit: docs 46 passed; seams/effects across all apps 112 passed |
+| 15 | 454 tests in 32 files (+ `patterns.test.ts` 49: each pattern tiles exactly — convex cells, area, sample-point coverage over 400 seeded layouts — determinism, timing; clipper) | + `e2e/vanilla/patterns.spec.ts` (16 per engine: every pattern plays and lands, first-frame seam at rest); docs playground pattern test. Local Chromium + WebKit 320 passed, 15 skipped (1 load-sensitive Next timing test passed 5/5 alone). PR #18 CI: Chromium, Firefox and WebKit green |

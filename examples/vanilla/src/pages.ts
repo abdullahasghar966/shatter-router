@@ -79,8 +79,8 @@ export const pages: Readonly<Record<string, Page>> = {
 
 /** Every built-in effect, each link playing its own (per-link `data-shatter-effect`). */
 const EFFECTS = [
-  ['shatter', 'Cracks from the click, shards fall with gravity.'],
-  ['explode', 'A violent radial blast toward you, then gravity.'],
+  ['shatter', 'A long crack from the click, then the pane drops.'],
+  ['explode', 'A flash, a shockwave and a spider-web blast toward you.'],
   ['implode', 'Shards spiral into the click like a black hole.'],
   ['flip', 'Every shard turns over: the new page is on the back.'],
   ['assemble', 'The old page falls away as the new one flies together.'],
