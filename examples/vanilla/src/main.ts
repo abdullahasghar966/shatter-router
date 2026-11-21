@@ -14,7 +14,8 @@ const outlet: HTMLElement = app;
 // `?seed=<n>` makes the fracture deterministic; `?shards=<n>` fixes the count;
 // `?duration=<ms>` sets the motion length. `?physics=rapier` (with `&floor`)
 // drives falling shards with Rapier, loaded lazily. `?backForward=<mode>`
-// picks the back/forward behaviour ('mirror' by default).
+// picks the back/forward behaviour ('mirror' by default). `?pattern=<name>`
+// breaks the page with that fracture pattern (ADR-053).
 const params = new URLSearchParams(location.search);
 const number = (name: string): number | undefined => {
   const value = Number(params.get(name));
@@ -28,7 +29,9 @@ const physics =
   params.get('physics') === 'rapier' ? rapier({ floor: params.has('floor') }) : undefined;
 const BACK_FORWARD = ['mirror', 'reverse', 'same', 'none'] as const;
 const backForward = BACK_FORWARD.find((mode) => mode === params.get('backForward'));
+const pattern = params.get('pattern');
 const shatter = createShatter({
+  ...(pattern ? { effect: { motion: 'shatter', pattern } } : {}),
   ...(physics ? { physics } : {}),
   ...(backForward ? { backForward } : {}),
   debug: params.has('debug') ? { panel: params.has('panel') } : false,

@@ -4,6 +4,17 @@ import { Code } from '../../code';
 
 export const metadata: Metadata = { title: 'API reference' };
 
+const PATTERNS: readonly (readonly [string, string])[] = [
+  [`'impact'`, 'Voronoi cells, small near the click and large at the edges (the default).'],
+  [`'radial'`, 'A windscreen spider web: rays from the click crossed by rings.'],
+  [`'rings'`, 'Even concentric bands around the click, cut into short arcs.'],
+  [`'triangles'`, 'Low-poly facets.'],
+  [`'hex'`, 'A honeycomb.'],
+  [`'bricks'`, 'Rows of offset bricks.'],
+  [`'tiles'`, 'A square grid.'],
+  [`'strips'`, 'Vertical blinds, a few dozen wide pieces.'],
+];
+
 const STAGGERS: readonly (readonly [string, string])[] = [
   [`'radial'`, 'From the impact point outward (the default of every built-in effect).'],
   [`'linear'`, 'Across the page, left to right.'],
@@ -186,13 +197,14 @@ shatter.transition({ commit, effect: { motion: 'explode', stagger: 'linear' } })
 shatter.registerEffect({
   name: 'curtain',
   motion: 'flip',                          // how the pieces move: a built-in effect or one you registered
-  pattern: 'impact',                       // how the page breaks (more patterns are coming)
+  pattern: 'hex',                          // how the page breaks (see Patterns)
   material: 'glass',                       // the surface (more materials are coming)
   stagger: { type: 'linear', angle: 90 },  // the order the pieces start in
   timing: { duration: 1400 },              // motion length, ms
 });
 // then effect: 'curtain' or data-shatter-effect="curtain"
 `}</Code>
+      <Table head={['Pattern', 'How the page breaks']} rows={PATTERNS} />
       <Table head={['Stagger', 'Order the pieces start in']} rows={STAGGERS} />
       <p>
         Back plays the reverse of a composition too: <code>flip</code> compositions turn back, and

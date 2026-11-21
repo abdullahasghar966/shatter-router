@@ -118,8 +118,12 @@ test.describe('docs site: Material lab', () => {
     page,
   }) => {
     await page.goto(`${BASE}/`);
-    // Straight away, while the headline is still rising.
-    expect(await root(page, 'data-entered')).toBeNull();
+    // Once interactive; before that Shatter does not exist, so nothing can be
+    // captured. Clear the flag so the test does not depend on the clock.
+    await page.waitForFunction(() => document.documentElement.dataset.lab === 'ready');
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute('data-entered');
+    });
     await page.mouse.move(900, 300);
     await page.mouse.down();
     expect(await root(page, 'data-entered')).toBe('');

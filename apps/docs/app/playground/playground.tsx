@@ -19,8 +19,9 @@ import {
   EFFECT_NAMES,
   LIMITS,
   type PlaygroundConfig,
+  effectOf,
+  PATTERNS,
   STAGGERS,
-  staggerOf,
 } from './config';
 
 /** Sliders fire on every step; browsers limit replaceState calls (Safari throws). */
@@ -48,14 +49,13 @@ function captureBudget(): { captureBudget?: number } {
 }
 
 async function optionsFor(config: PlaygroundConfig): Promise<ShatterOptions> {
-  const stagger = staggerOf(config.stagger);
   const physics =
     config.physics === 'rapier'
       ? (await import('shatter-router/rapier')).rapier({ floor: config.floor })
       : 'procedural';
   return {
-    // A stagger makes the effect a composition of parts (ADR-048).
-    effect: stagger ? { motion: config.effect, stagger } : config.effect,
+    // A pattern or stagger makes the effect a composition of parts (ADR-048).
+    effect: effectOf(config),
     shards: config.shards === 0 ? 'auto' : config.shards,
     ...(config.duration === 0 ? {} : { duration: config.duration }),
     gravity: config.gravity,
@@ -118,6 +118,9 @@ export function Playground(): ReactNode {
       const pane = new Pane({ container, title: 'Options' });
       pane.addBinding(params, 'effect', {
         options: Object.fromEntries(EFFECT_NAMES.map((name) => [name, name])),
+      });
+      pane.addBinding(params, 'pattern', {
+        options: Object.fromEntries(PATTERNS.map((name) => [name, name])),
       });
       pane.addBinding(params, 'stagger', {
         options: Object.fromEntries(STAGGERS.map((name) => [name, name])),

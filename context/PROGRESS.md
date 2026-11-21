@@ -368,6 +368,13 @@ Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scroll
 
 Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
 
+### Fracture patterns (Milestone 15, 2026-11-22, ADR-053)
+
+- **Chunks (gzip):** radial + rings 1.40 kB, triangles 1.26 kB, hex 1.05 kB, tiles + bricks + strips 1.36 kB (budget 2 kB each); engine core 11.55 kB.
+- **Fracture time, 400 pieces at 1440×900 (Node, median of 15):** impact 1.69 ms, radial 0.99, rings 1.20, triangles 0.90, hex 1.74, bricks 1.05, tiles 0.95, strips 0.10 ms (budget 4 ms: no worker needed).
+- **Pieces at the mid tier (90 requested, 960×600 example):** radial 80, rings 72, triangles 154, hex 186, bricks 168, strips 25.
+- **First-frame seams per pattern (vanilla, fractured at rest):** Chromium 0.0991–0.1069 %, WebKit 0.0021 % for every pattern.
+
 ### Site redesign "Material lab" (Milestone 19, 2026-11-21/22, ADR-050–052)
 
 - **Capture of the docs landing (1440×900).** Headless Chromium, median of 7 warm captures: old site on the old library 70–91 ms; redesign on the old library 184 ms; + font pruning 147; + no custom properties 109–121; + decoration without pseudo-elements or letter spans 69–78; old site on the new library 46 ms. GPU (installed Chrome, RTX 4050), after the below-the-fold pruning: 3-capture medians 75.9 / 74.9 / 78.6 ms (old site 82 ms, budget 120); 7 warm captures median 51 ms; the first capture after load 103–123 ms.
