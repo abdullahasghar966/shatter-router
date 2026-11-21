@@ -53,17 +53,11 @@ export function Readouts(): ReactNode {
         <dt>effect</dt>
         <dd>{reading.effect ?? '—'}</dd>
         <dt>capture</dt>
-        <dd>
-          {value(reading.captureMs, 0)}
-          <small>ms</small>
-        </dd>
+        <dd>{value(reading.captureMs, 0)} ms</dd>
         <dt>shards</dt>
         <dd>{reading.shards ?? '—'}</dd>
         <dt>fracture</dt>
-        <dd>
-          {value(reading.fractureMs, 1)}
-          <small>ms</small>
-        </dd>
+        <dd>{value(reading.fractureMs, 1)} ms</dd>
       </dl>
       <p className="readouts-foot">
         {live ? 'measured on this device, just now' : 'break the page to take a reading'}

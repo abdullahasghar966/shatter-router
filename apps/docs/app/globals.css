@@ -368,11 +368,12 @@ h3 {
   letter-spacing: -0.02em;
 }
 
-/* A specimen label: mono, spaced, with a signal tick. */
+/* A specimen label: mono, spaced, with a signal tick (a background, not a
+   pseudo-element: those cost every capture, ADR-051). */
 .kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
+  display: inline-block;
+  padding-left: 2.1rem;
+  background: linear-gradient(currentColor, currentColor) left center / 1.5rem 1px no-repeat;
   margin: 0 0 1.25rem;
   font-family: var(--mono);
   font-size: 0.6875rem;
@@ -380,13 +381,6 @@ h3 {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--signal-ink);
-}
-
-.kicker::before {
-  content: '';
-  width: 1.5rem;
-  height: 1px;
-  background: currentColor;
 }
 
 .lede {
@@ -449,9 +443,21 @@ pre code {
   color: var(--faint);
 }
 
-/* Buttons: crack on press, heal on release (ADR-050). */
+/* Buttons: crack on press, heal on release (ADR-050). The crack lines are a
+   background layer (no pseudo-element, ADR-051) whose colour is transparent
+   at rest: a registered colour property, so it fades in on press and out to
+   heal, and the capture copies transparent lines. (A zero-sized background
+   was invisible live but drawn in the capture's copy.) */
+
+@property --crack {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
 
 .button {
+  --crack: transparent;
+  --crack-on: color-mix(in srgb, var(--bg) 65%, transparent);
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -459,7 +465,7 @@ pre code {
   padding: 0.8rem 1.3rem;
   border: 1px solid var(--fg);
   border-radius: var(--radius);
-  background: var(--fg);
+  background-color: var(--fg);
   color: var(--bg);
   font-family: var(--mono);
   font-size: 0.8125rem;
@@ -468,77 +474,71 @@ pre code {
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
-  overflow: hidden;
-  isolation: isolate;
+  background-image:
+    linear-gradient(112deg, transparent 47%, var(--crack) 48.5%, transparent 50%),
+    linear-gradient(64deg, transparent 58%, var(--crack) 59%, transparent 60%),
+    linear-gradient(160deg, transparent 31%, var(--crack) 32%, transparent 33%);
   transition:
     transform var(--fast) var(--ease),
     background-color var(--fast) var(--ease),
+    --crack var(--slow) var(--ease),
     color var(--fast) var(--ease),
     border-color var(--fast) var(--ease);
 }
 
-.button::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(112deg, transparent 47%, var(--crack) 48.5%, transparent 50%),
-    linear-gradient(64deg, transparent 58%, var(--crack) 59%, transparent 60%),
-    linear-gradient(160deg, transparent 31%, var(--crack) 32%, transparent 33%),
-    linear-gradient(20deg, transparent 71%, var(--crack) 72%, transparent 73%);
-  opacity: 0;
-  transform: scale(0.6);
-  transition:
-    opacity var(--slow) var(--ease),
-    transform var(--slow) var(--ease);
-  --crack: color-mix(in srgb, var(--bg) 65%, transparent);
-}
-
 .button:hover {
-  background: var(--signal);
+  background-color: var(--signal);
   border-color: var(--signal);
   color: #fff;
 }
 
 .button:active {
+  --crack: var(--crack-on);
   transform: translateY(1px) scale(0.985);
-}
-
-.button:active::after {
-  opacity: 1;
-  transform: scale(1);
-  transition-duration: 60ms;
+  transition-duration: var(--fast), var(--fast), 60ms, var(--fast), var(--fast);
 }
 
 .button.ghost {
-  background: transparent;
+  --crack-on: color-mix(in srgb, var(--fg) 40%, transparent);
+  background-color: transparent;
   color: var(--fg);
   border-color: var(--line-strong);
-  --crack: color-mix(in srgb, var(--fg) 40%, transparent);
 }
 
 .button.ghost:hover {
   border-color: var(--fg);
-  background: var(--bg-raised);
+  background-color: var(--bg-raised);
   color: var(--fg);
 }
 
 /* Nav labels and links that split along a crack on hover (CrackText). */
 
 .crack-text {
-  display: inline-block;
+  display: inline-grid;
   white-space: nowrap;
 }
 
 .crack-text > span {
-  display: inline-block;
+  grid-area: 1 / 1;
   transition: transform var(--base) var(--ease);
 }
 
-:is(a, button):hover > .crack-text > span,
-.crack-text:hover > span {
-  transform: translate(var(--dx), var(--dy)) rotate(var(--dr));
+/* Each copy keeps one side of a slanted crack through the word. */
+.crack-text > span:first-child {
+  clip-path: polygon(0 0, 100% 0, 100% 38%, 0 66%);
+}
+
+.crack-text > span:last-child {
+  clip-path: polygon(0 66%, 100% 38%, 100% 100%, 0 100%);
+}
+
+:is(a, button):hover > .crack-text > span:first-child {
+  transform: translate(-0.5px, -1.5px) rotate(-1.5deg);
+  transition-duration: var(--fast);
+}
+
+:is(a, button):hover > .crack-text > span:last-child {
+  transform: translate(0.5px, 1.5px) rotate(1deg);
   transition-duration: var(--fast);
 }
 
@@ -555,26 +555,17 @@ pre code {
   cursor: crosshair;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
-}
-
-/* Measuring ticks along the hero's left edge. */
-.hero::before {
-  content: '';
-  position: absolute;
-  left: calc(var(--gutter) * 0.45);
-  top: 2rem;
-  bottom: 2rem;
-  width: 9px;
+  /* Measuring ticks along the left edge (a background, not a pseudo-element). */
   background: repeating-linear-gradient(
-    to bottom,
-    var(--line-strong) 0 1px,
-    transparent 1px 12px,
-    var(--line-strong) 12px 13px,
-    transparent 13px 24px,
-    var(--line-strong) 24px 25px,
-    transparent 25px 48px
-  );
-  opacity: 0.7;
+      to bottom,
+      var(--line-strong) 0 1px,
+      transparent 1px 12px,
+      var(--line-strong) 12px 13px,
+      transparent 13px 24px,
+      var(--line-strong) 24px 25px,
+      transparent 25px 48px
+    )
+    calc(var(--gutter) * 0.45) 2rem / 9px calc(100% - 4rem) no-repeat;
 }
 
 .hero h1 {
@@ -668,12 +659,6 @@ pre code {
   color: var(--fg);
 }
 
-.readouts dd small {
-  margin-left: 0.2rem;
-  font-size: 0.6875rem;
-  color: var(--faint);
-}
-
 .readouts .readouts-foot {
   margin: 0.85rem 0 0;
   padding-top: 0.7rem;
@@ -713,11 +698,9 @@ pre code {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg-raised) 55%, transparent);
-  counter-increment: feature;
 }
 
-.features li::before {
-  content: counter(feature, decimal-leading-zero);
+.features .num {
   display: block;
   margin-bottom: 1.75rem;
   font-family: var(--mono);
@@ -789,24 +772,14 @@ pre code {
   border-color: var(--line-strong);
 }
 
-/* The sheen that follows the pointer (TiltCard sets --mx/--my). */
-.card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: radial-gradient(
+/* The sheen that follows the pointer (Lab sets --mx/--my): a background
+   layer on hover, not a pseudo-element (ADR-051). */
+.card:hover {
+  background-image: radial-gradient(
     18rem 12rem at var(--mx, 50%) var(--my, 0%),
-    color-mix(in srgb, var(--mat) 45%, transparent),
+    color-mix(in srgb, var(--mat) 38%, transparent),
     transparent 70%
   );
-  opacity: 0;
-  transition: opacity var(--base) var(--ease);
-}
-
-.card:hover::after {
-  opacity: 0.8;
 }
 
 .card-art {
@@ -1153,16 +1126,7 @@ pre code {
   width: 12px;
   cursor: pointer;
   touch-action: none;
-}
-
-.glass-rail::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 5px;
-  width: 1px;
-  background: var(--line);
+  background: linear-gradient(var(--line), var(--line)) 5px 0 / 1px 100% no-repeat;
 }
 
 .glass-thumb {
@@ -1313,7 +1277,7 @@ pre code {
     display: none;
   }
 
-  .button::after {
-    display: none;
+  .button:active {
+    --crack: transparent;
   }
 }

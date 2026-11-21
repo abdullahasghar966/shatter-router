@@ -28,7 +28,9 @@ export function Lab(): ReactNode {
   const shatter = useShatter();
   const ring = useRef<HTMLDivElement>(null);
 
-  // Entrances only on the first load.
+  // Entrances only on the first load. Any press ends the entrance at once:
+  // it runs on window in the capture phase, before Shatter's own press-time
+  // capture (document), so a capture never freezes a half-finished entrance.
   useEffect(() => {
     const root = document.documentElement;
     const enter = (): void => {
@@ -36,9 +38,13 @@ export function Lab(): ReactNode {
     };
     const timer = window.setTimeout(enter, ENTRANCE_MS);
     const off = shatter?.on('start', enter);
+    window.addEventListener('pointerdown', enter, { capture: true, passive: true });
+    window.addEventListener('keydown', enter, { capture: true, passive: true });
     return () => {
       window.clearTimeout(timer);
       off?.();
+      window.removeEventListener('pointerdown', enter, true);
+      window.removeEventListener('keydown', enter, true);
     };
   }, [shatter]);
 

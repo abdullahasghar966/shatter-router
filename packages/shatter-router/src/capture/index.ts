@@ -7,6 +7,7 @@ import {
 import { CaptureError, type CaptureRequest, type Capturer, type Snapshot } from '../core/snapshot';
 import { deviceSize } from '../core/viewport';
 import { CloneSession, settleScroll } from './clone-session';
+import { liveFaceStatus, pruneFontFaces } from './fonts';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
@@ -116,8 +117,11 @@ export class DomCapturer implements Capturer {
     context.onCreateForeignObjectSvg = session.onCreateForeignObjectSvg;
 
     let svg: SVGElement;
+    const style = context.svgStyleElement;
     try {
       svg = await domToForeignObjectSvg(context);
+      // Only the font files that can draw this page's text (ADR-051).
+      if (style) pruneFontFaces(style, context.fontFamilies, liveFaceStatus(doc));
     } finally {
       this.resetContext(context);
     }
@@ -179,6 +183,10 @@ export class DomCapturer implements Capturer {
         destroyContext(context);
       } else {
         context.sandbox ??= createSandbox(this.doc);
+        // Real properties only (ADR-051): computed values are already
+        // resolved, so custom properties (a design system's tokens) are dead
+        // weight that the library would copy onto every element of the copy.
+        context.includeStyleProperties = standardProperties(this.doc);
         this.context = context;
       }
       return context;
@@ -229,4 +237,20 @@ function createSandbox(doc: Document): HTMLIFrameElement | undefined {
 /** Entry point of the lazily loaded capture chunk. */
 export function createCapturer(doc: Document): DomCapturer {
   return new DomCapturer(doc);
+}
+
+/**
+ * The CSS properties the browser computes, without custom properties (ADR-051).
+ * Read once per capturer: the list is the same for every element.
+ */
+export function standardProperties(doc: Document): string[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const computed = win.getComputedStyle(doc.documentElement);
+  const names: string[] = [];
+  for (let i = 0; i < computed.length; i++) {
+    const name = computed.item(i);
+    if (!name.startsWith('--')) names.push(name);
+  }
+  return names;
 }

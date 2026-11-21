@@ -7,6 +7,13 @@ const BLANK_IMAGE =
 /** How far outside the viewport (CSS px) content still counts as visible (shadows, blur). */
 const VISIBILITY_MARGIN = 128;
 
+/**
+ * Parents whose children stack in block flow: a later child cannot move an
+ * earlier one, so children below the viewport can be left out of the copy
+ * while the parent keeps its height (ADR-052).
+ */
+const BLOCK_FLOW = new Set(['block', 'flow-root', 'list-item']);
+
 const BACKGROUND_PROPERTIES = [
   'background-color',
   'background-image',
@@ -275,6 +282,11 @@ export class CloneSession {
   private readonly stack: Node[] = [];
   /** Live elements left out of the clone; a substitute takes their place. */
   private readonly substituted = new WeakSet<Element>();
+  /** Live elements below the viewport, left out of the clone with no substitute (ADR-052). */
+  private readonly dropped = new WeakSet<Element>();
+  /** Parents of dropped elements: their copies keep the live height. */
+  private readonly pinned = new WeakSet<Element>();
+  private readonly flowParents = new WeakMap<Element, boolean>();
   private readonly stickyFixes: StickyFix[] = [];
   private readonly win: Window & typeof globalThis;
   private readonly root: HTMLElement;
@@ -317,10 +329,43 @@ export class CloneSession {
         this.substituted.add(node);
         return false;
       }
+      if (this.belowTheFold(node)) {
+        this.dropped.add(node);
+        if (node.parentElement) this.pinned.add(node.parentElement);
+        return false;
+      }
     }
     this.stack.push(node);
     return true;
   };
+
+  /**
+   * True for an element the picture cannot show and whose absence cannot move
+   * anything it does show (ADR-052): it starts below the viewport, sits in
+   * block flow, is not positioned, and nothing inside it is fixed, sticky or
+   * on screen. Copying it would cost the capture its styles for nothing:
+   * long pages are mostly below the fold. Elements scrolled off the top are
+   * kept: leaving them out would move what follows.
+   */
+  private belowTheFold(node: Element): boolean {
+    const parent = node.parentElement;
+    if (!parent || node === this.doc.body || node === this.root) return false;
+    if (node.getBoundingClientRect().top < this.geometry.height + VISIBILITY_MARGIN) return false;
+    let flow = this.flowParents.get(parent);
+    if (flow === undefined) {
+      flow = BLOCK_FLOW.has(this.win.getComputedStyle(parent).display);
+      this.flowParents.set(parent, flow);
+    }
+    if (!flow) return false;
+    const position = this.win.getComputedStyle(node).position;
+    if (position !== 'static' && position !== 'relative') return false;
+    for (const inner of node.querySelectorAll('*')) {
+      const innerPosition = this.win.getComputedStyle(inner).position;
+      if (innerPosition === 'fixed' || innerPosition === 'sticky') return false;
+      if (this.isVisible(inner.getBoundingClientRect())) return false;
+    }
+    return true;
+  }
 
   readonly onCloneEachNode = (cloned: Node): void => {
     if (this.rootDone) {
@@ -439,6 +484,11 @@ export class CloneSession {
       const painted = this.paintedControlFamily(original, computed);
       if (painted !== null) style.setProperty('font-family', painted);
     }
+    // Children below the fold were left out: the copy keeps the live height,
+    // so the parent and everything after it lay out as on the page (ADR-052).
+    if (this.pinned.has(original)) {
+      style.setProperty('height', this.win.getComputedStyle(original).height);
+    }
     // Text first: substitutes add children that have no live counterpart to pair with.
     this.keepSingleLines(original, cloned);
     this.insertSubstitutes(original, cloned);
@@ -503,6 +553,7 @@ export class CloneSession {
         if (tag === 'STYLE' || tag === 'SCRIPT') continue;
         if (tag === 'SLOT') return null;
         if (child.hasAttribute(OVERLAY_ATTRIBUTE) || child.id.startsWith('__SANDBOX__')) continue;
+        if (this.dropped.has(child)) continue;
         if (this.substituted.has(child)) {
           pairs.push({ live: child, copy: null });
           continue;
