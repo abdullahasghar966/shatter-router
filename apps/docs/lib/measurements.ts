@@ -1,11 +1,12 @@
 /**
- * Measurements of this site (Milestone 11, 2026-11-15), recorded with
- * device and method in context/PROGRESS.md.
+ * Measurements of this site, recorded with device and method in
+ * context/PROGRESS.md. Capture: Milestone 19 (2026-11-21, ADR-051, ADR-052);
+ * Lighthouse: see `how`.
  */
 export const LANDING = {
-  captureMs: '48–88 ms (median 82 ms)',
+  captureMs: '45–79 ms (median 51 ms)',
   where:
-    '12 captures in installed Chrome on the RTX 4050 laptop, after the priming capture; 2 outliers of 129 and 156 ms',
+    'installed Chrome on the RTX 4050 laptop, warm captures after the priming capture; the first capture after load takes 103–123 ms',
 };
 
 export const LIGHTHOUSE = {

@@ -43,8 +43,11 @@ export default function Home(): ReactNode {
         <p className="kicker">What it does</p>
         <h2 id="why">Every route change, through glass.</h2>
         <ul className="features">
-          {FEATURES.map(([title, text]) => (
+          {FEATURES.map(([title, text], i) => (
             <li key={title}>
+              <span className="num" aria-hidden="true">
+                {String(i + 1).padStart(2, '0')}
+              </span>
               <h3>{title}</h3>
               <p>{text}</p>
             </li>

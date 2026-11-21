@@ -2,13 +2,16 @@
 
 import type { MouseEvent, ReactNode } from 'react';
 import { ShatterLink, useShatter } from 'shatter-router/next';
+import { Readouts } from './readouts';
+import { Reveal } from './reveal';
 
 /**
- * "Break the page." Clicking anywhere on the hero (except a link) breaks the
- * page in place and puts it back together: a transition whose commit changes
- * nothing, played with `assemble` (the outgoing shards fall while the same
- * page's shards fly back in). The engine always covers the whole viewport,
- * which the hero fills, so no region support is needed (ADR-042).
+ * "Break the page." Clicking anywhere on the hero (except a link or a
+ * control) breaks the page in place and puts it back together: a transition
+ * whose commit changes nothing, played with `assemble` (the outgoing shards
+ * fall while the same page's shards fly back in). The engine always covers
+ * the whole viewport, so no region support is needed (ADR-042). The readouts
+ * show what that break measured.
  */
 export function Hero(): ReactNode {
   const shatter = useShatter();
@@ -23,7 +26,7 @@ export function Hero(): ReactNode {
   };
 
   const onClick = (event: MouseEvent<HTMLElement>): void => {
-    if ((event.target as Element).closest('a, button')) return;
+    if ((event.target as Element).closest('a, button, .readouts')) return;
     breakAt(event.clientX, event.clientY);
   };
 
@@ -36,20 +39,26 @@ export function Hero(): ReactNode {
     // The whole hero is a click target for pointer users; keyboard users get
     // the button, which does the same.
     <section className="hero" aria-labelledby="hero-title" onClick={onClick}>
-      <p className="kicker">WebGL2 page transitions</p>
-      <h1 id="hero-title">
-        Break the page<span className="accent">.</span>
-      </h1>
-      <p className="subline">Click anywhere.</p>
-      <div className="hero-actions">
-        <button type="button" className="button" onClick={onButton}>
-          Break it
-        </button>
-        <ShatterLink className="button ghost" href="/effects">
-          See every effect
-        </ShatterLink>
+      <div>
+        <p className="kicker">Specimen 01 · WebGL2 page transitions</p>
+        <h1 id="hero-title">
+          <Reveal text="Break the page" />
+          <span className="accent">.</span>
+        </h1>
+        <p className="subline">Click anywhere on the bench</p>
+        <div className="hero-actions">
+          <button type="button" className="button" onClick={onButton}>
+            Break it
+          </button>
+          <ShatterLink className="button ghost" href="/effects">
+            See every effect
+          </ShatterLink>
+        </div>
       </div>
-      <p className="hero-meta">one draw call · 60 fps · 1.8 kB until first use</p>
+      <div>
+        <Readouts />
+        <p className="hero-meta">one draw call · 60 fps · 1.8 kB until first use</p>
+      </div>
     </section>
   );
 }

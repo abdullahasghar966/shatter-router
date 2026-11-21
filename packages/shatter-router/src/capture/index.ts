@@ -7,6 +7,7 @@ import {
 import { CaptureError, type CaptureRequest, type Capturer, type Snapshot } from '../core/snapshot';
 import { deviceSize } from '../core/viewport';
 import { CloneSession, settleScroll } from './clone-session';
+import { liveFaceStatus, pruneFontFaces } from './fonts';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
@@ -116,8 +117,11 @@ export class DomCapturer implements Capturer {
     context.onCreateForeignObjectSvg = session.onCreateForeignObjectSvg;
 
     let svg: SVGElement;
+    const style = context.svgStyleElement;
     try {
       svg = await domToForeignObjectSvg(context);
+      // Only the font files that can draw this page's text (ADR-051).
+      if (style) pruneFontFaces(style, context.fontFamilies, liveFaceStatus(doc));
     } finally {
       this.resetContext(context);
     }
@@ -174,13 +178,23 @@ export class DomCapturer implements Capturer {
       features: { restoreScrollPosition: false },
       // Bounds waiting for media and fetching assets.
       timeout: 2000,
-    }).then((context) => {
+    }).then(async (context) => {
       if (this.destroyed) {
         destroyContext(context);
-      } else {
-        context.sandbox ??= createSandbox(this.doc);
-        this.context = context;
+        return context;
       }
+      context.sandbox ??= createSandbox(this.doc);
+      // The library reads default styles inside the frame; reading them before
+      // its document has loaded forces layout early (a Firefox warning).
+      if (context.sandbox) await frameLoaded(context.sandbox, SANDBOX_LOAD_TIMEOUT_MS);
+      // Real properties only (ADR-051): computed values are already
+      // resolved, so custom properties (a design system's tokens) are dead
+      // weight that the library would copy onto every element of the copy.
+      context.includeStyleProperties = standardProperties(this.doc);
+      // destroy() may have run during the await above.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (this.destroyed) destroyContext(context);
+      else this.context = context;
       return context;
     });
     return this.contextPromise;
@@ -211,14 +225,40 @@ export class DomCapturer implements Capturer {
  * navigation, which never adds history (ADR-044). Same attributes as the
  * library's; `destroyContext` removes it.
  */
+/** How long a capture waits for its sandbox frame to load, at most. */
+const SANDBOX_LOAD_TIMEOUT_MS = 1000;
+
+/** Resolves once the frame's own document has loaded (or after `timeout` ms). */
+export function frameLoaded(frame: HTMLIFrameElement, timeout: number): Promise<void> {
+  const ready = (): boolean => {
+    const document = frame.contentDocument;
+    return (
+      document !== null && document.URL === 'about:srcdoc' && document.readyState === 'complete'
+    );
+  };
+  if (ready()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      frame.removeEventListener('load', done);
+      resolve();
+    };
+    const timer = setTimeout(done, timeout);
+    frame.addEventListener('load', done);
+  });
+}
+
 function createSandbox(doc: Document): HTMLIFrameElement | undefined {
   const body = doc.body as HTMLElement | null;
   if (!body) return undefined;
   const sandbox = doc.createElement('iframe');
   sandbox.width = '0';
   sandbox.height = '0';
-  sandbox.style.visibility = 'hidden';
-  sandbox.style.position = 'fixed';
+  // Not rendered at all: the library only reads computed styles in it, and a
+  // frame without layout cannot have its layout forced while it loads (in
+  // Firefox any layout read in the page, a scrollbar reading scrollY for one,
+  // flushes the frames inside it too).
+  sandbox.style.display = 'none';
   sandbox.setAttribute('aria-hidden', 'true');
   sandbox.tabIndex = -1;
   sandbox.srcdoc = '<!DOCTYPE html><meta charset="UTF-8"><title></title><body>';
@@ -229,4 +269,20 @@ function createSandbox(doc: Document): HTMLIFrameElement | undefined {
 /** Entry point of the lazily loaded capture chunk. */
 export function createCapturer(doc: Document): DomCapturer {
   return new DomCapturer(doc);
+}
+
+/**
+ * The CSS properties the browser computes, without custom properties (ADR-051).
+ * Read once per capturer: the list is the same for every element.
+ */
+export function standardProperties(doc: Document): string[] {
+  const win = doc.defaultView;
+  if (!win) return [];
+  const computed = win.getComputedStyle(doc.documentElement);
+  const names: string[] = [];
+  for (let i = 0; i < computed.length; i++) {
+    const name = computed.item(i);
+    if (!name.startsWith('--')) names.push(name);
+  }
+  return names;
 }

@@ -1,24 +1,24 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M14 done incl. the Firefox scroll fix; merge next)
+- **Last updated:** 2026-11-20 (session 4, M19 implemented; PR, CI and production Lighthouse next)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 14 — Effect architecture (`context/PLAN-PRODUCTION.md`; order M14 → M19 → M15 → M16 → M17 → M20 → M18 → M21, ADR-046)
-- **Current branch:** `milestone/14-effect-architecture` (from `main` at `6040c4d`)
-- **Latest tag:** `m13-navigation-memory` (on `6040c4d`)
+- **Current milestone:** 19 — Site redesign, art direction A "Material lab" (`context/PLAN-PRODUCTION.md` sections 4, 9; order M19 → M15 → M16 → M17 → M20 → M18 → M21)
+- **Current branch:** `milestone/19-redesign` (from `main` at `ddbb660`)
+- **Latest tag:** `m14-effect-architecture` (on `ddbb660`)
 
 ## Done so far
 
-- Milestones 0–13 merged and tagged (`PROGRESS.md`; ADR-001..047). The docs site is live and deploys from `main` automatically.
-- M13 (PR #15): Back plays the true reverse of the arriving effect from the same point, Forward replays it (`backForward: 'mirror'`, default); the playground keeps its settings in the URL (ADR-047).
+- Milestones 0–14 merged and tagged (`PROGRESS.md`; ADR-001..049). The docs site deploys from `main`.
+- M14 (PR #16): effects as lazy plugins and compositions (ADR-048); Firefox first frame at fractional scroll positions fixed (ADR-049).
 
-## Next steps (M14: effect architecture)
+## Next steps (M19: site redesign)
 
-**Status (session 4):** implemented per ADR-048. PR #16 CI found a real Firefox bug (first frame 1 px off at fractional scroll positions); fixed by ADR-049 (`settleScroll` before every capture), proven in Firefox CI (all fractional seams 0.0000 %), with a permanent diagnostic (`e2e/vanilla/scroll-snap.spec.ts`). **Left:** merge PR #16 on green, tag `m14-effect-architecture`, then M19 (site redesign, art direction A "Material lab").
+**Status (session 4):** implemented and committed on `milestone/19-redesign`: the "Material lab" design system (ADR-050), capture speed-ups in the library (ADR-051 fonts and custom properties, ADR-052 below-the-fold pruning), Lighthouse fixes (contrast, reveal, header shift). **Left:** PR and three-engine CI, merge; then Lighthouse on production (`https://shatter-router.vercel.app`, Lighthouse 12.6.0 mobile, the pages in `apps/docs/lib/measurements.ts`): target ≥ 95 performance / 100 accessibility. If a page misses, fix forward before tagging `m19-redesign` (suspects: the docs pages' later first paint, from the larger stylesheet that Next ships twice). Update `LIGHTHOUSE` in `apps/docs/lib/measurements.ts` with the production numbers. Then M15 (patterns).
 
 ## Deferred (tracked, not forgotten)
 

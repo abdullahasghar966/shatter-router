@@ -1,35 +1,36 @@
 import type { Metadata, Viewport } from 'next';
-import { JetBrains_Mono, Newsreader } from 'next/font/google';
+import { Bricolage_Grotesque, Martian_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { ShatterLink } from 'shatter-router/next';
+import { GlassScrollbar } from './glass-scrollbar';
 import { Header } from './header';
+import { Lab } from './lab';
 import { Providers } from './providers';
 import './globals.css';
 
-// One display typeface (also the text face) and one mono, self-hosted by
-// next/font. Newsreader without its optical-size axis: every capture inlines
-// the fonts into the picture, and the axis tripled their size (ADR-043).
-// Only the roman face is preloaded: it sets every page's headline (the
-// largest paint). The italic and the mono swap in when they arrive.
-const display = Newsreader({
+// "Material lab" type (ADR-050): a grotesk for display and text, a technical
+// mono for labels and readouts, self-hosted by next/font with the weight axis
+// only (every capture inlines the fonts, ADR-043). Only the display face is
+// preloaded: it sets every page's headline (the largest paint). A capture
+// taken while the mono is still swapping in leaves it out too, so the copy
+// shows the same fallback as the page (ADR-051).
+const display = Bricolage_Grotesque({
   subsets: ['latin'],
-  style: 'normal',
   variable: '--font-display',
   display: 'swap',
 });
-const displayItalic = Newsreader({
-  subsets: ['latin'],
-  style: 'italic',
-  variable: '--font-display-italic',
-  display: 'swap',
-  preload: false,
-});
-const mono = JetBrains_Mono({
+const mono = Martian_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
   display: 'swap',
   preload: false,
 });
+
+/**
+ * Applies the remembered theme and material before the first paint, so the
+ * page never flashes the default (ADR-050). Kept tiny and dependency-free.
+ */
+const THEME_SCRIPT = `(function(){try{var r=document.documentElement,t=localStorage.getItem('lab-theme'),m=localStorage.getItem('lab-material');if(t==='light'||t==='dark')r.setAttribute('data-theme',t);if(m==='glass'||m==='ice'||m==='obsidian'||m==='paper')r.setAttribute('data-material',m);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: { default: 'Shatter Router — break the page', template: '%s — Shatter Router' },
@@ -38,13 +39,25 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0a0b0d',
-  colorScheme: 'dark',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f2eee5' },
+    { media: '(prefers-color-scheme: dark)', color: '#11110f' },
+  ],
+  colorScheme: 'light dark',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactNode {
   return (
-    <html lang="en" className={`${display.variable} ${displayItalic.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      data-material="glass"
+      className={`${display.variable} ${mono.variable}`}
+      // The theme script sets attributes before React hydrates.
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <Providers>
           <a className="skip-link" href="#content">
@@ -55,11 +68,13 @@ export default function RootLayout({ children }: { children: ReactNode }): React
             {children}
           </main>
           <footer className="site-footer">
+            <p>MIT licensed · WebGL2, Voronoi cells and a little gravity</p>
             <p>
-              MIT licensed. Made with WebGL2, Voronoi cells and a little gravity.{' '}
-              <ShatterLink href="/docs/performance">Measured, not promised.</ShatterLink>
+              <ShatterLink href="/docs/performance">Measured, not promised →</ShatterLink>
             </p>
           </footer>
+          <GlassScrollbar />
+          <Lab />
         </Providers>
       </body>
     </html>

@@ -37,32 +37,52 @@ if (PERF) {
 }
 
 test.describe('docs site: landing page at 1440x900', () => {
-  test('the first frame of the glass matches the live landing page', async ({ page }, testInfo) => {
-    test.skip(PERF, 'seam thresholds are calibrated for the headless engines');
-    await page.goto(`${BASE}/${QUERY}`);
-    await waitForShatterReady(page);
-    const hero = page.locator('.hero');
-    await hero.hover({ position: SPOT });
-    const live = await page.screenshot();
-    await pauseAt(page, 'fractured');
-    await hero.click({ position: SPOT });
-    await waitForPause(page, 'fractured');
-    const overlay = await page.screenshot();
-    const dpr = await page.evaluate(() => window.devicePixelRatio);
-    const result = await compareScreenshots(
-      testInfo,
-      'docs-landing',
-      live,
-      overlay,
-      Math.max(0, Math.round(Math.min(dpr, 2)) - 1),
-    );
-    console.log(
-      `[seam] ${testInfo.project.name} docs landing: ${result.percent.toFixed(4)} % differ (raw ${result.rawPercent.toFixed(4)} %, worst block ${result.worstBlockPercent.toFixed(1)} %)`,
-    );
-    expect(result.percent).toBeLessThanOrEqual(seamLimit(testInfo.project.name, dpr));
-    expect(result.worstBlockPercent).toBeLessThanOrEqual(SEAM_MAX_BLOCK_PERCENT);
-    await resumeAndFinish(page);
-  });
+  // Both themes (ADR-050): the light bench with glass, the dark lab with obsidian.
+  for (const [theme, material] of [
+    ['light', 'glass'],
+    ['dark', 'obsidian'],
+  ] as const) {
+    test(`the first frame of the glass matches the live landing page (${theme}, ${material})`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(PERF, 'seam thresholds are calibrated for the headless engines');
+      await page.addInitScript(
+        ([t, m]) => {
+          localStorage.setItem('lab-theme', t);
+          localStorage.setItem('lab-material', m);
+        },
+        [theme, material] as const,
+      );
+      await page.goto(`${BASE}/${QUERY}`);
+      await waitForShatterReady(page);
+      // Compare the settled page: fonts in, first-load entrance over. A press
+      // during the entrance ends it first (lab.spec.ts); a face still loading
+      // is left out of the capture (ADR-051).
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForFunction(() => document.documentElement.hasAttribute('data-entered'));
+      const hero = page.locator('.hero');
+      await hero.hover({ position: SPOT });
+      const live = await page.screenshot();
+      await pauseAt(page, 'fractured');
+      await hero.click({ position: SPOT });
+      await waitForPause(page, 'fractured');
+      const overlay = await page.screenshot();
+      const dpr = await page.evaluate(() => window.devicePixelRatio);
+      const result = await compareScreenshots(
+        testInfo,
+        `docs-landing-${theme}`,
+        live,
+        overlay,
+        Math.max(0, Math.round(Math.min(dpr, 2)) - 1),
+      );
+      console.log(
+        `[seam] ${testInfo.project.name} docs landing ${theme}: ${result.percent.toFixed(4)} % differ (raw ${result.rawPercent.toFixed(4)} %, worst block ${result.worstBlockPercent.toFixed(1)} %)`,
+      );
+      expect(result.percent).toBeLessThanOrEqual(seamLimit(testInfo.project.name, dpr));
+      expect(result.worstBlockPercent).toBeLessThanOrEqual(SEAM_MAX_BLOCK_PERCENT);
+      await resumeAndFinish(page);
+    });
+  }
 
   test('capture time of the landing page', async ({ page }, testInfo) => {
     await page.goto(`${BASE}/${QUERY}`);
