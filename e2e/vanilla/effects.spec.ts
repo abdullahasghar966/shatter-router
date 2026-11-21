@@ -227,10 +227,15 @@ test.describe('vanilla example: every effect', () => {
   });
 
   test('sweep: the fractured page at rest matches the live page', async ({ page }, testInfo) => {
+    // Tall enough that the sixth link is on screen: hover() must not scroll,
+    // like the other first-frame tests (a scrolled page measured 0.81–1.17 %
+    // on Firefox in CI, see LEARNINGS).
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`${BASE}/effects${QUERY}`);
     await waitForShatterReady(page);
     const link = page.getByRole('link', { name: 'sweep', exact: true });
     await link.hover();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
     const live = await page.screenshot();
     await pauseAt(page, 'fractured');
     await link.click();
