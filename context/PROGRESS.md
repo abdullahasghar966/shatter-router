@@ -355,6 +355,19 @@ Every falling effect (`shatter`, `explode`, `implode`) plays reversed on Back an
 - **No regression (local, Chromium + WebKit, full suite 245 passed / 15 skipped before the new tests):** every first- and last-frame seam is identical to M13 to four decimals (e.g. Chromium first-shatter 0.0936 %, last-flip 0.1647 %, last-explode-reverse 0.1006 %); draw calls per frame 1 for every effect; allocations beyond boxed numbers 0–16 B per run; fracture 160 shards median 0.80 ms.
 - **Compositions:** the vanilla example's `sweep` (shatter's motion, linear stagger) plays, lands and reverses on Back; first-frame seam 0.0831 % Chromium, 0.0272 % WebKit. The docs playground's stagger control plays `shatter stagger=linear`.
 
+### Firefox at fractional scroll positions (Milestone 14, ADR-049, 2026-11-21)
+
+Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scrolled to a fractional offset:
+
+| Offset | Before (copy shifted by the exact offset) | Round to nearest (attempt) | Round down (attempt) | Settle scroll first (fix, `3066a9a`) |
+| --- | --- | --- | --- | --- |
+| 240.25 px | 1.2982 % | 0.0534 % | 0.0304 % | 0.0000 % |
+| 240.5 px | 1.0407 % | 2.3102 % | 2.3102 % | 0.0000 % |
+| 240.75 px | 0.1301 % (worst block 10.4 %) | 0.0809 % (worst block 10.4 %) | 2.3102 % | 0.0000 % |
+| DPR 2, 240.25 / 240.75 | 0.0000 % (shift radius 1) | — | 0.0000 % | 0.0000 % |
+
+Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
+
 ### Release readiness (Milestone 12, 2026-11-20)
 
 - **Package:** `shatter-router@0.1.0` (Changesets: first-release changeset → `CHANGELOG.md`). `npm pack --dry-run`: 49 files, 187.4 kB packed, 705.7 kB unpacked (`dist` with source maps, `README.md`, `LICENSE`, `CHANGELOG.md`, `package.json`). Not published to npm: publishing is the user's call (`pnpm release`).

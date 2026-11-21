@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M14 implemented; ritual next)
+- **Last updated:** 2026-11-20 (session 4, M14 done incl. the Firefox scroll fix; merge next)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
@@ -18,7 +18,7 @@
 
 ## Next steps (M14: effect architecture)
 
-**Status (session 4):** implemented per ADR-048 and committed: patterns and motions as lazy chunks (`src/engine/plugins.ts`, `patterns/impact.ts`, per-chunk budgets), async `engine.loadEffect`, prefetching, stagger order (`src/engine/stagger.ts`, `ctx.order`, GLSL `shard.order`), compositions (`src/core/compose.ts`, `src/engine/compose.ts`), adapters and docs updated, playground stagger control. Unit 386 passing; e2e full suite green on the plugin build plus the new composition tests. **Left:** final local checks, the ritual (PR, three-engine CI, merge, tag `m14-effect-architecture`), then M19 (site redesign) per the plan order.
+**Status (session 4):** implemented per ADR-048. PR #16 CI found a real Firefox bug (first frame 1 px off at fractional scroll positions); fixed by ADR-049 (`settleScroll` before every capture), proven in Firefox CI (all fractional seams 0.0000 %), with a permanent diagnostic (`e2e/vanilla/scroll-snap.spec.ts`). **Left:** merge PR #16 on green, tag `m14-effect-architecture`, then M19 (site redesign, art direction A "Material lab").
 
 ## Deferred (tracked, not forgotten)
 
