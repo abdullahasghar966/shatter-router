@@ -149,7 +149,13 @@ body {
   font-size: 1.0625rem;
   line-height: 1.6;
   background-color: var(--bg);
-  /* The bench: a faint measuring grid. */
+}
+
+/* The bench: a faint measuring grid, under the page heads only. Painted
+   across a whole long page it delayed the first paint of the docs. */
+.hero,
+.page-head,
+.not-found {
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
@@ -559,17 +565,21 @@ pre code {
   cursor: crosshair;
   overflow: hidden;
   border-bottom: 1px solid var(--line);
-  /* Measuring ticks along the left edge (a background, not a pseudo-element). */
-  background: repeating-linear-gradient(
-      to bottom,
-      var(--line-strong) 0 1px,
-      transparent 1px 12px,
-      var(--line-strong) 12px 13px,
-      transparent 13px 24px,
-      var(--line-strong) 24px 25px,
-      transparent 25px 48px
-    )
-    calc(var(--gutter) * 0.45) 2rem / 9px calc(100% - 4rem) no-repeat;
+  /* Measuring ticks along the left edge (a background, not a
+     pseudo-element), over the bench grid. */
+  background:
+    repeating-linear-gradient(
+        to bottom,
+        var(--line-strong) 0 1px,
+        transparent 1px 12px,
+        var(--line-strong) 12px 13px,
+        transparent 13px 24px,
+        var(--line-strong) 24px 25px,
+        transparent 25px 48px
+      )
+      calc(var(--gutter) * 0.45) 2rem / 9px calc(100% - 4rem) no-repeat,
+    linear-gradient(var(--grid) 1px, transparent 1px) -1px -1px / 48px 48px,
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) -1px -1px / 48px 48px;
 }
 
 .hero h1 {

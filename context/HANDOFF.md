@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M14 merged and tagged; M19 starting)
+- **Last updated:** 2026-11-20 (session 4, M19 implemented; PR, CI and production Lighthouse next)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
@@ -18,9 +18,7 @@
 
 ## Next steps (M19: site redesign)
 
-1. ADR-050: the design system for "Material lab" (palette tokens light/dark, type pairing chosen with font size in mind — every capture inlines the fonts, ADR-043 — motion tokens, the material theme switcher, the glass scrollbar, cursor, sound toggle).
-2. Build it: tokens and type; header, hero and pages restyled; interactive theme switcher (glass / ice / obsidian / paper palettes that also set the transition's glass tint); glass scrollbar (native scrolling kept); text reveals and button press/heal animations; opt-in procedural sound toggle (muted by default, never under reduced motion or before a gesture); reduced-motion variants of everything.
-3. Tests: visual and e2e (theme switch persists, scrollbar drag and keyboard, sound off by default, reduced motion), seams of the new pages, Lighthouse ≥ 95 / 100 mobile. Then the ritual and tag `m19-redesign`.
+**Status (session 4):** implemented and committed on `milestone/19-redesign`: the "Material lab" design system (ADR-050), capture speed-ups in the library (ADR-051 fonts and custom properties, ADR-052 below-the-fold pruning), Lighthouse fixes (contrast, reveal, header shift). **Left:** PR and three-engine CI, merge; then Lighthouse on production (`https://shatter-router.vercel.app`, Lighthouse 12.6.0 mobile, the pages in `apps/docs/lib/measurements.ts`): target ≥ 95 performance / 100 accessibility. If a page misses, fix forward before tagging `m19-redesign` (suspects: the docs pages' later first paint, from the larger stylesheet that Next ships twice). Update `LIGHTHOUSE` in `apps/docs/lib/measurements.ts` with the production numbers. Then M15 (patterns).
 
 ## Deferred (tracked, not forgotten)
 
