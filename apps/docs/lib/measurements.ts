@@ -11,15 +11,15 @@ export const LANDING = {
 
 export const LIGHTHOUSE = {
   pages: [
-    ['/', 97, 100],
-    ['/effects', 97, 100],
-    ['/effects/flip', 97, 100],
+    ['/', 98, 100],
+    ['/effects', 96, 100],
+    ['/effects/flip', 96, 100],
     ['/playground', 97, 100],
-    ['/docs', 97, 100],
-    ['/docs/getting-started', 97, 100],
-    ['/docs/api', 97, 100],
+    ['/docs', 100, 100],
+    ['/docs/getting-started', 96, 100],
+    ['/docs/api', 99, 100],
     ['/docs/custom-effects', 97, 100],
-    ['/docs/performance', 99, 100],
+    ['/docs/performance', 97, 100],
   ] as (readonly [string, number, number])[],
-  how: 'Lighthouse 12.6.0, mobile (simulated slow 4G and 4× CPU slowdown), production build served locally, installed Chrome 157. Largest contentful paint 2.0–2.5 s, total blocking time 20–90 ms, layout shift ≤ 0.004.',
+  how: 'Lighthouse 12.6.0, mobile (simulated slow 4G and 4× CPU slowdown), on the live site (Vercel), installed Chrome, 2026-11-22. Largest contentful paint 1.4–2.6 s, total blocking time 20–170 ms, layout shift 0.',
 };

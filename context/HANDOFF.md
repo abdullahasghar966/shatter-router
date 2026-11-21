@@ -1,24 +1,27 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M19 implemented; PR, CI and production Lighthouse next)
+- **Last updated:** 2026-11-20 (session 4, M19 merged and tagged; M15 starting)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 19 — Site redesign, art direction A "Material lab" (`context/PLAN-PRODUCTION.md` sections 4, 9; order M19 → M15 → M16 → M17 → M20 → M18 → M21)
-- **Current branch:** `milestone/19-redesign` (from `main` at `ddbb660`)
-- **Latest tag:** `m14-effect-architecture` (on `ddbb660`)
+- **Current milestone:** 15 — Fracture patterns (`context/PLAN-PRODUCTION.md` section 3.2; order M15 → M16 → M17 → M20 → M18 → M21)
+- **Current branch:** `milestone/15-patterns` (from `main` at `0091427`)
+- **Latest tag:** `m19-redesign` (on `0091427`)
 
 ## Done so far
 
-- Milestones 0–14 merged and tagged (`PROGRESS.md`; ADR-001..049). The docs site deploys from `main`.
-- M14 (PR #16): effects as lazy plugins and compositions (ADR-048); Firefox first frame at fractional scroll positions fixed (ADR-049).
+- Milestones 0–14 and 19 merged and tagged (`PROGRESS.md`; ADR-001..052). The docs site deploys from `main`; it is the "Material lab" redesign now (Lighthouse 96–100 / 100 on production).
+- M19 (PR #17): design system, materials switcher, glass rail, micro-interactions (ADR-050); faster captures for every user of the library (ADR-051 fonts and custom properties, ADR-052 below-the-fold pruning); Firefox sandbox fix.
 
-## Next steps (M19: site redesign)
+## Next steps (M15: fracture patterns)
 
-**Status (session 4):** implemented and committed on `milestone/19-redesign`: the "Material lab" design system (ADR-050), capture speed-ups in the library (ADR-051 fonts and custom properties, ADR-052 below-the-fold pruning), Lighthouse fixes (contrast, reveal, header shift). **Left:** PR and three-engine CI, merge; then Lighthouse on production (`https://shatter-router.vercel.app`, Lighthouse 12.6.0 mobile, the pages in `apps/docs/lib/measurements.ts`): target ≥ 95 performance / 100 accessibility. If a page misses, fix forward before tagging `m19-redesign` (suspects: the docs pages' later first paint, from the larger stylesheet that Next ships twice). Update `LIGHTHOUSE` in `apps/docs/lib/measurements.ts` with the production numbers. Then M15 (patterns).
+1. ADR-053: the public `FracturePattern` interface (today internal: `cells(input) → Shard[]`, ADR-048) and the pattern list of plan 3.2: radial (spider web), triangles, hex, bricks/tiles, strips, rings, dom (one piece per layout block), text (per word/letter), pixels, mask. Decide which need workers (≤ 4 ms for 400 pieces, else a worker).
+2. Each pattern a lazy chunk with a size budget; tests per pattern: cells tile the viewport (area sum, no gaps), UVs, first-frame seam at rest, fracture time.
+3. Docs: the playground gets a pattern control (URL state, generated code); the API page lists patterns.
+4. Ritual, tag `m15-patterns`.
 
 ## Deferred (tracked, not forgotten)
 

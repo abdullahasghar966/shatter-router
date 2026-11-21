@@ -47,6 +47,10 @@ export default defineConfig({
     'effects/flip': 'src/engine/effects/flip.ts',
     'effects/assemble': 'src/engine/effects/assemble.ts',
     'patterns/impact': 'src/engine/patterns/impact.ts',
+    'patterns/radial': 'src/engine/patterns/radial.ts',
+    'patterns/triangles': 'src/engine/patterns/triangles.ts',
+    'patterns/hex': 'src/engine/patterns/hex.ts',
+    'patterns/grid': 'src/engine/patterns/grid.ts',
   },
   // Optional peers stay external. tsup's automatic peer handling missed this
   // scoped one and inlined 4.2 MB of Rapier (LEARNINGS).

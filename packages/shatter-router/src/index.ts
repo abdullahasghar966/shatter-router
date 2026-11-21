@@ -16,6 +16,7 @@ export type { PhaseTimings, TransitionState } from './core/machine';
 export type { ScrollTarget } from './core/ready';
 export type { ScrollLock } from './core/scroll-lock';
 export { SHARD_ATTRIBUTE_FLOATS } from './core/effect';
+export type { EffectSource } from './core/compose';
 export type {
   EffectComposition,
   EffectContext,

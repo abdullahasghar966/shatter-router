@@ -180,14 +180,32 @@ test.describe('docs site', () => {
     await page.goto(`${BASE}/playground${QUERY}`);
     await waitForShatterReady(page);
     const code = page.getByTestId('config-code');
-    // The second select is the stagger.
-    await page.locator('.pane-host select').nth(1).selectOption('linear');
+    // The selects: effect, pattern, stagger.
+    await page.locator('.pane-host select').nth(2).selectOption('linear');
     await expect(code).toContainText("effect: { motion: 'shatter', stagger: 'linear' },");
     await expect.poll(() => new URL(page.url()).searchParams.get('stagger')).toBe('linear');
     await clearLifecycleEvents(page);
     await page.getByRole('button', { name: /click to break/ }).click();
     await expect(page.getByTestId('stage-title')).toHaveText('Shards', { timeout: 15_000 });
     await expect.poll(() => lastEffect(page), { timeout: 15_000 }).toBe('shatter stagger=linear');
+  });
+
+  test('playground: a fracture pattern joins the composition (ADR-053)', async ({ page }) => {
+    await page.goto(`${BASE}/playground${QUERY}`);
+    await waitForShatterReady(page);
+    const code = page.getByTestId('config-code');
+    await page.locator('.pane-host select').nth(1).selectOption('hex');
+    await page.locator('.pane-host select').nth(2).selectOption('spiral');
+    await expect(code).toContainText(
+      "effect: { motion: 'shatter', pattern: 'hex', stagger: 'spiral' },",
+    );
+    await expect.poll(() => new URL(page.url()).searchParams.get('pattern')).toBe('hex');
+    await clearLifecycleEvents(page);
+    await page.getByRole('button', { name: /click to break/ }).click();
+    await expect(page.getByTestId('stage-title')).toHaveText('Shards', { timeout: 15_000 });
+    await expect
+      .poll(() => lastEffect(page), { timeout: 15_000 })
+      .toBe('shatter pattern=hex stagger=spiral');
   });
 
   test.describe('not found', () => {

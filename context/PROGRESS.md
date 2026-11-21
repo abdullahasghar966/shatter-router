@@ -24,11 +24,11 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
-| 15  | Fracture patterns             | ☐      | `milestone/15-patterns`        |     |           |             |
+| 15  | Fracture patterns             | ◐      | `milestone/15-patterns`        |     |           |             |
 | 16  | Motions and materials         | ☐      | `milestone/16-motions-materials` |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
-| 19  | Site redesign (Material lab)  | ◐      | `milestone/19-redesign`        |     |           |             |
+| 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
 | 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
 | 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
@@ -368,12 +368,21 @@ Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scroll
 
 Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
 
+### Fracture patterns (Milestone 15, 2026-11-22, ADR-053)
+
+- **Chunks (gzip):** radial + rings 1.40 kB, triangles 1.26 kB, hex 1.05 kB, tiles + bricks + strips 1.36 kB (budget 2 kB each); engine core 11.55 kB.
+- **Fracture time, 400 pieces at 1440×900 (Node, median of 15):** impact 1.69 ms, radial 0.99, rings 1.20, triangles 0.90, hex 1.74, bricks 1.05, tiles 0.95, strips 0.10 ms (budget 4 ms: no worker needed).
+- **Pieces at the mid tier (90 requested, 960×600 example):** radial 80, rings 72, triangles 154, hex 186, bricks 168, strips 25.
+- **First-frame seams per pattern (vanilla, fractured at rest):** Chromium 0.0991–0.1069 %, WebKit 0.0021 % for every pattern.
+
 ### Site redesign "Material lab" (Milestone 19, 2026-11-21/22, ADR-050–052)
 
 - **Capture of the docs landing (1440×900).** Headless Chromium, median of 7 warm captures: old site on the old library 70–91 ms; redesign on the old library 184 ms; + font pruning 147; + no custom properties 109–121; + decoration without pseudo-elements or letter spans 69–78; old site on the new library 46 ms. GPU (installed Chrome, RTX 4050), after the below-the-fold pruning: 3-capture medians 75.9 / 74.9 / 78.6 ms (old site 82 ms, budget 120); 7 warm captures median 51 ms; the first capture after load 103–123 ms.
 - **Seams:** docs landing first frame light 0.0099 % / dark 0.0063 % (Chromium), 0.0024 / 0.0023 % (WebKit), no bad block (before M19: 0.0239 %). Every vanilla, React Router and Next seam unchanged to four decimals.
 - **Fonts:** Bricolage Grotesque latin 41 kB (preloaded) and Martian Mono latin 23.5 kB, against Newsreader 58 kB plus a 64 kB italic before.
 - **Lighthouse 12.6.0 mobile, local production build, interleaved with the old site under the same (noisy) machine load:** accessibility 100 on every page (after raising `--faint` to 4.5:1). Performance comparable to the old site on the home page (old 90–92, new 85–93); the long docs pages paint later (`/docs/api` simulated LCP 2.7 s against 1.9 s; observed first paint 400–540 ms against 230–300 ms), from the larger stylesheet, which Next ships twice (inline `<style>` and the RSC payload: 22.6 kB against 14.5 kB). The machine's load made absolute scores unreliable (the old site, published at 97, scored 69–94); the definitive run is on production after the merge.
+- **Lighthouse 12.6.0 mobile on production after the merge (`0091427`, quiet machine):** `/` 98/100, `/effects` 96/100, `/effects/flip` 96/100, `/playground` 97/100, `/docs` 100/100, `/docs/getting-started` 96/100, `/docs/api` 99/100, `/docs/custom-effects` 97/100, `/docs/performance` 97/100 (performance/accessibility); LCP 1.4–2.6 s, TBT 20–170 ms, CLS 0. Acceptance (≥ 95 / 100) met.
+- **PR #17 CI** found two Firefox console warnings on the docs site: the capture sandbox's layout forced while it loaded (fixed: the sandbox is `display: none`, every seam unchanged) and the glass rail's "scroll-linked positioning effect" note (inherent; allowed for the docs origin). Final CI on `b61c4e4`: Chromium, Firefox and WebKit green.
 - **Found and fixed during M19:** a zero-sized button crack layer drawn in captures (worst block 6.1 %), a headline reveal that delayed the largest paint by 3.1 s, a layout shift from the mono font (CLS 0.279 → ≤ 0.02), contrast of faint labels (3.85:1 → ≥ 4.71:1), captures taken while the first-load entrance or a font was still loading.
 
 ### Release readiness (Milestone 12, 2026-11-20)
@@ -419,4 +428,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 12 | 335 tests in 26 files (unchanged) | + `history.spec.ts`: a capture adds no history entry (ADR-044). Final local run: Chromium + WebKit 225 passed, 15 skipped |
 | 13 | 361 tests in 26 files (+ `history.test.ts` 16: memory, Back/Forward/`go(n)`, replace, cap, reload, storage failures, query rewrites, reverse wrapper GLSL; + 9 mirror tests in `effects.test.ts`; adapter tests assert `replace`) | + vanilla: each falling effect reversed and replayed, first- and last-frame seams of `shatter:reverse` and `explode:reverse`; React Router and Next: reverse, last-frame seam, replay (`e2e/mirror.ts`); docs: playground settings through Back and reload. Local: Chromium + WebKit 245 passed, 15 skipped (4 WebKit tests that hit a 26–53 min machine stall passed on rerun). PR #15 CI: Chromium, Firefox and WebKit green |
 | 14 | 394 tests in 29 files (+ `composition.test.ts` 25: stagger orders, compositions, lazy part loaders, runtime handling; `snap-scroll.test.ts` 8) | + vanilla: `sweep` composition plays, lands, reverses, first-frame seam; first-frame seams at fractional scroll offsets (240.25/.5/.75, DPR 1 and 2); `scroll-snap.spec.ts` paint diagnostic (5 page variants); docs: playground stagger plays a composition. Local Chromium + WebKit 271 passed, 15 skipped. PR #16 CI (final, `3968e70`): Chromium, Firefox (129 passed, 14 skipped) and WebKit green |
-| 19 | 403 tests in 30 files (+ `fonts.test.ts` 9: unicode-range parsing, subset pruning, pending faces) | + `e2e/docs/lab.spec.ts` (material switch plays a flip and persists, theme toggle persists, system dark followed, glass rail tracks/drags and keyboard scrolling works, entrances only on first load, a press ends the entrance, reduced motion) and landing seams in light and dark. Local Chromium + WebKit: docs 46 passed; seams/effects across all apps 112 passed |
+| 19 | 405 tests in 31 files (+ `fonts.test.ts` 9: unicode-range parsing, subset pruning, pending faces; `sandbox.test.ts` 2) | + `e2e/docs/lab.spec.ts` (material switch plays a flip and persists, theme toggle persists, system dark followed, glass rail tracks/drags and keyboard scrolling works, entrances only on first load, a press ends the entrance, reduced motion) and landing seams in light and dark. Local Chromium + WebKit: docs 46 passed; seams/effects across all apps 112 passed |

@@ -40,6 +40,8 @@ export function Lab(): ReactNode {
     const off = shatter?.on('start', enter);
     window.addEventListener('pointerdown', enter, { capture: true, passive: true });
     window.addEventListener('keydown', enter, { capture: true, passive: true });
+    // The page is interactive from here on (tests wait for it).
+    root.setAttribute('data-lab', 'ready');
     return () => {
       window.clearTimeout(timer);
       off?.();

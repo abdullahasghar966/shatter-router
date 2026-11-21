@@ -5,6 +5,8 @@ export interface PlaygroundConfig {
   effect: string;
   /** Order in which pieces start (ADR-048); `'default'` keeps the effect's own. */
   stagger: StaggerChoice;
+  /** Fracture pattern (ADR-053); `'default'` keeps the effect's own. */
+  pattern: PatternChoice;
   /** 0 = `'auto'`. */
   shards: number;
   /** 0 = the effect's own duration. */
@@ -19,6 +21,37 @@ export interface PlaygroundConfig {
   /** 0 = random each time. */
   seed: number;
   debug: boolean;
+}
+
+/** The fracture patterns the panel offers (ADR-053). */
+export const PATTERNS = [
+  'default',
+  'impact',
+  'radial',
+  'rings',
+  'triangles',
+  'hex',
+  'bricks',
+  'tiles',
+  'strips',
+] as const;
+export type PatternChoice = (typeof PATTERNS)[number];
+
+/**
+ * The effect the settings describe: a name, or a composition of parts when a
+ * pattern or stagger is chosen (ADR-048).
+ */
+export function effectOf(
+  config: PlaygroundConfig,
+): string | { motion: string; pattern?: string; stagger?: Stagger } {
+  const stagger = staggerOf(config.stagger);
+  const pattern = config.pattern === 'default' ? undefined : config.pattern;
+  if (!stagger && !pattern) return config.effect;
+  return {
+    motion: config.effect,
+    ...(pattern ? { pattern } : {}),
+    ...(stagger ? { stagger } : {}),
+  };
 }
 
 /** The stagger orders the panel offers. */
@@ -43,6 +76,7 @@ export function staggerOf(choice: StaggerChoice): Stagger | undefined {
 export const DEFAULTS: PlaygroundConfig = {
   effect: 'shatter',
   stagger: 'default',
+  pattern: 'default',
   shards: 0,
   duration: 0,
   gravity: 2600,
@@ -101,6 +135,8 @@ export function configFromSearch(search: string): PlaygroundConfig {
   if (effect && EFFECT_NAMES.includes(effect)) config.effect = effect;
   const stagger = STAGGERS.find((choice) => choice === params.get('stagger'));
   if (stagger) config.stagger = stagger;
+  const pattern = PATTERNS.find((choice) => choice === params.get('pattern'));
+  if (pattern) config.pattern = pattern;
   for (const key of Object.keys(LIMITS) as NumberKey[]) {
     const raw = params.get(key);
     if (raw === null || raw.trim() === '') continue;
@@ -127,18 +163,21 @@ export function configFromSearch(search: string): PlaygroundConfig {
  * their defaults are omitted (the effect is always shown).
  */
 export function configCode(config: PlaygroundConfig): string {
-  const stagger = staggerOf(config.stagger);
-  const staggerCode =
-    stagger === undefined
-      ? ''
-      : typeof stagger === 'string'
-        ? `'${stagger}'`
-        : `{ type: 'linear', angle: ${String(stagger.angle)} }`;
-  // A stagger makes the effect a composition of parts (ADR-048).
+  const effect = effectOf(config);
+  const parts: string[] = [];
+  if (typeof effect !== 'string') {
+    parts.push(`motion: '${effect.motion}'`);
+    if (effect.pattern) parts.push(`pattern: '${effect.pattern}'`);
+    const stagger = effect.stagger;
+    if (stagger !== undefined) {
+      parts.push(
+        `stagger: ${typeof stagger === 'string' ? `'${stagger}'` : `{ type: 'linear', angle: ${String(stagger.angle)} }`}`,
+      );
+    }
+  }
+  // A pattern or stagger makes the effect a composition of parts (ADR-048).
   const lines: string[] = [
-    staggerCode
-      ? `  effect: { motion: '${config.effect}', stagger: ${staggerCode} },`
-      : `  effect: '${config.effect}',`,
+    typeof effect === 'string' ? `  effect: '${effect}',` : `  effect: { ${parts.join(', ')} },`,
   ];
   if (config.shards !== DEFAULTS.shards) lines.push(`  shards: ${String(config.shards)},`);
   if (config.duration !== DEFAULTS.duration) lines.push(`  duration: ${String(config.duration)},`);
