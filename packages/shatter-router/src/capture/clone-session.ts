@@ -100,6 +100,19 @@ interface StickyFix {
   readonly origin: Point;
 }
 
+/**
+ * A scroll offset as the browser draws it: snapped to whole device pixels
+ * (ADR-049). Firefox keeps fractional scroll positions (`scrollY` 240.75)
+ * but paints the page shifted by a whole number of device pixels, so every
+ * element keeps its own sub-pixel rounding. Shifting the copy by the exact
+ * fraction instead rounds each line of text on its own, and some land a
+ * pixel off. Chromium and WebKit already report whole-pixel offsets.
+ */
+export function snapScroll(offset: number, devicePixelRatio: number): number {
+  const ratio = devicePixelRatio > 0 ? devicePixelRatio : 1;
+  return Math.round(offset * ratio) / ratio;
+}
+
 export interface CloneGeometry {
   /** Viewport size in CSS pixels. */
   readonly width: number;
@@ -311,8 +324,10 @@ export class CloneSession {
     // WebKit (it misplaces layered HTML under SVG transforms) out of trouble,
     // and leaves the SVG viewport standing in for the real one, so
     // position: fixed content needs no correction.
-    clonedRoot.style.setProperty('margin-left', `${rootRect.left}px`);
-    clonedRoot.style.setProperty('margin-top', `${rootRect.top}px`);
+    // Snapped like the browser draws the scrolled page (ADR-049).
+    const ratio = this.win.devicePixelRatio;
+    clonedRoot.style.setProperty('margin-left', `${String(snapScroll(rootRect.left, ratio))}px`);
+    clonedRoot.style.setProperty('margin-top', `${String(snapScroll(rootRect.top, ratio))}px`);
     // Some engines snap box edges and glyphs to whole pixels of the grid the
     // SVG is laid out in. For those, lay the copy out in device pixels so the
     // snapping matches the live page.
@@ -413,8 +428,11 @@ export class CloneSession {
     if (original !== this.root && original !== this.scroller) {
       const { scrollLeft, scrollTop } = original;
       if (scrollLeft !== 0 || scrollTop !== 0) {
+        const ratio = this.win.devicePixelRatio;
+        const x = snapScroll(scrollLeft, ratio);
+        const y = snapScroll(scrollTop, ratio);
         for (const child of cloned.children) {
-          if (isStyled(child)) prependTranslate(child.style, -scrollLeft, -scrollTop);
+          if (isStyled(child)) prependTranslate(child.style, -x, -y);
         }
       }
     }
