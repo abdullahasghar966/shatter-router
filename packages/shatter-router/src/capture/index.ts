@@ -254,8 +254,11 @@ function createSandbox(doc: Document): HTMLIFrameElement | undefined {
   const sandbox = doc.createElement('iframe');
   sandbox.width = '0';
   sandbox.height = '0';
-  sandbox.style.visibility = 'hidden';
-  sandbox.style.position = 'fixed';
+  // Not rendered at all: the library only reads computed styles in it, and a
+  // frame without layout cannot have its layout forced while it loads (in
+  // Firefox any layout read in the page, a scrollbar reading scrollY for one,
+  // flushes the frames inside it too).
+  sandbox.style.display = 'none';
   sandbox.setAttribute('aria-hidden', 'true');
   sandbox.tabIndex = -1;
   sandbox.srcdoc = '<!DOCTYPE html><meta charset="UTF-8"><title></title><body>';
