@@ -117,6 +117,25 @@ export function snapScroll(scroll: number, devicePixelRatio: number): number {
   return (sign * Math.floor(Math.abs(scroll) * ratio + 1e-6)) / ratio;
 }
 
+/**
+ * Moves a page scrolled to a fractional offset to the whole device pixel
+ * below (ADR-049). Firefox keeps fractional scroll positions and then draws
+ * the scrolled content at the whole pixel below but fixed and sticky
+ * elements at other sub-pixel positions (CI: `scroll-snap.spec.ts`), so no
+ * copy shifted by any one amount matches it. At a whole-pixel offset the
+ * page and its copy match exactly. The content does not move (it is already
+ * drawn there); only fixed and sticky elements settle by under a pixel.
+ * Chromium and WebKit already scroll by whole pixels: nothing happens there.
+ */
+export function settleScroll(win: Window): void {
+  const ratio = win.devicePixelRatio;
+  const x = snapScroll(win.scrollX, ratio);
+  const y = snapScroll(win.scrollY, ratio);
+  if (x !== win.scrollX || y !== win.scrollY) {
+    win.scrollTo({ left: x, top: y, behavior: 'instant' });
+  }
+}
+
 export interface CloneGeometry {
   /** Viewport size in CSS pixels. */
   readonly width: number;

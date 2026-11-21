@@ -8,9 +8,10 @@ import { expect, test } from '../fixtures';
  * For each page, the live page scrolled to a fractional offset is compared
  * with the same page scrolled to the whole pixels below and above it: the
  * one that matches is what the browser painted. Chromium and WebKit keep
- * whole-pixel scroll offsets; Firefox does not, and (CI, 2026-11-21) painted
- * a plain page rounded down but the vanilla example's /work page rounded to
- * nearest. These variants find what makes the difference.
+ * whole-pixel scroll offsets; Firefox does not (CI, 2026-11-21): it draws the
+ * scrolled content at the whole pixel below, but fixed and sticky elements at
+ * other sub-pixel positions. That is why the capture settles the scroll to a
+ * whole pixel first (settleScroll).
  */
 
 const LINES = Array.from(
@@ -61,6 +62,7 @@ async function scrollTo(page: Page, y: number): Promise<number> {
 
 /** Which whole-pixel scroll the browser painted for each fractional one. */
 async function painted(page: Page, label: string, project: string): Promise<void> {
+  const nearest: number[] = [];
   for (const offset of [240.25, 240.5, 240.75]) {
     const scrollY = await scrollTo(page, offset);
     const live = await page.screenshot();
@@ -71,9 +73,11 @@ async function painted(page: Page, label: string, project: string): Promise<void
     console.log(
       `[scroll-paint] ${project} ${label} scrollY ${String(scrollY)}: vs ${String(Math.floor(offset))} ${String(below)} px, vs ${String(Math.ceil(offset))} ${String(above)} px`,
     );
-    // The browser paints a whole-pixel scroll: one of the two must match.
-    expect(Math.min(below, above)).toBe(0);
+    nearest.push(Math.min(below, above));
   }
+  // The scrolled content is drawn at a whole-pixel offset; on Firefox, fixed
+  // and sticky elements may sit a sub-pixel off it (a few hundred pixels).
+  for (const pixels of nearest) expect(pixels).toBeLessThan(2000);
 }
 
 test.describe('scroll offsets as painted (diagnostic for ADR-049)', () => {

@@ -6,7 +6,7 @@ import {
 } from 'modern-screenshot';
 import { CaptureError, type CaptureRequest, type Capturer, type Snapshot } from '../core/snapshot';
 import { deviceSize } from '../core/viewport';
-import { CloneSession } from './clone-session';
+import { CloneSession, settleScroll } from './clone-session';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
@@ -97,8 +97,9 @@ export class DomCapturer implements Capturer {
     const size = deviceSize(viewport, request.maxTextureSize);
     const context = await this.ensureContext();
     // Measure only after the await: the page may have scrolled meanwhile.
-    const rootRect = doc.documentElement.getBoundingClientRect();
     const win = doc.defaultView;
+    if (win) settleScroll(win);
+    const rootRect = doc.documentElement.getBoundingClientRect();
     const session = new CloneSession(doc, {
       width: viewport.width,
       height: viewport.height,
