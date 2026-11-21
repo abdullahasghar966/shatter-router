@@ -1,6 +1,6 @@
-import type { ShatterEffect } from './effect';
+import type { EffectComposition, ShatterEffect } from './effect';
 import { isBrowser } from './env';
-import { classifyLinkClick, findAnchor } from './links';
+import { classifyLinkClick, findAnchor, getLinkEffect } from './links';
 import type { TransitionState } from './machine';
 import type {
   Shatter,
@@ -14,7 +14,7 @@ import type {
 /** What the lazily loaded runtime needs from the instance that created it. */
 export interface RuntimeHost {
   readonly options: ShatterOptions;
-  readonly effects: ReadonlyMap<string, ShatterEffect>;
+  readonly effects: ReadonlyMap<string, ShatterEffect | EffectComposition>;
   /** `pathname + search` when Shatter was created: the page the memory starts on (ADR-047). */
   readonly startKey: string;
   emit<K extends ShatterEventName>(event: K, payload: ShatterEventMap[K]): void;
@@ -27,7 +27,8 @@ export interface ShatterRuntime {
   /** Starts loading the engine and capture chunks. */
   warmUp(): void;
   /** The pointer is about to activate a link: start capturing now. */
-  precapture(): void;
+  /** `effect`: the link's own effect, whose chunks can be fetched now (ADR-048). */
+  precapture(effect?: string): void;
   destroy(): void;
 }
 
@@ -45,7 +46,7 @@ const HOVER_DWELL_MS = 120;
  */
 export class ShatterFacade implements Shatter {
   private readonly handlers = new Map<ShatterEventName, Set<(payload: never) => void>>();
-  private readonly effects = new Map<string, ShatterEffect>();
+  private readonly effects = new Map<string, ShatterEffect | EffectComposition>();
   private readonly cleanups: (() => void)[] = [];
   private runtime: ShatterRuntime | null = null;
   private loading: Promise<ShatterRuntime | null> | null = null;
@@ -90,7 +91,7 @@ export class ShatterFacade implements Shatter {
     };
   }
 
-  registerEffect(effect: ShatterEffect): void {
+  registerEffect(effect: ShatterEffect | (EffectComposition & { readonly name: string })): void {
     if (!effect.name) throw new TypeError('An effect needs a name');
     this.effects.set(effect.name, effect);
   }
@@ -158,11 +159,15 @@ export class ShatterFacade implements Shatter {
   private listenForIntent(): void {
     const mode = this.options.precapture ?? 'pointerdown';
     if (mode === false) return;
-    const intent = (): void => {
-      void this.load().then((runtime) => runtime?.precapture());
+    // The link's own effect comes along, so its chunks load early (ADR-048).
+    const intent = (anchor: Element): void => {
+      const effect = getLinkEffect(anchor);
+      void this.load().then((runtime) => runtime?.precapture(effect));
     };
-    const wouldIntercept = (event: PointerEvent): boolean => {
-      const anchor = findAnchor(event);
+    const wouldIntercept = (
+      event: PointerEvent,
+      anchor: HTMLAnchorElement | null,
+    ): anchor is HTMLAnchorElement => {
       return (
         anchor !== null &&
         classifyLinkClick(
@@ -180,7 +185,8 @@ export class ShatterFacade implements Shatter {
     };
     if (mode === 'pointerdown') {
       const onDown = (event: PointerEvent): void => {
-        if (event.isPrimary && wouldIntercept(event)) intent();
+        const anchor = findAnchor(event);
+        if (event.isPrimary && wouldIntercept(event, anchor)) intent(anchor);
       };
       document.addEventListener('pointerdown', onDown, { capture: true, passive: true });
       this.cleanups.push(() => {
@@ -195,7 +201,11 @@ export class ShatterFacade implements Shatter {
       if (!anchor || anchor === hovered) return;
       hovered = anchor;
       window.clearTimeout(dwell);
-      if (wouldIntercept(event)) dwell = window.setTimeout(intent, HOVER_DWELL_MS);
+      if (wouldIntercept(event, anchor)) {
+        dwell = window.setTimeout(() => {
+          intent(anchor);
+        }, HOVER_DWELL_MS);
+      }
     };
     const onOut = (event: PointerEvent): void => {
       const related = event.relatedTarget instanceof Node ? event.relatedTarget : null;

@@ -22,8 +22,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 10  | Performance pass              | ☑      | `milestone/10-performance`    | [#10](https://github.com/abdullahasghar966/shatter-router/pull/10) | `c3175ef` | `m10-performance` |
 | 11  | Docs site                     | ☑      | `milestone/11-docs-site`      | [#11](https://github.com/abdullahasghar966/shatter-router/pull/11) | `ecb969c` | `m11-docs-site` |
 | 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
-| 13  | Navigation memory             | ◐      | `milestone/13-navigation-memory` | (PR pending) |           |             |
-| 14  | Effect architecture           | ☐      | `milestone/14-effect-architecture` |     |           |             |
+| 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
+| 14  | Effect architecture           | ◐      | `milestone/14-effect-architecture` |     |           |             |
 | 15  | Fracture patterns             | ☐      | `milestone/15-patterns`        |     |           |             |
 | 16  | Motions and materials         | ☐      | `milestone/16-motions-materials` |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
@@ -93,6 +93,7 @@ Dev machine: Windows 11, NVIDIA GeForce RTX 4050 Laptop GPU.
 | 2026-11-15 | engine `dist/engine.js` (lazy) | 19.74 kB | 22 KB | Milestone 10: GLSL comments and indentation stripped at build (ADR-039); was 21.58 kB after M9. Runtime 7.23 kB, capture 12.53 kB, core 1.8 kB unchanged |
 | 2026-11-15 | runtime `dist/runtime.js` (lazy) | 7.76 kB | 8 KB | Milestone 11: + priming capture on first intent (ADR-043) |
 | 2026-11-20 | runtime `dist/runtime.js` (lazy) | 8.68 kB | 9 KB | Milestone 13: + navigation memory, mirror planning (ADR-047; budget raised from 8 KB). Engine 20.05 kB of 22 KB (+0.24: reverse wrapper); core 1.83 kB |
+| 2026-11-20 | engine core `dist/engine.js` (lazy) | 11.45 kB | 15 KB | Milestone 14: effects as lazy plugins (ADR-048). Motions `dist/effects/*.js`: shatter 1.01, explode 1.35, implode 1.29, flip 0.87, assemble 1.26 kB (2 KB each); pattern `impact` 8.19 kB incl. d3-delaunay (9 KB). Runtime 9.0 kB (budget raised to 10 KB); core 1.84 kB |
 | 2026-11-15 | debug `dist/debug.js` (lazy, debug mode only) | 3.44 kB | 5 KB (own) | Milestone 10: debug panel and seam check (ADR-041). Runtime 7.55 kB of 8 KB (+0.32: panel loading, `exclusive()`, draw stats); engine 19.76 kB |
 
 ### First-frame seam (share of pixels differing beyond pixelmatch threshold 0.1, anti-aliased pixels counted)
@@ -348,6 +349,25 @@ Seams of the reversed effects (Back, `backForward: 'mirror'`), local Windows 11,
 
 Every falling effect (`shatter`, `explode`, `implode`) plays reversed on Back and replays on Forward with no fallback; the docs playground keeps its settings through Back and a reload.
 
+### Effect architecture (Milestone 14, 2026-11-20)
+
+- **Sizes:** the engine chunk went from 20.05 kB to an 11.45 kB core plus lazy parts (table above). A page that only plays `shatter` loads 11.45 + 1.01 + 8.19 = 20.65 kB of engine code, the same as before; each further effect adds about 1 kB instead of all five being in the first load.
+- **No regression (local, Chromium + WebKit, full suite 245 passed / 15 skipped before the new tests):** every first- and last-frame seam is identical to M13 to four decimals (e.g. Chromium first-shatter 0.0936 %, last-flip 0.1647 %, last-explode-reverse 0.1006 %); draw calls per frame 1 for every effect; allocations beyond boxed numbers 0–16 B per run; fracture 160 shards median 0.80 ms.
+- **Compositions:** the vanilla example's `sweep` (shatter's motion, linear stagger) plays, lands and reverses on Back; first-frame seam 0.0831 % Chromium, 0.0272 % WebKit. The docs playground's stagger control plays `shatter stagger=linear`.
+
+### Firefox at fractional scroll positions (Milestone 14, ADR-049, 2026-11-21)
+
+Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scrolled to a fractional offset:
+
+| Offset | Before (copy shifted by the exact offset) | Round to nearest (attempt) | Round down (attempt) | Settle scroll first (fix, `3066a9a`) |
+| --- | --- | --- | --- | --- |
+| 240.25 px | 1.2982 % | 0.0534 % | 0.0304 % | 0.0000 % |
+| 240.5 px | 1.0407 % | 2.3102 % | 2.3102 % | 0.0000 % |
+| 240.75 px | 0.1301 % (worst block 10.4 %) | 0.0809 % (worst block 10.4 %) | 2.3102 % | 0.0000 % |
+| DPR 2, 240.25 / 240.75 | 0.0000 % (shift radius 1) | — | 0.0000 % | 0.0000 % |
+
+Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
+
 ### Release readiness (Milestone 12, 2026-11-20)
 
 - **Package:** `shatter-router@0.1.0` (Changesets: first-release changeset → `CHANGELOG.md`). `npm pack --dry-run`: 49 files, 187.4 kB packed, 705.7 kB unpacked (`dist` with source maps, `README.md`, `LICENSE`, `CHANGELOG.md`, `package.json`). Not published to npm: publishing is the user's call (`pnpm release`).
@@ -389,4 +409,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 10 | 331 tests in 25 files (+ `glsl-minify.test.ts` 6: token streams of every built-in shader, interpolation boundaries, line counts; `debug.test.ts` 7: diff, panel on/off, rows, wireframe, seam check, transitions waiting) | + `performance.spec.ts` (draw calls per frame for each effect on every engine; allocations for each effect plus Rapier report-only, Chromium) and `debug-panel.spec.ts` (4). Local: Chromium + WebKit 197 passed, 15 skipped; every seam unchanged. PR #10 CI (final run): Chromium 106 passed, Firefox 92 (14 skipped), WebKit 92 (14 skipped); CI allocations beyond boxed numbers: 0 B for shatter, implode, flip, assemble and 96 B for explode over 18–34 frames |
 | 11 | 335 tests in 26 files (+ `prime.test.ts` 4: one priming capture on the first intent and disposed, none after a transition, none with reduced motion, none after destroy) | + `e2e/docs/site.spec.ts` (every page with no console errors, header navigation with focus, every gallery card with its own effect incl. the custom `ripple-out`, the hero breaking in place, the playground panel/stage/copy, the 404 page) and `e2e/docs/landing.spec.ts` (landing seam, landing capture time). Local: Chromium + WebKit 223 passed, 15 skipped. PR #11 CI (final run, after the sandbox fix ADR-044): green on Chromium, Firefox (105 passed, 14 skipped) and WebKit |
 | 12 | 335 tests in 26 files (unchanged) | + `history.spec.ts`: a capture adds no history entry (ADR-044). Final local run: Chromium + WebKit 225 passed, 15 skipped |
-| 13 | 361 tests in 26 files (+ `history.test.ts` 16: memory, Back/Forward/`go(n)`, replace, cap, reload, storage failures, query rewrites, reverse wrapper GLSL; + 9 mirror tests in `effects.test.ts`; adapter tests assert `replace`) | + vanilla: each falling effect reversed and replayed, first- and last-frame seams of `shatter:reverse` and `explode:reverse`; React Router and Next: reverse, last-frame seam, replay (`e2e/mirror.ts`); docs: playground settings through Back and reload. Local: Chromium + WebKit 245 passed, 15 skipped (4 WebKit tests that hit a 26–53 min machine stall passed on rerun) |
+| 13 | 361 tests in 26 files (+ `history.test.ts` 16: memory, Back/Forward/`go(n)`, replace, cap, reload, storage failures, query rewrites, reverse wrapper GLSL; + 9 mirror tests in `effects.test.ts`; adapter tests assert `replace`) | + vanilla: each falling effect reversed and replayed, first- and last-frame seams of `shatter:reverse` and `explode:reverse`; React Router and Next: reverse, last-frame seam, replay (`e2e/mirror.ts`); docs: playground settings through Back and reload. Local: Chromium + WebKit 245 passed, 15 skipped (4 WebKit tests that hit a 26–53 min machine stall passed on rerun). PR #15 CI: Chromium, Firefox and WebKit green |

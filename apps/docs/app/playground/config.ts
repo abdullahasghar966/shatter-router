@@ -1,6 +1,10 @@
+import type { Stagger } from 'shatter-router';
+
 /** The playground's settings: every option, with the library's defaults. */
 export interface PlaygroundConfig {
   effect: string;
+  /** Order in which pieces start (ADR-048); `'default'` keeps the effect's own. */
+  stagger: StaggerChoice;
   /** 0 = `'auto'`. */
   shards: number;
   /** 0 = the effect's own duration. */
@@ -17,8 +21,28 @@ export interface PlaygroundConfig {
   debug: boolean;
 }
 
+/** The stagger orders the panel offers. */
+export const STAGGERS = [
+  'default',
+  'radial',
+  'linear',
+  'top-down',
+  'spiral',
+  'random',
+  'reading-order',
+] as const;
+export type StaggerChoice = (typeof STAGGERS)[number];
+
+/** The `stagger` value a choice stands for; undefined keeps the effect's own. */
+export function staggerOf(choice: StaggerChoice): Stagger | undefined {
+  if (choice === 'default') return undefined;
+  if (choice === 'top-down') return { type: 'linear', angle: 90 };
+  return choice;
+}
+
 export const DEFAULTS: PlaygroundConfig = {
   effect: 'shatter',
+  stagger: 'default',
   shards: 0,
   duration: 0,
   gravity: 2600,
@@ -75,6 +99,8 @@ export function configFromSearch(search: string): PlaygroundConfig {
   const config: PlaygroundConfig = { ...DEFAULTS };
   const effect = params.get('effect');
   if (effect && EFFECT_NAMES.includes(effect)) config.effect = effect;
+  const stagger = STAGGERS.find((choice) => choice === params.get('stagger'));
+  if (stagger) config.stagger = stagger;
   for (const key of Object.keys(LIMITS) as NumberKey[]) {
     const raw = params.get(key);
     if (raw === null || raw.trim() === '') continue;
@@ -101,7 +127,19 @@ export function configFromSearch(search: string): PlaygroundConfig {
  * their defaults are omitted (the effect is always shown).
  */
 export function configCode(config: PlaygroundConfig): string {
-  const lines: string[] = [`  effect: '${config.effect}',`];
+  const stagger = staggerOf(config.stagger);
+  const staggerCode =
+    stagger === undefined
+      ? ''
+      : typeof stagger === 'string'
+        ? `'${stagger}'`
+        : `{ type: 'linear', angle: ${String(stagger.angle)} }`;
+  // A stagger makes the effect a composition of parts (ADR-048).
+  const lines: string[] = [
+    staggerCode
+      ? `  effect: { motion: '${config.effect}', stagger: ${staggerCode} },`
+      : `  effect: '${config.effect}',`,
+  ];
   if (config.shards !== DEFAULTS.shards) lines.push(`  shards: ${String(config.shards)},`);
   if (config.duration !== DEFAULTS.duration) lines.push(`  duration: ${String(config.duration)},`);
   if (config.gravity !== DEFAULTS.gravity) lines.push(`  gravity: ${String(config.gravity)},`);

@@ -2,7 +2,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { minifyGlslChunk, minifyGlslTemplates } from '../build/glsl';
-import { BUILT_IN_EFFECTS } from '../src/engine/index';
+import { assembleEffect } from '../src/engine/effects/assemble';
+import { explodeEffect } from '../src/engine/effects/explode';
+import { flipEffect } from '../src/engine/effects/flip';
+import { implodeEffect } from '../src/engine/effects/implode';
+import { shatterEffect } from '../src/engine/effects/shatter';
 import {
   PAGE_FRAGMENT,
   PAGE_VERTEX,
@@ -28,7 +32,7 @@ function tokens(source: string): string[] {
 
 function allShaders(): string[] {
   const sources = [PAGE_VERTEX, PAGE_FRAGMENT];
-  for (const effect of BUILT_IN_EFFECTS.values()) {
+  for (const effect of [shatterEffect, explodeEffect, implodeEffect, flipEffect, assembleEffect]) {
     sources.push(shardVertexSource(effect.vertexChunk));
     sources.push(shardFragmentSource(effect.fragmentChunk));
   }

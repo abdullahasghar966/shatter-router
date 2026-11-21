@@ -52,7 +52,7 @@ export const assembleEffect: ShatterEffect = {
       data[o] = dir.x * speed + (random() - 0.5) * impulse * 0.15;
       data[o + 1] = dir.y * speed - random() * impulse * 0.12;
       data[o + 2] = impulse * (0.12 + 0.45 * random()) * (1 - 0.4 * r);
-      data[o + 3] = r * STAGGER;
+      data[o + 3] = (ctx.order[i] ?? r) * STAGGER;
       data[o + 4] = axis.x;
       data[o + 5] = axis.y;
       data[o + 6] = axis.z;
@@ -82,8 +82,8 @@ void shardMotion(Shard shard, inout Pose pose) {
   vec2 rel = shard.center - uOrigin;
   float distance = length(rel);
   vec2 dir = distance > 1e-3 ? rel / distance : vec2(0.0, -1.0);
-  float r = min(1.0, distance / max(1.0, uMaxRadius));
-  float delay = (ARRIVE_START + ARRIVE_STAGGER * r) * uDuration;
+  // Arrival order by the stagger (radial: the distance over uMaxRadius).
+  float delay = (ARRIVE_START + ARRIVE_STAGGER * shard.order) * uDuration;
   float s = settle(uTime - delay, LAND * uDuration);
   float away = 1.0 - s;
   vec3 start = vec3(dir * uMaxRadius * START_DISTANCE, 0.5 * uMaxRadius);

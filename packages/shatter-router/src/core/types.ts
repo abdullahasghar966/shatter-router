@@ -1,12 +1,12 @@
-import type { ShatterEffect } from './effect';
+import type { EffectComposition, ShatterEffect } from './effect';
 import type { PhysicsPlugin } from './physics';
 import type { PhaseTimings, TransitionState } from './machine';
 import type { ScrollTarget } from './ready';
 import type { ScrollLock } from './scroll-lock';
 
 export interface ShatterOptions {
-  /** Effect name or effect object. Default `'shatter'`. */
-  effect?: string | ShatterEffect;
+  /** Effect name, effect object or composition (ADR-048). Default `'shatter'`. */
+  effect?: string | ShatterEffect | EffectComposition;
   /** Motion phase length in ms (excluding the crack). Default: the effect's own, else 1000. */
   duration?: number;
   /**
@@ -94,8 +94,8 @@ export interface TransitionRequest {
   commit: () => void | Promise<void>;
   /** Impact point in viewport coordinates. Default: the viewport centre. */
   origin?: Point;
-  /** Per-call effect override. */
-  effect?: string | ShatterEffect;
+  /** Per-call effect override: a name, an effect object or a composition. */
+  effect?: string | ShatterEffect | EffectComposition;
   /** Replace the current history entry instead of adding one (navigation memory, ADR-047). */
   replace?: boolean;
   /** Navigation direction. Default `'forward'`. */
@@ -150,8 +150,8 @@ export interface Shatter {
   transition(request: TransitionRequest): Promise<void>;
   /** Subscribes to a lifecycle event. Returns a function that unsubscribes. */
   on<K extends ShatterEventName>(event: K, handler: ShatterEventHandler<K>): () => void;
-  /** Makes a custom effect available by name. */
-  registerEffect(effect: ShatterEffect): void;
+  /** Makes a custom effect, or a named composition of parts (ADR-048), available by name. */
+  registerEffect(effect: ShatterEffect | (EffectComposition & { readonly name: string })): void;
   /** The current state of the transition state machine. */
   readonly state: TransitionState;
   /** Removes listeners, frees GL resources and loses the context. Idempotent. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fracture } from '../src/engine/fracture';
+import { impactPattern } from '../src/engine/patterns/impact';
 
 // Reports fracture time so the number can be recorded (master prompt 5.1:
 // move fracture to a Worker only if it exceeds 4 ms at 160 shards).
@@ -10,12 +11,18 @@ describe('fracture timing', () => {
     const runs = 200;
     // Warm up the JIT.
     for (let i = 0; i < 20; i++) {
-      fracture({ width: 1440, height: 900, origin: { x: 700, y: 400 }, count: 160, seed: i });
+      fracture(impactPattern, {
+        width: 1440,
+        height: 900,
+        origin: { x: 700, y: 400 },
+        count: 160,
+        seed: i,
+      });
     }
     const times: number[] = [];
     for (let i = 0; i < runs; i++) {
       const start = performance.now();
-      fracture({
+      fracture(impactPattern, {
         width: 1440,
         height: 900,
         origin: { x: 700, y: 400 },

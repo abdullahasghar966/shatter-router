@@ -13,7 +13,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
-import type { ShatterEffect } from '../core/effect';
+import type { EffectSource } from '../core/compose';
 import type { Point, Shatter, ShatterOptions, TransitionRequest } from '../core/types';
 import { ShatterContext, type ShatterContextValue } from '../react/context';
 import { installPopGate, setPopHolder } from '../react/pop-gate';
@@ -179,7 +179,7 @@ export function useShatter(): Shatter | null {
 
 export interface ShatterNavigateOptions {
   /** Effect for this navigation. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   /** Impact point in viewport coordinates. Default: the viewport centre. */
   origin?: Point;
   /** Replace the current history entry. Default false. */
@@ -237,7 +237,7 @@ export interface ShatterLinkProps extends Omit<
   /** The target URL (a string; `UrlObject` hrefs are not supported, ADR-034). */
   href: string;
   /** Effect for this link. Default: `data-shatter-effect` on the link or an ancestor, else the provider's. */
-  effect?: string | ShatterEffect;
+  effect?: EffectSource;
   ref?: Ref<HTMLAnchorElement>;
 }
 

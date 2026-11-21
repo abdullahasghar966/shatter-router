@@ -1,6 +1,3 @@
-import { Delaunay } from 'd3-delaunay';
-import { createRandom, type Random } from '../core/random';
-
 /** Smallest and largest shard counts the engine accepts. */
 export const MIN_SHARDS = 12;
 export const MAX_SHARDS = 400;
@@ -120,92 +117,6 @@ export function farthestCorner(p: Point, width: number, height: number): number 
   return Math.hypot(dx, dy);
 }
 
-/**
- * Impact-biased seed points.
- *
- * Polar sampling around the origin with `r = maxR * u^k` puts many points near
- * the impact and few at the edges. Its areal density falls off as
- * `r^(1/k - 2)`, so the expected spacing between neighbours grows as
- * `r^(1 - 1/(2k))`. Dart throwing rejects a candidate that lands closer to an
- * existing seed than a fraction of that local spacing (blue noise), so no two
- * seeds crowd together and no cell becomes a sliver.
- */
-export function sampleSeeds(
-  options: SeedOptions,
-  random: Random = createRandom(options.seed),
-): Float64Array {
-  const { width, height, origin } = options;
-  const count = clampShardCount(options.count);
-  const k = options.falloff ?? DEFAULT_FALLOFF;
-  const maxR = farthestCorner(origin, width, height);
-
-  // Calibrate the spacing law so `count` points would tile the viewport.
-  const exponent = 1 - 1 / (2 * k);
-  const meanSpacing = Math.sqrt((width * height) / count);
-  const minSpacing = Math.max(4, meanSpacing * 0.18);
-  const spacingAt = (r: number): number => {
-    const t = Math.max(r / maxR, 0.02);
-    return Math.max(minSpacing, meanSpacing * 1.55 * t ** exponent);
-  };
-  const rejectFactor = 0.55;
-
-  // Uniform grid for neighbour queries, as linked lists in typed arrays (no
-  // allocation per seed). Cells are a third of the largest rejection radius,
-  // so a query never scans more than 7x7 cells.
-  const largestReject = spacingAt(maxR) * rejectFactor;
-  const cellSize = Math.max(minSpacing * rejectFactor, largestReject / 3);
-  const columns = Math.ceil(width / cellSize) + 1;
-  const rows = Math.ceil(height / cellSize) + 1;
-  const heads = new Int32Array(columns * rows).fill(-1);
-  const next = new Int32Array(count);
-  const xs = new Float64Array(count);
-  const ys = new Float64Array(count);
-  let placed = 0;
-
-  const tooClose = (x: number, y: number, minDistance: number): boolean => {
-    const cx = Math.floor(x / cellSize);
-    const cy = Math.floor(y / cellSize);
-    const span = Math.ceil(minDistance / cellSize);
-    const limit = minDistance * minDistance;
-    const y0 = Math.max(0, cy - span);
-    const y1 = Math.min(rows - 1, cy + span);
-    const x0 = Math.max(0, cx - span);
-    const x1 = Math.min(columns - 1, cx + span);
-    for (let gy = y0; gy <= y1; gy++) {
-      for (let gx = x0; gx <= x1; gx++) {
-        for (let i = heads[gy * columns + gx] ?? -1; i >= 0; i = next[i] ?? -1) {
-          const dx = (xs[i] ?? 0) - x;
-          const dy = (ys[i] ?? 0) - y;
-          if (dx * dx + dy * dy < limit) return true;
-        }
-      }
-    }
-    return false;
-  };
-
-  const maxAttempts = count * 60;
-  for (let attempt = 0; attempt < maxAttempts && placed < count; attempt++) {
-    const r = maxR * random() ** k;
-    const angle = random() * Math.PI * 2;
-    const x = origin.x + Math.cos(angle) * r;
-    const y = origin.y + Math.sin(angle) * r;
-    if (x <= 0 || y <= 0 || x >= width || y >= height) continue;
-    if (tooClose(x, y, spacingAt(r) * rejectFactor)) continue;
-    const cell = Math.floor(y / cellSize) * columns + Math.floor(x / cellSize);
-    xs[placed] = x;
-    ys[placed] = y;
-    next[placed] = heads[cell] ?? -1;
-    heads[cell] = placed;
-    placed += 1;
-  }
-  const points = new Float64Array(placed * 2);
-  for (let i = 0; i < placed; i++) {
-    points[i * 2] = xs[i] ?? 0;
-    points[i * 2 + 1] = ys[i] ?? 0;
-  }
-  return points;
-}
-
 function polygonArea(ring: Float64Array): number {
   let twice = 0;
   for (let i = 0; i < ring.length; i += 2) {
@@ -246,95 +157,6 @@ function distanceToSegment(
   const t =
     lengthSq === 0 ? 0 : Math.min(1, Math.max(0, ((px - ax) * vx + (py - ay) * vy) / lengthSq));
   return Math.hypot(px - (ax + vx * t), py - (ay + vy * t));
-}
-
-/**
- * Collects a cell outline from d3's public `renderCell(i, context)` into a
- * reusable flat buffer, skipping repeated vertices. Avoids the per-vertex
- * `[x, y]` arrays `cellPolygon` allocates.
- */
-class RingCollector {
-  readonly values: number[] = [];
-  moveTo(x: number, y: number): void {
-    this.values.length = 0;
-    this.values.push(x, y);
-  }
-  lineTo(x: number, y: number): void {
-    const v = this.values;
-    const n = v.length;
-    if (v[n - 2] === x && v[n - 1] === y) return;
-    v.push(x, y);
-  }
-  closePath(): void {
-    // The ring is kept open: drop a last vertex equal to the first.
-    const v = this.values;
-    const n = v.length;
-    if (n >= 4 && v[0] === v[n - 2] && v[1] === v[n - 1]) v.length = n - 2;
-  }
-}
-
-/** Copies the collected outline, counter-clockwise on screen (y down). Null if degenerate. */
-function toRing(values: readonly number[]): Float64Array | null {
-  if (values.length < 6) return null;
-  const ring = Float64Array.from(values);
-  // Screen space has y down: a positive shoelace area means clockwise on screen.
-  if (polygonArea(ring) > 0) {
-    const reversed = new Float64Array(ring.length);
-    for (let i = 0; i < ring.length; i += 2) {
-      reversed[ring.length - 2 - i] = ring[i] ?? 0;
-      reversed[ring.length - 1 - i] = ring[i + 1] ?? 0;
-    }
-    return reversed;
-  }
-  return ring;
-}
-
-/** Voronoi cells of `seeds` clipped to the viewport, as shards. Null cells are skipped. */
-export function voronoiShards(
-  seeds: Float64Array,
-  width: number,
-  height: number,
-  origin: Point,
-): Shard[] {
-  const voronoi = new Delaunay(seeds).voronoi([0, 0, width, height]);
-  const shards: Shard[] = [];
-  const count = seeds.length / 2;
-  const collector = new RingCollector();
-  for (let i = 0; i < count; i++) {
-    // renderCell draws nothing for a null cell (coincident point, or clipped
-    // away entirely); cellPolygon would return null there despite its type.
-    collector.values.length = 0;
-    voronoi.renderCell(i, collector);
-    const ring = toRing(collector.values);
-    if (!ring) continue;
-    const signed = polygonArea(ring);
-    const area = Math.abs(signed);
-    if (area < 1e-6) continue;
-    const centroid = polygonCentroid(ring, signed);
-    let inradius = Infinity;
-    for (let j = 0; j < ring.length; j += 2) {
-      const k = (j + 2) % ring.length;
-      inradius = Math.min(
-        inradius,
-        distanceToSegment(
-          centroid.x,
-          centroid.y,
-          ring[j] ?? 0,
-          ring[j + 1] ?? 0,
-          ring[k] ?? 0,
-          ring[k + 1] ?? 0,
-        ),
-      );
-    }
-    shards.push({
-      polygon: ring,
-      centroid,
-      area,
-      inradius,
-      distance: Math.hypot(centroid.x - origin.x, centroid.y - origin.y),
-    });
-  }
-  return shards;
 }
 
 /**
@@ -431,8 +253,71 @@ export function buildMesh(
   return { vertices, vertexCount, frontVertexCount };
 }
 
-/** Seeds → Voronoi shards → merged mesh. */
-export function fracture(options: FractureOptions): FractureGeometry {
+/**
+ * A shard from a closed outline `[x0, y0, x1, y1, …]` (any winding, not
+ * closed): oriented counter-clockwise on screen, with its area, centroid,
+ * inradius and distance from `origin`. Null for a degenerate outline. Every
+ * pattern builds its shards with it.
+ */
+export function shardFromRing(values: ArrayLike<number>, origin: Point): Shard | null {
+  if (values.length < 6) return null;
+  let ring = Float64Array.from(values);
+  // Screen space has y down: a positive shoelace area means clockwise on screen.
+  if (polygonArea(ring) > 0) {
+    const reversed = new Float64Array(ring.length);
+    for (let i = 0; i < ring.length; i += 2) {
+      reversed[ring.length - 2 - i] = ring[i] ?? 0;
+      reversed[ring.length - 1 - i] = ring[i + 1] ?? 0;
+    }
+    ring = reversed;
+  }
+  const signed = polygonArea(ring);
+  const area = Math.abs(signed);
+  if (area < 1e-6) return null;
+  const centroid = polygonCentroid(ring, signed);
+  let inradius = Infinity;
+  for (let j = 0; j < ring.length; j += 2) {
+    const k = (j + 2) % ring.length;
+    inradius = Math.min(
+      inradius,
+      distanceToSegment(
+        centroid.x,
+        centroid.y,
+        ring[j] ?? 0,
+        ring[j + 1] ?? 0,
+        ring[k] ?? 0,
+        ring[k + 1] ?? 0,
+      ),
+    );
+  }
+  return {
+    polygon: ring,
+    centroid,
+    area,
+    inradius,
+    distance: Math.hypot(centroid.x - origin.x, centroid.y - origin.y),
+  };
+}
+
+/** What a pattern gets: the viewport, the clamped impact point and shard count. */
+export interface PatternInput extends FractureOptions {
+  /** Already clamped to the viewport. */
+  readonly origin: Point;
+  /** Already clamped to [MIN_SHARDS, MAX_SHARDS]. */
+  readonly count: number;
+}
+
+/**
+ * A fracture pattern (ADR-048): cuts the viewport into convex cells that tile
+ * it exactly. Loaded on demand, one chunk per pattern.
+ */
+export interface FracturePattern {
+  readonly name: string;
+  cells(input: PatternInput): Shard[];
+}
+
+/** Pattern cells → merged mesh. */
+export function fracture(pattern: FracturePattern, options: FractureOptions): FractureGeometry {
   const { width, height, origin } = options;
   if (!(width > 0) || !(height > 0)) {
     throw new RangeError(`Fracture size must be positive, got ${width}x${height}`);
@@ -442,10 +327,11 @@ export function fracture(options: FractureOptions): FractureGeometry {
     y: Math.min(height, Math.max(0, origin.y)),
   };
   const thickness = Math.max(0, options.thickness ?? DEFAULT_THICKNESS);
-  const seeds = options.seedPoints
-    ? Float64Array.from(options.seedPoints)
-    : sampleSeeds({ ...options, origin: clampedOrigin });
-  const shards = voronoiShards(seeds, width, height, clampedOrigin);
+  const shards = pattern.cells({
+    ...options,
+    origin: clampedOrigin,
+    count: clampShardCount(options.count),
+  });
   const mesh = buildMesh(shards, width, height, thickness);
   return {
     width,

@@ -37,7 +37,7 @@ export const implodeEffect: ShatterEffect = {
     shards.forEach((shard, i) => {
       const dir = radialDirection(shard, origin, random);
       const r = Math.min(1, dir.distance / Math.max(1, maxRadius));
-      const delay = r * STAGGER * total;
+      const delay = (ctx.order[i] ?? r) * STAGGER * total;
       const travel = Math.max(0.05, total - delay) * (0.85 + 0.15 * random());
       // All shards swirl the same way, a bit more than a turn for the far ones.
       const spin = (1.2 + 1.6 * r + 0.4 * random()) * Math.PI;

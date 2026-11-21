@@ -99,6 +99,7 @@ export const effectsPage: Page = {
           ([name, text]) => `
         <li><a href="/work" data-shatter-effect="${name}">${name}</a> — ${text}</li>`,
         ).join('')}
+        <li><a href="/work" data-shatter-effect="sweep">sweep</a> — a composition: shatter, left to right.</li>
       </ul>
     </section>`,
 };

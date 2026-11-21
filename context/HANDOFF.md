@@ -1,28 +1,24 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M13 implemented, e2e and ritual in progress)
+- **Last updated:** 2026-11-20 (session 4, M14 done incl. the Firefox scroll fix; merge next)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 13 — Navigation memory (first of M13–M21 in `context/PLAN-PRODUCTION.md`, ADR-046)
-- **Current branch:** `milestone/13-navigation-memory` (from `main` at `a7b980c`, with `plan/production-grade` merged in)
-- **Latest tag:** `m12-release` (on `9e2777a`)
+- **Current milestone:** 14 — Effect architecture (`context/PLAN-PRODUCTION.md`; order M14 → M19 → M15 → M16 → M17 → M20 → M18 → M21, ADR-046)
+- **Current branch:** `milestone/14-effect-architecture` (from `main` at `6040c4d`)
+- **Latest tag:** `m13-navigation-memory` (on `6040c4d`)
 
 ## Done so far
 
-- Milestones 0–12 merged and tagged (`PROGRESS.md`; ADR-001..045). The master prompt's Definition of done is met (PROGRESS table). The docs site is live and deploys from `main` automatically.
-- The user then asked for a production-grade library and site. `context/PLAN-PRODUCTION.md` holds the analysis and the plan, which the user approved (art direction A "Material lab", sound wherever it suits, text and button animations; the rest decided as recorded in its section 9 and ADR-046).
+- Milestones 0–13 merged and tagged (`PROGRESS.md`; ADR-001..047). The docs site is live and deploys from `main` automatically.
+- M13 (PR #15): Back plays the true reverse of the arriving effect from the same point, Forward replays it (`backForward: 'mirror'`, default); the playground keeps its settings in the URL (ADR-047).
 
-## Next steps (M13: navigation memory, plan 3.6)
-**Status (session 4):** M13 done locally: unit 361, typecheck, lint, format, sizes (runtime 8.68 of 9 kB), e2e Chromium + WebKit 245 passed / 15 skipped; measurements in PROGRESS; ADR-047. **Left:** the ritual: PR, three-engine CI green, merge with `--merge`, tag `m13-navigation-memory`, mark row 13 ☑. Then M14 (effect architecture).
+## Next steps (M14: effect architecture)
 
-1. **History memory in the runtime:** remember, per visited URL (pathname + search), the effect and impact point that brought you there, as a stack with a position (sessionStorage, capped). On a popstate transition, compare the arriving URL with the entries before and after the position to tell Back from Forward. Back plays the reverse of the effect that brought you to the page you are leaving, from the stored origin; Forward replays the effect. `backForward: 'mirror'` becomes the default; `'reverse' | 'same' | 'none'` stay. `TransitionRequest.replace` lets adapters replace the current entry.
-2. **True reverse for every effect** without its own incoming snapshot (`shatter`, `explode`, `implode`, custom ones like `ripple-out`): an engine-side wrapper effect `<name>:reverse` with `layers: 2` and `needsIncomingSnapshot`. Layer 0 is the outgoing page at rest; layer 1 is the incoming page running the effect's `shardMotion` at `uDuration - uTime` (`uTime` is a writable global, ADR-038). The first frame is the outgoing page and the last frame is the incoming page at rest (both seams testable). `flip` keeps turning the other way, and `assemble`'s reverse stays `shatter`.
-3. **Docs site:** the playground keeps its settings in the URL (read on mount, `history.replaceState` on change), so Back and shared links restore them.
-4. Tests: unit (memory, direction detection, mirror mapping, reverse wrapper GLSL), e2e on vanilla, React Router and Next (Back plays the reverse of the forward effect, Forward replays it; first- and last-frame seams of the reverse). Then the ritual and tag `m13-navigation-memory`.
+**Status (session 4):** implemented per ADR-048. PR #16 CI found a real Firefox bug (first frame 1 px off at fractional scroll positions); fixed by ADR-049 (`settleScroll` before every capture), proven in Firefox CI (all fractional seams 0.0000 %), with a permanent diagnostic (`e2e/vanilla/scroll-snap.spec.ts`). **Left:** merge PR #16 on green, tag `m14-effect-architecture`, then M19 (site redesign, art direction A "Material lab").
 
 ## Deferred (tracked, not forgotten)
 

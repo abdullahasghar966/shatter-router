@@ -153,7 +153,7 @@
         "./debug.js"
       ],
       "gzip": true,
-      "limit": "9 KB"
+      "limit": "10 KB"
     },
     {
       "name": "debug chunk (lazy: debug panel and seam check, debug mode only)",
@@ -163,11 +163,61 @@
       "limit": "5 KB"
     },
     {
-      "name": "engine chunk (lazy: renderer, fracture, effects)",
+      "name": "engine core (lazy: renderer, mesh, stagger, plugin loading; ADR-048)",
       "path": "dist/engine.js",
       "import": "*",
+      "ignore": [
+        "./effects/shatter.js",
+        "./effects/explode.js",
+        "./effects/implode.js",
+        "./effects/flip.js",
+        "./effects/assemble.js",
+        "./patterns/impact.js"
+      ],
       "gzip": true,
-      "limit": "22 KB"
+      "limit": "15 KB"
+    },
+    {
+      "name": "motion: shatter (lazy)",
+      "path": "dist/effects/shatter.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: explode (lazy)",
+      "path": "dist/effects/explode.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: implode (lazy)",
+      "path": "dist/effects/implode.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: flip (lazy)",
+      "path": "dist/effects/flip.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: assemble (lazy)",
+      "path": "dist/effects/assemble.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "pattern: impact (lazy, incl. d3-delaunay)",
+      "path": "dist/patterns/impact.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "9 KB"
     },
     {
       "name": "capture chunk (lazy: DOM capture incl. modern-screenshot)",

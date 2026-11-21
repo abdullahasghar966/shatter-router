@@ -8,9 +8,11 @@ import {
 import { mulberry32 } from '../src/core/random';
 import { shatterEffect } from '../src/engine/effects/shatter';
 import { fracture } from '../src/engine/fracture';
+import { impactPattern } from '../src/engine/patterns/impact';
+import { staggerOrder } from '../src/engine/stagger';
 
 function context(overrides: Partial<EffectContext> = {}): EffectContext {
-  const geometry = fracture({
+  const geometry = fracture(impactPattern, {
     width: 1440,
     height: 900,
     origin: { x: 700, y: 400 },
@@ -31,6 +33,7 @@ function context(overrides: Partial<EffectContext> = {}): EffectContext {
     direction: 'forward',
     cameraZ: 900 / 2 / Math.tan((40 * Math.PI) / 360),
     random: mulberry32(11),
+    order: staggerOrder('radial', geometry),
     ...overrides,
   };
 }

@@ -1,4 +1,6 @@
+import { type EffectSource, effectName, isComposition } from '../core/compose';
 import {
+  type EffectComposition,
   type EffectContext,
   type EffectState,
   SHARD_ATTRIBUTE_FLOATS,
@@ -17,11 +19,6 @@ import { lightFade, type Rgb } from '../core/shading';
 import type { Snapshot } from '../core/snapshot';
 import { createPixelCamera, type PixelCamera } from './camera';
 import { CRACK_DURATION_MS, CRACK_HOLD_MS, crackAt } from './crack';
-import { assembleEffect } from './effects/assemble';
-import { explodeEffect } from './effects/explode';
-import { flipEffect } from './effects/flip';
-import { implodeEffect } from './effects/implode';
-import { shatterEffect } from './effects/shatter';
 import {
   clampShardCount,
   type DeviceTier,
@@ -30,33 +27,29 @@ import {
   fracture,
   type FractureGeometry,
   type FractureOptions,
+  type FracturePattern,
   TIER_SHARDS,
   VERTEX_LAYOUT,
 } from './fracture';
 import { GLDevice, GLError, type GLProgram } from './gl';
 import { FrameLoop, type LoopStats } from './loop';
 import { Overlay } from './overlay';
+import { composeEffect } from './compose';
 import { reverseEffect, REVERSE_SUFFIX } from './effects/reverse';
+import { MATERIALS, MOTIONS, PATTERNS, PHYSICS_DAMPING } from './plugins';
 import { PAGE_FRAGMENT, PAGE_VERTEX, shardFragmentSource, shardVertexSource } from './shaders';
+import { staggerOrder } from './stagger';
 
 export { GLError } from './gl';
 export type { LoopStats } from './loop';
+export { BUILT_IN_EFFECT_NAMES } from './plugins';
 
-/** Effects that ship with the library, by name. */
-export const BUILT_IN_EFFECTS: ReadonlyMap<string, ShatterEffect> = new Map(
-  [shatterEffect, explodeEffect, implodeEffect, flipEffect, assembleEffect].map(
-    (effect) => [effect.name, effect] as const,
-  ),
-);
+/** Effects and compositions registered by the user, by name. */
+export type EffectRegistry = ReadonlyMap<string, ShatterEffect | EffectComposition>;
 
-/**
- * Built-in effects a physics backend can drive (their per-shard data is
- * `a = (v0.xyz, delay)`, `b = (axis.xyz, ω)`), with their air drag in 1/s.
- */
-const PHYSICS_EFFECTS: ReadonlyMap<ShatterEffect, number> = new Map([
-  [shatterEffect, 0],
-  [explodeEffect, 3],
-]);
+/** Texels per shard in the shard data texture: `Shard.a`, `Shard.b`, then `order`. */
+const SHARD_TEXELS = 3;
+const DEFAULT_PATTERN = 'impact';
 
 interface PageResources {
   readonly program: GLProgram;
@@ -127,9 +120,18 @@ export class Engine {
   private readonly loop: FrameLoop;
   private readonly viewProjection = new Float32Array(16);
   private readonly quad = new Float32Array(4 * QUAD_FLOATS);
-  private readonly programs = new Map<ShatterEffect, EffectProgram>();
+  /** Shader programs by their GLSL chunks: compositions of one motion share one. */
+  private readonly programs = new Map<string, EffectProgram>();
   /** Time-reversed effects, one per base effect (ADR-047). */
   private readonly reversed = new Map<ShatterEffect, ShatterEffect>();
+  /** Built-in motions and patterns, loading or loaded, by name (ADR-048). */
+  private readonly motions = new Map<string, Promise<ShatterEffect>>();
+  private readonly patternLoads = new Map<string, Promise<FracturePattern>>();
+  private readonly patterns = new Map<string, FracturePattern>();
+  /** Effects built from compositions, by composition. */
+  private readonly composed = new WeakMap<EffectComposition, ShatterEffect>();
+  /** Effects a physics backend can drive, with their air drag in 1/s. */
+  private readonly physical = new WeakMap<ShatterEffect, number>();
   private camera: PixelCamera | null = null;
   private resources: PageResources | null = null;
   private texture: WebGLTexture | null = null;
@@ -208,16 +210,41 @@ export class Engine {
     this.shading = shading;
   }
 
-  /** Looks up an effect: user-registered first, then built-in. */
-  resolveEffect(
-    effect: string | ShatterEffect,
-    registered: ReadonlyMap<string, ShatterEffect>,
-  ): ShatterEffect {
-    if (typeof effect !== 'string') return effect;
+  /**
+   * Resolves an effect name, object or composition to a ready effect (ADR-048):
+   * user-registered names first, then the built-in ones; `'<name>:reverse'` is
+   * the time reverse (ADR-047). Loads the motion and pattern chunks it needs.
+   */
+  async loadEffect(effect: EffectSource, registered: EffectRegistry): Promise<ShatterEffect> {
+    const resolved = await this.resolve(effect, registered, 0);
+    await this.loadPattern(resolved.pattern ?? DEFAULT_PATTERN);
+    return resolved;
+  }
+
+  /** Loads an effect's chunks ahead of a transition. Never rejects: errors surface in the transition. */
+  preloadEffect(effect: EffectSource, registered: EffectRegistry): Promise<void> {
+    return this.loadEffect(effect, registered).then(
+      () => undefined,
+      () => undefined,
+    );
+  }
+
+  private async resolve(
+    effect: EffectSource,
+    registered: EffectRegistry,
+    depth: number,
+  ): Promise<ShatterEffect> {
+    if (depth > 4) throw new GLError(`Effect "${effectName(effect)}" refers to itself`);
+    if (typeof effect !== 'string') {
+      return isComposition(effect) ? this.compose(effect, registered) : effect;
+    }
     if (effect.endsWith(REVERSE_SUFFIX)) {
-      // `'<name>:reverse'`: the time reverse of an effect (ADR-047), built
-      // once per base effect so its shader program is cached too.
-      const base = this.resolveEffect(effect.slice(0, -REVERSE_SUFFIX.length), registered);
+      // Built once per base effect, so its shader program is cached too.
+      const base = await this.resolve(
+        effect.slice(0, -REVERSE_SUFFIX.length),
+        registered,
+        depth + 1,
+      );
       let reversed = this.reversed.get(base);
       if (!reversed) {
         reversed = reverseEffect(base);
@@ -225,9 +252,66 @@ export class Engine {
       }
       return reversed;
     }
-    const found = registered.get(effect) ?? BUILT_IN_EFFECTS.get(effect);
-    if (!found) throw new GLError(`Unknown effect "${effect}"`);
-    return found;
+    const found = registered.get(effect);
+    if (found) return this.resolve(found, registered, depth + 1);
+    return this.loadMotion(effect);
+  }
+
+  /** A built-in motion, loaded once. */
+  private loadMotion(name: string): Promise<ShatterEffect> {
+    let loading = this.motions.get(name);
+    if (!loading) {
+      const loader = MOTIONS[name];
+      if (!loader) return Promise.reject(new GLError(`Unknown effect "${name}"`));
+      loading = loader().then((motion) => {
+        const damping = PHYSICS_DAMPING[name];
+        if (damping !== undefined) this.physical.set(motion, damping);
+        return motion;
+      });
+      // A failed chunk load may succeed on the next try.
+      loading.catch(() => this.motions.delete(name));
+      this.motions.set(name, loading);
+    }
+    return loading;
+  }
+
+  /** A fracture pattern, loaded once; afterwards `fracture()` can use it synchronously. */
+  private loadPattern(name: string): Promise<FracturePattern> {
+    let loading = this.patternLoads.get(name);
+    if (!loading) {
+      const loader = PATTERNS[name];
+      if (!loader) return Promise.reject(new GLError(`Unknown pattern "${name}"`));
+      loading = loader().then((pattern) => {
+        this.patterns.set(name, pattern);
+        return pattern;
+      });
+      loading.catch(() => this.patternLoads.delete(name));
+      this.patternLoads.set(name, loading);
+    }
+    return loading;
+  }
+
+  /**
+   * The effect a composition describes: its motion (a registered effect or a
+   * built-in one) with the composition's name, pattern, stagger and duration.
+   */
+  private async compose(
+    spec: EffectComposition,
+    registered: EffectRegistry,
+  ): Promise<ShatterEffect> {
+    const cached = this.composed.get(spec);
+    if (cached) return cached;
+    if (spec.material !== undefined && !MATERIALS.includes(spec.material)) {
+      throw new GLError(`Unknown material "${spec.material}"`);
+    }
+    // A registered effect object may serve as the motion; compositions do not nest.
+    const own = registered.get(spec.motion);
+    const motion = own && !isComposition(own) ? own : await this.loadMotion(spec.motion);
+    const effect = composeEffect(spec, motion);
+    const damping = this.physical.get(motion);
+    if (damping !== undefined) this.physical.set(effect, damping);
+    this.composed.set(spec, effect);
+    return effect;
   }
 
   /**
@@ -312,7 +396,10 @@ export class Engine {
       count,
       random: createRandom(seed),
     });
-    const geometry = fracture(seedPoints ? { ...options, seedPoints } : options);
+    const patternName = effect.pattern ?? DEFAULT_PATTERN;
+    const pattern = this.patterns.get(patternName);
+    if (!pattern) throw new GLError(`Pattern "${patternName}" is not loaded`);
+    const geometry = fracture(pattern, seedPoints ? { ...options, seedPoints } : options);
     const fractureMs = performance.now() - started;
 
     const { gl } = this.device;
@@ -325,7 +412,10 @@ export class Engine {
     this.effect = effect;
     this.ensureEffectProgram(effect);
     // Rest-pose data until prepareMotion() supplies the effect's own.
-    this.uploadShardData(new Float32Array(geometry.shards.length * SHARD_ATTRIBUTE_FLOATS));
+    this.uploadShardData(
+      new Float32Array(geometry.shards.length * SHARD_ATTRIBUTE_FLOATS),
+      new Float32Array(geometry.shards.length),
+    );
     this.state = null;
     this.scene = 'shards';
     this.moving = false;
@@ -365,6 +455,14 @@ export class Engine {
       cameraZ: camera.cameraZ,
       // Offset so motion differs from the fracture layout while staying deterministic.
       random: createRandom(request.seed === undefined ? undefined : request.seed + 0x9e3779b9),
+      order: staggerOrder(effect.stagger, {
+        shards: geometry.shards,
+        width: geometry.width,
+        height: geometry.height,
+        origin: geometry.origin,
+        maxRadius: geometry.maxRadius,
+        seed: request.seed,
+      }),
     };
     const { data } = effect.shardAttributes(context);
     if (data.length !== shards.length * SHARD_ATTRIBUTE_FLOATS) {
@@ -372,7 +470,7 @@ export class Engine {
         `Effect "${effect.name}" returned ${data.length} floats; expected ${shards.length * SHARD_ATTRIBUTE_FLOATS}`,
       );
     }
-    this.uploadShardData(data);
+    this.uploadShardData(data, context.order);
     this.state = { ...context, attributes: data };
     return this.state;
   }
@@ -401,7 +499,7 @@ export class Engine {
     const state = this.state;
     const effect = this.effect;
     const geometry = this.geometry;
-    const damping = effect ? PHYSICS_EFFECTS.get(effect) : undefined;
+    const damping = effect ? this.physical.get(effect) : undefined;
     if (!state || !geometry || damping === undefined) return false;
     const data = state.attributes;
     const shards: PhysicsShard[] = state.shards.map((shard) => {
@@ -648,12 +746,14 @@ export class Engine {
     options: Omit<FractureOptions, 'seed'>,
     runs: number,
   ): { medianMs: number; p95Ms: number; runs: number } {
+    const pattern = this.patterns.get(DEFAULT_PATTERN);
+    if (!pattern) throw new GLError(`Pattern "${DEFAULT_PATTERN}" is not loaded`);
     const total = Math.max(1, Math.floor(runs));
-    for (let i = 0; i < Math.min(20, total); i++) fracture({ ...options, seed: i });
+    for (let i = 0; i < Math.min(20, total); i++) fracture(pattern, { ...options, seed: i });
     const times: number[] = [];
     for (let i = 0; i < total; i++) {
       const start = performance.now();
-      fracture({ ...options, seed: 1000 + i });
+      fracture(pattern, { ...options, seed: 1000 + i });
       times.push(performance.now() - start);
     }
     times.sort((a, b) => a - b);
@@ -733,11 +833,19 @@ export class Engine {
     return this.device.contextLost;
   }
 
-  private uploadShardData(data: Float32Array): void {
+  private uploadShardData(data: Float32Array, order: Float32Array): void {
     this.device.deleteTexture(this.shardData);
     const rows = data.length / SHARD_ATTRIBUTE_FLOATS;
-    // Two RGBA texels (8 floats) per shard, one row per shard.
-    this.shardData = this.device.createDataTexture(2, Math.max(1, rows), data);
+    // Three RGBA texels per shard, one row per shard: the effect's 8 floats
+    // (`Shard.a`, `Shard.b`), then `Shard.order` (ADR-048).
+    const stride = SHARD_TEXELS * 4;
+    const texels = new Float32Array(Math.max(1, rows) * stride);
+    for (let i = 0; i < rows; i++) {
+      const from = i * SHARD_ATTRIBUTE_FLOATS;
+      texels.set(data.subarray(from, from + SHARD_ATTRIBUTE_FLOATS), i * stride);
+      texels[i * stride + SHARD_ATTRIBUTE_FLOATS] = order[i] ?? 0;
+    }
+    this.shardData = this.device.createDataTexture(SHARD_TEXELS, Math.max(1, rows), texels);
   }
 
   private setQuad(width: number, height: number): void {
@@ -771,7 +879,8 @@ export class Engine {
 
   /** Compiles (once per effect) the shard program with the effect's GLSL chunks. */
   private ensureEffectProgram(effect: ShatterEffect): EffectProgram {
-    const cached = this.programs.get(effect);
+    const key = `${effect.vertexChunk}\0${effect.fragmentChunk ?? ''}`;
+    const cached = this.programs.get(key);
     if (cached) return cached;
     const { gl } = this.device;
     const { shardBuffer } = this.ensurePageResources();
@@ -800,7 +909,7 @@ export class Engine {
     gl.bindVertexArray(null);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     const entry = { program, vao };
-    this.programs.set(effect, entry);
+    this.programs.set(key, entry);
     return entry;
   }
 

@@ -174,6 +174,22 @@ test.describe('docs site', () => {
     await expect(page.getByTestId('config-code')).toContainText("effect: 'explode',");
   });
 
+  test('playground: a stagger makes the effect a composition of parts (ADR-048)', async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/playground${QUERY}`);
+    await waitForShatterReady(page);
+    const code = page.getByTestId('config-code');
+    // The second select is the stagger.
+    await page.locator('.pane-host select').nth(1).selectOption('linear');
+    await expect(code).toContainText("effect: { motion: 'shatter', stagger: 'linear' },");
+    await expect.poll(() => new URL(page.url()).searchParams.get('stagger')).toBe('linear');
+    await clearLifecycleEvents(page);
+    await page.getByRole('button', { name: /click to break/ }).click();
+    await expect(page.getByTestId('stage-title')).toHaveText('Shards', { timeout: 15_000 });
+    await expect.poll(() => lastEffect(page), { timeout: 15_000 }).toBe('shatter stagger=linear');
+  });
+
   test.describe('not found', () => {
     test.use({ expectedConsole: /Failed to load resource: .*404/ });
     test('an unknown route shows the 404 page', async ({ page }) => {

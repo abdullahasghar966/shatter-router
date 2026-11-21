@@ -3,7 +3,8 @@ import type { DebugPanel } from '../debug/index';
 import type { Engine } from '../engine/index';
 import { announceTitle, focusNewPage } from '../core/a11y';
 import { crossfade } from '../core/crossfade';
-import type { ShatterEffect } from '../core/effect';
+import { type EffectSource, effectName, isComposition } from '../core/compose';
+import type { EffectComposition, ShatterEffect } from '../core/effect';
 import type { PhysicsBackend, PhysicsPlugin } from '../core/physics';
 import { prefersReducedMotion } from '../core/env';
 import { DEFAULT_GLASS_TINT, parseHexColor, type Rgb } from '../core/shading';
@@ -36,7 +37,8 @@ export type EngineLike = Pick<
   | 'overlayElement'
   | 'wireframe'
   | 'lastLoopStats'
-  | 'resolveEffect'
+  | 'loadEffect'
+  | 'preloadEffect'
   | 'resolveShardCount'
   | 'cover'
   | 'fracture'
@@ -121,14 +123,14 @@ interface Run {
 
 /** What a transition plays (ADR-047). */
 interface Plan {
-  readonly effect: string | ShatterEffect;
+  readonly effect: EffectSource;
   readonly origin: Point | undefined;
   /** `uDirection`: a reversed effect runs forward in reverse time. */
   readonly direction: 'forward' | 'back';
 }
 
 interface Settings {
-  readonly effect: string | ShatterEffect;
+  readonly effect: EffectSource;
   readonly duration: number | undefined;
   readonly shards: 'auto' | number;
   readonly gravity: number;
@@ -243,7 +245,7 @@ class Runtime implements ShatterRuntime {
   // for a Back, when the URL has already changed.
   private readonly memory: HistoryMemory;
   /** Effect objects passed in options or requests, by name (for the memory). */
-  private readonly seen = new Map<string, ShatterEffect>();
+  private readonly seen = new Map<string, ShatterEffect | EffectComposition>();
   /** The capturer has captured once (warm), or a priming capture is on its way. */
   private primed = false;
   private removePrimeListeners: (() => void) | null = null;
@@ -321,8 +323,21 @@ class Runtime implements ShatterRuntime {
     }
   }
 
-  precapture(): void {
+  precapture(effect?: string): void {
     this.startPrecapture();
+    // The link's own effect: fetch its chunks while the pointer is on its way.
+    if (effect && this.loaded) void this.loaded.engine.preloadEffect(effect, this.registry());
+  }
+
+  /**
+   * Fetches the default effect's chunks and the substitute's (ADR-048), so
+   * the first transition does not wait for them. Never rejects.
+   */
+  private async preload(engine: EngineLike): Promise<void> {
+    await Promise.all([
+      engine.preloadEffect(this.settings.effect, this.registry()),
+      engine.preloadEffect(SUBSTITUTE_EFFECT, this.registry()),
+    ]);
   }
 
   get state(): TransitionState {
@@ -421,7 +436,9 @@ class Runtime implements ShatterRuntime {
       if (engine.contextLost) throw new Fallback('context-lost');
       const viewport = readViewport(window);
       if (viewport.pinchZoomed) throw new Fallback('pinch-zoom');
-      const effect = engine.resolveEffect(run.plan.effect, this.registry());
+      // The effect's chunks (ADR-048), usually prefetched already.
+      const effect = await engine.loadEffect(run.plan.effect, this.registry());
+      this.throwIfCancelled(run);
 
       const { snapshot, precaptured } = await this.snapshotFor(run, loaded, viewport);
       // A real capture warmed the capturer: no priming capture needed.
@@ -472,7 +489,7 @@ class Runtime implements ShatterRuntime {
         if (incoming) {
           engine.setIncoming(incoming);
         } else {
-          motionEffect = engine.resolveEffect(SUBSTITUTE_EFFECT, this.registry());
+          motionEffect = await engine.loadEffect(SUBSTITUTE_EFFECT, this.registry());
           engine.replaceEffect(motionEffect);
         }
       }
@@ -621,7 +638,7 @@ class Runtime implements ShatterRuntime {
    */
   private plan(request: TransitionRequest): Plan {
     const chosen = request.effect ?? this.settings.effect;
-    if (typeof chosen !== 'string') this.seen.set(chosen.name, chosen);
+    if (typeof chosen !== 'string') this.seen.set(effectName(chosen), chosen);
     if (request.direction !== 'back') {
       return { effect: chosen, origin: request.origin, direction: 'forward' };
     }
@@ -636,7 +653,7 @@ class Runtime implements ShatterRuntime {
         };
       }
       const left = pop.direction === 'back' ? pop.entry : null;
-      const name = left?.effect ?? (typeof chosen === 'string' ? chosen : chosen.name);
+      const name = left?.effect ?? effectName(chosen);
       return { ...this.mirrorOf(name), origin: request.origin ?? left?.origin ?? undefined };
     }
     const reversed =
@@ -646,14 +663,34 @@ class Runtime implements ShatterRuntime {
     return { effect: reversed, origin: request.origin, direction: 'back' };
   }
 
-  /** The reverse of an effect: its own for `flip`/`assemble`, else its time reverse. */
+  /**
+   * The reverse of an effect: effects that end on the new page (`flip`, custom
+   * ones) run backwards as themselves, `assemble` reverses as `shatter`, and
+   * every other effect gets its time reverse. Compositions follow their motion.
+   */
   private mirrorOf(name: string): Pick<Plan, 'effect' | 'direction'> {
-    if (name === 'flip') return { effect: 'flip', direction: 'back' };
-    if (name === 'assemble') return { effect: 'shatter', direction: 'back' };
-    const custom = this.registry().get(name);
-    // A custom effect that ends on the new page runs as is, with uDirection = -1.
-    if (custom?.needsIncomingSnapshot) return { effect: name, direction: 'back' };
+    const motion = this.motionOf(name);
+    const own = this.registry().get(motion);
+    if (own && !isComposition(own)) {
+      // A custom effect that ends on the new page runs as is, with uDirection = -1.
+      if (own.needsIncomingSnapshot) return { effect: name, direction: 'back' };
+    } else if (motion === 'flip') {
+      return { effect: name, direction: 'back' };
+    } else if (motion === 'assemble') {
+      return { effect: 'shatter', direction: 'back' };
+    }
     return { effect: `${name}:reverse`, direction: 'forward' };
+  }
+
+  /** The motion an effect name comes down to, through registered compositions. */
+  private motionOf(name: string): string {
+    let current = name;
+    for (let depth = 0; depth < 4; depth++) {
+      const entry = this.registry().get(current);
+      if (!entry || !isComposition(entry)) return current;
+      current = entry.motion;
+    }
+    return current;
   }
 
   /** A forward navigation committed: remember how the user got here. */
@@ -662,14 +699,14 @@ class Runtime implements ShatterRuntime {
     const { effect, origin } = run.plan;
     this.memory.record(
       locationKey(window.location),
-      typeof effect === 'string' ? effect : effect.name,
+      effectName(effect),
       origin ?? null,
       run.request.replace ?? false,
     );
   }
 
   /** Registered effects plus effect objects passed to transitions (by name). */
-  private registry(): ReadonlyMap<string, ShatterEffect> {
+  private registry(): ReadonlyMap<string, ShatterEffect | EffectComposition> {
     if (this.seen.size === 0) return this.host.effects;
     return new Map([...this.seen, ...this.host.effects]);
   }
@@ -848,7 +885,9 @@ class Runtime implements ShatterRuntime {
           chromatic: this.host.options.chromatic ?? true,
         });
         this.loaded = loaded;
-        if (this.hook) this.hook.ready = true;
+        void this.preload(loaded.engine).then(() => {
+          if (this.hook) this.hook.ready = true;
+        });
         return loaded;
       },
       (error: unknown) => {

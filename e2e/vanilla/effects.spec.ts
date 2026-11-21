@@ -204,4 +204,44 @@ test.describe('vanilla example: every effect', () => {
       await check(page, testInfo, `last-${effect}-reverse`, live, overlay);
     });
   }
+
+  // Compositions of parts (ADR-048): the example registers 'sweep', shatter's
+  // motion with a left-to-right stagger.
+  test('a registered composition plays, lands, and Back reverses it', async ({ page }) => {
+    await page.goto(`${BASE}/effects${QUERY}`);
+    await waitForShatterReady(page);
+    await clearLifecycleEvents(page);
+    await page.getByRole('link', { name: 'sweep', exact: true }).click();
+    await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
+    await waitForIdle(page);
+    await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
+    expect((await effectHook(page)).lastEffect).toBe('sweep');
+    expect((await hookState(page)).fallback).toBeNull();
+
+    await clearLifecycleEvents(page);
+    await page.goBack();
+    await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
+    await waitForIdle(page);
+    await expect(page.locator('h1')).toHaveText('Five ways to break.');
+    expect((await effectHook(page)).lastEffect).toBe('sweep:reverse');
+  });
+
+  test('sweep: the fractured page at rest matches the live page', async ({ page }, testInfo) => {
+    // Tall enough that the sixth link is on screen: hover() must not scroll,
+    // like the other first-frame tests (a scrolled page measured 0.81–1.17 %
+    // on Firefox in CI, see LEARNINGS).
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${BASE}/effects${QUERY}`);
+    await waitForShatterReady(page);
+    const link = page.getByRole('link', { name: 'sweep', exact: true });
+    await link.hover();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    const live = await page.screenshot();
+    await pauseAt(page, 'fractured');
+    await link.click();
+    await waitForPause(page, 'fractured');
+    const overlay = await page.screenshot();
+    await check(page, testInfo, 'first-sweep', live, overlay);
+    await resumeAndFinish(page);
+  });
 });

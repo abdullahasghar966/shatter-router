@@ -17,7 +17,7 @@ const FADE_START = 0.6;
  *
  * Per shard (master prompt 5.3):
  *   d      = normalize(centroid - origin), r = |centroid - origin| / maxR
- *   delay  = r * stagger,  t' = max(0, t - delay)
+ *   delay  = order * stagger (order = r for the default radial stagger),  t' = max(0, t - delay)
  *   v0     = d * impulse * (1 - 0.5 r) + jitter (incl. +z toward the camera)
  *   pos(t) = centroid + v0 t' + ½ g t'²,  rot(t) = axisAngle(axis, ω t')
  *   alpha  = 1 - smoothstep(fadeStart, 1, t / duration)
@@ -71,7 +71,8 @@ export const shatterEffect: ShatterEffect = {
       data[o] = ux * speed + jx;
       data[o + 1] = uy * speed + jy;
       data[o + 2] = vz;
-      data[o + 3] = r * STAGGER_S;
+      // Start delay by the stagger order (radial: r).
+      data[o + 3] = (ctx.order[i] ?? r) * STAGGER_S;
       data[o + 4] = ax / axisLength;
       data[o + 5] = ay / axisLength;
       data[o + 6] = az / axisLength;

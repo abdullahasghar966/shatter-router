@@ -100,12 +100,50 @@ interface StickyFix {
   readonly origin: Point;
 }
 
+/**
+ * How far a scrolled page is drawn shifted (ADR-049): the scroll amount
+ * rounded down to whole device pixels. Firefox keeps fractional scroll
+ * positions (`scrollY` 240.75) but paints the page shifted by the whole
+ * device pixels below it, so every element keeps its own sub-pixel rounding
+ * (measured in CI by e2e/vanilla/scroll-snap.spec.ts: rounding down matched
+ * the live page exactly at .25, .5 and .75; rounding to nearest did not).
+ * Shifting the copy by the exact fraction instead rounds each line of text on
+ * its own, and some land a pixel off. Chromium and WebKit report whole pixels.
+ */
+export function snapScroll(scroll: number, devicePixelRatio: number): number {
+  const ratio = devicePixelRatio > 0 ? devicePixelRatio : 1;
+  // The epsilon keeps 480.99999999 (float noise for 481) from rounding down to 480.
+  const sign = scroll < 0 ? -1 : 1;
+  return (sign * Math.floor(Math.abs(scroll) * ratio + 1e-6)) / ratio;
+}
+
+/**
+ * Moves a page scrolled to a fractional offset to the whole device pixel
+ * below (ADR-049). Firefox keeps fractional scroll positions and then draws
+ * the scrolled content at the whole pixel below but fixed and sticky
+ * elements at other sub-pixel positions (CI: `scroll-snap.spec.ts`), so no
+ * copy shifted by any one amount matches it. At a whole-pixel offset the
+ * page and its copy match exactly. The content does not move (it is already
+ * drawn there); only fixed and sticky elements settle by under a pixel.
+ * Chromium and WebKit already scroll by whole pixels: nothing happens there.
+ */
+export function settleScroll(win: Window): void {
+  const ratio = win.devicePixelRatio;
+  const x = snapScroll(win.scrollX, ratio);
+  const y = snapScroll(win.scrollY, ratio);
+  if (x !== win.scrollX || y !== win.scrollY) {
+    win.scrollTo({ left: x, top: y, behavior: 'instant' });
+  }
+}
+
 export interface CloneGeometry {
   /** Viewport size in CSS pixels. */
   readonly width: number;
   readonly height: number;
   /** Bounding box of the live root element, in viewport coordinates. */
   readonly rootRect: DOMRect;
+  /** The page's scroll position, read together with `rootRect`. */
+  readonly scroll: { readonly x: number; readonly y: number };
   /**
    * Factor the copy is laid out at: 1 to lay out in CSS pixels and let the
    * engine scale while rasterising, or the device scale to lay out in device pixels.
@@ -311,8 +349,14 @@ export class CloneSession {
     // WebKit (it misplaces layered HTML under SVG transforms) out of trouble,
     // and leaves the SVG viewport standing in for the real one, so
     // position: fixed content needs no correction.
-    clonedRoot.style.setProperty('margin-left', `${rootRect.left}px`);
-    clonedRoot.style.setProperty('margin-top', `${rootRect.top}px`);
+    // By the scroll amount as the browser draws it, not its exact fraction
+    // (ADR-049): the root's own offset plus the dropped fraction.
+    const { scroll } = this.geometry;
+    const ratio = this.win.devicePixelRatio;
+    const left = rootRect.left + scroll.x - snapScroll(scroll.x, ratio);
+    const top = rootRect.top + scroll.y - snapScroll(scroll.y, ratio);
+    clonedRoot.style.setProperty('margin-left', `${String(left)}px`);
+    clonedRoot.style.setProperty('margin-top', `${String(top)}px`);
     // Some engines snap box edges and glyphs to whole pixels of the grid the
     // SVG is laid out in. For those, lay the copy out in device pixels so the
     // snapping matches the live page.
@@ -413,8 +457,11 @@ export class CloneSession {
     if (original !== this.root && original !== this.scroller) {
       const { scrollLeft, scrollTop } = original;
       if (scrollLeft !== 0 || scrollTop !== 0) {
+        const ratio = this.win.devicePixelRatio;
+        const x = snapScroll(scrollLeft, ratio);
+        const y = snapScroll(scrollTop, ratio);
         for (const child of cloned.children) {
-          if (isStyled(child)) prependTranslate(child.style, -scrollLeft, -scrollTop);
+          if (isStyled(child)) prependTranslate(child.style, -x, -y);
         }
       }
     }
