@@ -17,6 +17,18 @@ const ENVIRONMENT_NOISE = [
 ];
 
 /**
+ * Known notes from the docs site itself, allowed by origin.
+ *
+ * The glass rail (ADR-050) is a scroll position indicator: it moves its thumb
+ * as the page scrolls, which Firefox reports as a "scroll-linked positioning
+ * effect" (it may lag a frame behind asynchronous panning). Firefox has no
+ * scroll-driven animations by default, so the rail cannot avoid it there.
+ */
+const SITE_NOTES = [
+  /scroll-linked positioning effect.*\{file: "http:\/\/localhost:4176\//,
+];
+
+/**
  * Shared test fixture: every test fails if the page logs a console error or
  * warning, or throws an uncaught exception (master prompt, section 11).
  */
@@ -35,6 +47,7 @@ export const test = base.extend<{ consoleProblems: string[]; expectedConsole: Re
         if (type !== 'error' && type !== 'warning') return;
         const text = message.text();
         if (ENVIRONMENT_NOISE.some((pattern) => pattern.test(text))) return;
+        if (SITE_NOTES.some((pattern) => pattern.test(text))) return;
         if (expectedConsole?.test(text)) return;
         problems.push(`[console.${type}] ${text}`);
       });

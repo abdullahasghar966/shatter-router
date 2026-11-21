@@ -178,17 +178,23 @@ export class DomCapturer implements Capturer {
       features: { restoreScrollPosition: false },
       // Bounds waiting for media and fetching assets.
       timeout: 2000,
-    }).then((context) => {
+    }).then(async (context) => {
       if (this.destroyed) {
         destroyContext(context);
-      } else {
-        context.sandbox ??= createSandbox(this.doc);
-        // Real properties only (ADR-051): computed values are already
-        // resolved, so custom properties (a design system's tokens) are dead
-        // weight that the library would copy onto every element of the copy.
-        context.includeStyleProperties = standardProperties(this.doc);
-        this.context = context;
+        return context;
       }
+      context.sandbox ??= createSandbox(this.doc);
+      // The library reads default styles inside the frame; reading them before
+      // its document has loaded forces layout early (a Firefox warning).
+      if (context.sandbox) await frameLoaded(context.sandbox, SANDBOX_LOAD_TIMEOUT_MS);
+      // Real properties only (ADR-051): computed values are already
+      // resolved, so custom properties (a design system's tokens) are dead
+      // weight that the library would copy onto every element of the copy.
+      context.includeStyleProperties = standardProperties(this.doc);
+      // destroy() may have run during the await above.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (this.destroyed) destroyContext(context);
+      else this.context = context;
       return context;
     });
     return this.contextPromise;
@@ -219,6 +225,29 @@ export class DomCapturer implements Capturer {
  * navigation, which never adds history (ADR-044). Same attributes as the
  * library's; `destroyContext` removes it.
  */
+/** How long a capture waits for its sandbox frame to load, at most. */
+const SANDBOX_LOAD_TIMEOUT_MS = 1000;
+
+/** Resolves once the frame's own document has loaded (or after `timeout` ms). */
+export function frameLoaded(frame: HTMLIFrameElement, timeout: number): Promise<void> {
+  const ready = (): boolean => {
+    const document = frame.contentDocument;
+    return (
+      document !== null && document.URL === 'about:srcdoc' && document.readyState === 'complete'
+    );
+  };
+  if (ready()) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      frame.removeEventListener('load', done);
+      resolve();
+    };
+    const timer = setTimeout(done, timeout);
+    frame.addEventListener('load', done);
+  });
+}
+
 function createSandbox(doc: Document): HTMLIFrameElement | undefined {
   const body = doc.body as HTMLElement | null;
   if (!body) return undefined;
