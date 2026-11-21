@@ -10,9 +10,10 @@ import './globals.css';
 
 // "Material lab" type (ADR-050): a grotesk for display and text, a technical
 // mono for labels and readouts, self-hosted by next/font with the weight axis
-// only (every capture inlines the fonts, ADR-043). Both are preloaded: the
-// mono sets the navigation, labels and buttons above the fold, and a capture
-// taken while it is still swapping in shows the fallback (ADR-051).
+// only (every capture inlines the fonts, ADR-043). Only the display face is
+// preloaded: it sets every page's headline (the largest paint). A capture
+// taken while the mono is still swapping in leaves it out too, so the copy
+// shows the same fallback as the page (ADR-051).
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-display',
@@ -22,6 +23,7 @@ const mono = Martian_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
   display: 'swap',
+  preload: false,
 });
 
 /**

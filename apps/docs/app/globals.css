@@ -13,7 +13,7 @@
   --line-strong: #aaa192;
   --fg: #161512;
   --muted: #5a554b;
-  --faint: #807a6c;
+  --faint: #68625a;
   /* One signal colour: impact points, active states, readouts. */
   --signal: #e2400e;
   /* The signal for small text: 4.5:1 on the bench. */
@@ -51,7 +51,7 @@
     --line-strong: #4a4842;
     --fg: #ece8de;
     --muted: #a7a296;
-    --faint: #7a766d;
+    --faint: #938e84;
     --signal: #ff5a24;
     --signal-ink: #ff7b4d;
     --grid: rgb(236 232 222 / 0.045);
@@ -69,7 +69,7 @@
   --line-strong: #4a4842;
   --fg: #ece8de;
   --muted: #a7a296;
-  --faint: #7a766d;
+  --faint: #938e84;
   --signal: #ff5a24;
   --signal-ink: #ff7b4d;
   --grid: rgb(236 232 222 / 0.045);
@@ -259,6 +259,10 @@ q {
 }
 
 .site-header nav a {
+  /* A fixed line box: the mono swapping in (not preloaded) must not change
+     the header's height, or everything below shifts. */
+  line-height: 1.25rem;
+  white-space: nowrap;
   padding: 0.45rem 0.7rem;
   border-radius: var(--radius);
   color: var(--muted);
@@ -1213,14 +1217,39 @@ pre code {
   animation-delay: calc(var(--i, 0) * 55ms + 80ms);
 }
 
+/* Visible from the first frame (no fade): the headline is the largest paint,
+   and the browser does not count invisible text as painted. */
 @keyframes rise {
   from {
-    opacity: 0;
-    transform: translateY(0.45em) rotate(2deg);
+    transform: translateY(0.22em) rotate(1.5deg);
   }
   to {
-    opacity: 1;
     transform: none;
+  }
+}
+
+/* Narrow screens: brand and controls on one row, the navigation on one
+   non-wrapping row below (scrolls sideways if it must). Its height no longer
+   depends on how wide the font is. */
+@media (max-width: 40rem) {
+  .site-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.6rem 1rem;
+  }
+
+  .site-header nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -0.7rem;
+  }
+
+  .lab-controls {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 
