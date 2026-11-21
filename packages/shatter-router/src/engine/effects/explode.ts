@@ -17,6 +17,15 @@ const MAX_STRETCH = 0.6;
 const FADE_START = 0.55;
 /** Seconds over which the stretch builds up: at t = 0 the pose is exactly at rest (ADR-047). */
 const STRETCH_RAMP = 0.05;
+/** Seconds the shockwave takes from the impact to the farthest corner. */
+const WAVE_TRAVEL = 0.16;
+/** How far the shockwave lifts the page toward the viewer at its front, px. */
+const BULGE = 46;
+/** Seconds the lift builds before the front arrives at a piece. */
+const WAVE_WIDTH = 0.07;
+/** Camera shake: amplitude in px, decay in 1/s. */
+const SHAKE = 7;
+const SHAKE_DECAY = 9;
 
 /** Screen-plane position offset of a shard at `t` s (the shader's formula, for completion checks). */
 function offsetAt(vx: number, vy: number, delay: number, gravity: number, t: number): Float64Array {
@@ -32,9 +41,12 @@ function offsetAt(vx: number, vy: number, delay: number, gravity: number, t: num
 const OFFSET = new Float64Array(2);
 
 /**
- * `explode`: a violent radial blast from the impact point with no gravity at
- * first, shards flying hard toward the viewer and stretched along their
- * velocity, slowing with drag, then falling.
+ * `explode`: the blast (ADR-054), unmistakably not `shatter`. No crack: the
+ * page breaks into a spider web (`radial`), a white flash at the impact, a
+ * shockwave that lifts the page toward the viewer as its front passes, a short
+ * camera shake, then the pieces fly hard at the viewer, stretched along their
+ * velocity, slowing with drag, and fall. Every addition is exactly zero at
+ * t = 0, so the first frame is the page.
  *
  *   pos(t) = centre + v0·(1 − e^(−k t'))/k + ½ g max(0, t' − 0.25)²
  *   stretch along v: 1 + 0.6·|v(t)|/|v0|, |v(t)| = |v0|·e^(−k t'),
@@ -45,7 +57,8 @@ const OFFSET = new Float64Array(2);
 export const explodeEffect: ShatterEffect = {
   name: 'explode',
   needsIncomingSnapshot: false,
-  crack: true,
+  crack: false,
+  pattern: 'radial',
   duration: 1100,
 
   shardAttributes(ctx: EffectContext): ShardAttributes {
@@ -62,7 +75,8 @@ export const explodeEffect: ShatterEffect = {
       data[o] = dir.x * speed;
       data[o + 1] = dir.y * speed;
       data[o + 2] = vz;
-      data[o + 3] = (ctx.order[i] ?? r) * 0.05;
+      // The shockwave reaches each piece in stagger order (radial: by distance).
+      data[o + 3] = (ctx.order[i] ?? r) * WAVE_TRAVEL;
       data[o + 4] = axis.x;
       data[o + 5] = axis.y;
       data[o + 6] = axis.z;
@@ -77,6 +91,10 @@ const float GRAVITY_DELAY = ${GRAVITY_DELAY.toFixed(3)};
 const float MAX_STRETCH = ${MAX_STRETCH.toFixed(3)};
 const float FADE_START = ${FADE_START.toFixed(3)};
 const float STRETCH_RAMP = ${STRETCH_RAMP.toFixed(3)};
+const float BULGE = ${BULGE.toFixed(1)};
+const float WAVE_WIDTH = ${WAVE_WIDTH.toFixed(3)};
+const float SHAKE = ${SHAKE.toFixed(1)};
+const float SHAKE_DECAY = ${SHAKE_DECAY.toFixed(1)};
 
 void shardMotion(Shard shard, inout Pose pose) {
   float t = max(0.0, uTime - shard.a.w);
@@ -96,6 +114,24 @@ void shardMotion(Shard shard, inout Pose pose) {
   }
   pose.rotate = stretch * axisAngle(shard.b.xyz, shard.b.w * t);
   pose.alpha = 1.0 - smoothstep(FADE_START, 1.0, uTime / uDuration);
+
+  // The shockwave: the page lifts toward the viewer as the front approaches
+  // (0 at t = 0, full where the front has arrived), then the piece flies.
+  float arrive = smoothstep(shard.a.w - WAVE_WIDTH, shard.a.w, uTime) * smoothstep(0.0, 0.03, uTime);
+  pose.translate.z += BULGE * arrive;
+  // Camera shake: every piece moves together, decaying; sin() is 0 at t = 0.
+  float shake = SHAKE * exp(-SHAKE_DECAY * uTime);
+  pose.translate.xy += shake * vec2(sin(uTime * 83.0), sin(uTime * 71.0));
+}
+`,
+
+  // A white flash around the impact, peaking at 35 ms and gone by 220 ms:
+  // 0 at t = 0 (first-frame seam) and at the end.
+  fragmentChunk: /* glsl */ `
+void shardFragment(inout vec4 color) {
+  float flash = smoothstep(0.0, 0.035, uTime) * (1.0 - smoothstep(0.035, 0.22, uTime));
+  float near = 1.0 - smoothstep(0.0, uMaxRadius * 0.55, distance(vPos, uOrigin));
+  color.rgb = mix(color.rgb, vec3(color.a), flash * (0.25 + 0.55 * near));
 }
 `,
 

@@ -74,7 +74,7 @@ describe('shatter effect', () => {
       // Outward: positive projection onto the direction away from the impact (jitter aside).
       if (Math.hypot(dx, dy) > 60) expect(vx * dx + vy * dy).toBeGreaterThan(0);
       expect(delay).toBeGreaterThanOrEqual(0);
-      expect(delay).toBeLessThanOrEqual(0.12 + 1e-6);
+      expect(delay).toBeLessThanOrEqual(0.22 + 1e-6);
       const r = Math.hypot(dx, dy) / ctx.maxRadius;
       if (r < 0.25) {
         nearSpeed += Math.hypot(vx, vy);

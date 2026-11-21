@@ -368,6 +368,13 @@ Found by PR #16 CI. First-frame seam, Firefox CI (Linux), vanilla `/work` scroll
 
 Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` gives 240 or 241), so the fix does nothing there; their seams are unchanged. Local full suite (Chromium + WebKit) on the fix: 271 passed, 15 skipped; Chromium alone 143 passed.
 
+### Shatter vs explode (Milestone 16 part 1, 2026-11-22, ADR-054)
+
+- **Side by side (frozen frames at 40 / 180 / 420 ms, vanilla example, Chromium):** `shatter` shows the full crack web over the intact page, then pieces dropping near the impact, then a cascade of falling glass; `explode` shows a white flash and a spider web bursting toward the viewer, then pieces flung past the camera with motion stretch, then almost nothing left.
+- **Unit:** blast vs fall speeds ≥ 5× apart in the screen plane and in depth; `shatter` has no upward kick.
+- **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
+- **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
+
 ### Fracture patterns (Milestone 15, 2026-11-22, ADR-053)
 
 - **Chunks (gzip):** radial + rings 1.40 kB, triangles 1.26 kB, hex 1.05 kB, tiles + bricks + strips 1.36 kB (budget 2 kB each); engine core 11.55 kB.

@@ -557,3 +557,17 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
   5. **Not in this milestone:** `dom` and `text` need the page's layout boxes in the pattern input (the capture would hand them over), `mask` needs an image input, and `pixels` needs thousands of pieces (beyond the 400-piece mesh; it belongs with the `dust` motion in M16). They stay in the plan, tracked in HANDOFF.
 - **Alternatives considered:** one chunk with every pattern (they are small, but the budget per part is the point of ADR-048); Delaunay for `triangles` (would pull d3 into another chunk); true circular arcs for rings (not convex; short straight arcs are).
 - **Consequences:** unit tests per pattern (cells tile the viewport: area sum and no point uncovered, every cell convex and inside, count range, determinism, fracture time ≤ 4 ms at 400 pieces), first-frame seams per pattern on all engines.
+
+## ADR-054 — `shatter` falls, `explode` blasts
+
+- **Date:** 2026-11-22
+- **Status:** accepted
+- **Context:** The user's review: "Shatter and Explode are same". `explode` differed only by a stronger impulse, drag and a gravity delay; both cracked first and both used the Voronoi `impact` pattern. Plan 3.3 defines them as two different events.
+- **Decision:**
+  1. `ShatterEffect.crackDuration` (ms, default 140) sets how long the crack takes to reach the farthest corner.
+  2. `shatter` is a falling pane: a long, visible crack (380 ms), then pieces drop under gravity near the impact first (stagger 0.22 s), with an outward speed of 0.32 × the impulse, no upward kick, a slight lean toward the viewer and a slow tumble.
+  3. `explode` is a blast: no crack, the `radial` pattern by default, a white flash around the impact (fragment chunk, peaking at 35 ms, gone by 220 ms), a shockwave that lifts each piece toward the viewer as the front reaches it (front from impact to farthest corner in 0.16 s, the pieces' start delays), a decaying camera shake (all pieces move together), then the existing drag-and-stretch flight and gravity. Every addition is exactly zero at t = 0 (guarded by `smoothstep(0, …, uTime)` or `sin`), so the first frame is the page; the reverse ends on the page because the reverse wrapper draws the rest pose at its end (ADR-047).
+  4. The per-shard data layout is unchanged (`a = (v0, delay)`, `b = (axis, ω)`), so Rapier physics still drives both.
+  5. The web patterns (`radial`, `rings`) aim at the requested piece count on the page: the web reaches past the corners, so they rebuild with a scaled count (up to three times) when fewer than 90 % of the pieces landed on the page (`explode` had 101 of 160 pieces before).
+  6. `crackAt` writes into a frame object the engine reuses: a longer crack made its per-frame result object show up in the allocation test (640 B > 400 B).
+- **Consequences:** unit tests pin the difference (crack, pattern, speeds ≥ 5× apart, no upward kick, t = 0 guards); side-by-side frozen frames reviewed (`PROGRESS`); seams, reverses, allocations (0 B beyond boxed numbers for both) and draw calls unchanged.

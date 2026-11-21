@@ -214,6 +214,8 @@ export interface ShatterEffect {
   readonly needsIncomingSnapshot: boolean;
   /** Play crack propagation before the motion starts. */
   readonly crack: boolean;
+  /** How long the crack takes to reach the farthest corner, ms (default 140). */
+  readonly crackDuration?: number;
   /**
    * How many copies of the shard mesh are drawn while moving (default 1). With
    * 2, layer 0 shows the outgoing page and layer 1 the incoming page (needs

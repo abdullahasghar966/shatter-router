@@ -31,6 +31,9 @@ export function crackAt(
   maxRadius: number,
   duration: number = CRACK_DURATION_MS,
   hold: number = CRACK_HOLD_MS,
+  // The engine passes one object it reuses: the crack runs every frame and
+  // must not allocate (ADR-040).
+  into: { radius: number; flash: number; done: boolean } = { radius: 0, flash: 0, done: false },
 ): CrackFrame {
   const t = Math.max(0, elapsed);
   const progress = duration > 0 ? Math.min(1, t / duration) : 1;
@@ -41,5 +44,8 @@ export function crackAt(
   const k = t / FLASH_PEAK_MS;
   const pulse = k * Math.exp(1 - k);
   const flash = t <= 0 ? 0 : FLASH_PEAK * pulse * pulse;
-  return { radius, flash: flash < 1e-3 ? 0 : flash, done: t >= duration + hold };
+  into.radius = radius;
+  into.flash = flash < 1e-3 ? 0 : flash;
+  into.done = t >= duration + hold;
+  return into;
 }
