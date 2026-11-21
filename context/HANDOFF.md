@@ -1,24 +1,26 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M14 done incl. the Firefox scroll fix; merge next)
+- **Last updated:** 2026-11-20 (session 4, M14 merged and tagged; M19 starting)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 14 — Effect architecture (`context/PLAN-PRODUCTION.md`; order M14 → M19 → M15 → M16 → M17 → M20 → M18 → M21, ADR-046)
-- **Current branch:** `milestone/14-effect-architecture` (from `main` at `6040c4d`)
-- **Latest tag:** `m13-navigation-memory` (on `6040c4d`)
+- **Current milestone:** 19 — Site redesign, art direction A "Material lab" (`context/PLAN-PRODUCTION.md` sections 4, 9; order M19 → M15 → M16 → M17 → M20 → M18 → M21)
+- **Current branch:** `milestone/19-redesign` (from `main` at `ddbb660`)
+- **Latest tag:** `m14-effect-architecture` (on `ddbb660`)
 
 ## Done so far
 
-- Milestones 0–13 merged and tagged (`PROGRESS.md`; ADR-001..047). The docs site is live and deploys from `main` automatically.
-- M13 (PR #15): Back plays the true reverse of the arriving effect from the same point, Forward replays it (`backForward: 'mirror'`, default); the playground keeps its settings in the URL (ADR-047).
+- Milestones 0–14 merged and tagged (`PROGRESS.md`; ADR-001..049). The docs site deploys from `main`.
+- M14 (PR #16): effects as lazy plugins and compositions (ADR-048); Firefox first frame at fractional scroll positions fixed (ADR-049).
 
-## Next steps (M14: effect architecture)
+## Next steps (M19: site redesign)
 
-**Status (session 4):** implemented per ADR-048. PR #16 CI found a real Firefox bug (first frame 1 px off at fractional scroll positions); fixed by ADR-049 (`settleScroll` before every capture), proven in Firefox CI (all fractional seams 0.0000 %), with a permanent diagnostic (`e2e/vanilla/scroll-snap.spec.ts`). **Left:** merge PR #16 on green, tag `m14-effect-architecture`, then M19 (site redesign, art direction A "Material lab").
+1. ADR-050: the design system for "Material lab" (palette tokens light/dark, type pairing chosen with font size in mind — every capture inlines the fonts, ADR-043 — motion tokens, the material theme switcher, the glass scrollbar, cursor, sound toggle).
+2. Build it: tokens and type; header, hero and pages restyled; interactive theme switcher (glass / ice / obsidian / paper palettes that also set the transition's glass tint); glass scrollbar (native scrolling kept); text reveals and button press/heal animations; opt-in procedural sound toggle (muted by default, never under reduced motion or before a gesture); reduced-motion variants of everything.
+3. Tests: visual and e2e (theme switch persists, scrollbar drag and keyboard, sound off by default, reduced motion), seams of the new pages, Lighthouse ≥ 95 / 100 mobile. Then the ritual and tag `m19-redesign`.
 
 ## Deferred (tracked, not forgotten)
 

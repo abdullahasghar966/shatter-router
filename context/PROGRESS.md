@@ -23,12 +23,12 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 11  | Docs site                     | ☑      | `milestone/11-docs-site`      | [#11](https://github.com/abdullahasghar966/shatter-router/pull/11) | `ecb969c` | `m11-docs-site` |
 | 12  | Release readiness             | ☑      | `milestone/12-release`        | [#12](https://github.com/abdullahasghar966/shatter-router/pull/12) | `9e2777a` | `m12-release` |
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
-| 14  | Effect architecture           | ◐      | `milestone/14-effect-architecture` |     |           |             |
+| 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☐      | `milestone/15-patterns`        |     |           |             |
 | 16  | Motions and materials         | ☐      | `milestone/16-motions-materials` |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
-| 19  | Site redesign (Material lab)  | ☐      | `milestone/19-redesign`        |     |           |             |
+| 19  | Site redesign (Material lab)  | ◐      | `milestone/19-redesign`        |     |           |             |
 | 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
 | 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
@@ -410,3 +410,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 11 | 335 tests in 26 files (+ `prime.test.ts` 4: one priming capture on the first intent and disposed, none after a transition, none with reduced motion, none after destroy) | + `e2e/docs/site.spec.ts` (every page with no console errors, header navigation with focus, every gallery card with its own effect incl. the custom `ripple-out`, the hero breaking in place, the playground panel/stage/copy, the 404 page) and `e2e/docs/landing.spec.ts` (landing seam, landing capture time). Local: Chromium + WebKit 223 passed, 15 skipped. PR #11 CI (final run, after the sandbox fix ADR-044): green on Chromium, Firefox (105 passed, 14 skipped) and WebKit |
 | 12 | 335 tests in 26 files (unchanged) | + `history.spec.ts`: a capture adds no history entry (ADR-044). Final local run: Chromium + WebKit 225 passed, 15 skipped |
 | 13 | 361 tests in 26 files (+ `history.test.ts` 16: memory, Back/Forward/`go(n)`, replace, cap, reload, storage failures, query rewrites, reverse wrapper GLSL; + 9 mirror tests in `effects.test.ts`; adapter tests assert `replace`) | + vanilla: each falling effect reversed and replayed, first- and last-frame seams of `shatter:reverse` and `explode:reverse`; React Router and Next: reverse, last-frame seam, replay (`e2e/mirror.ts`); docs: playground settings through Back and reload. Local: Chromium + WebKit 245 passed, 15 skipped (4 WebKit tests that hit a 26–53 min machine stall passed on rerun). PR #15 CI: Chromium, Firefox and WebKit green |
+| 14 | 394 tests in 29 files (+ `composition.test.ts` 25: stagger orders, compositions, lazy part loaders, runtime handling; `snap-scroll.test.ts` 8) | + vanilla: `sweep` composition plays, lands, reverses, first-frame seam; first-frame seams at fractional scroll offsets (240.25/.5/.75, DPR 1 and 2); `scroll-snap.spec.ts` paint diagnostic (5 page variants); docs: playground stagger plays a composition. Local Chromium + WebKit 271 passed, 15 skipped. PR #16 CI (final, `3968e70`): Chromium, Firefox (129 passed, 14 skipped) and WebKit green |
