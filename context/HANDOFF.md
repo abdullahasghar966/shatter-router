@@ -1,27 +1,30 @@
 # Hand-off
 
-- **Last updated:** 2026-11-20 (session 4, M19 merged and tagged; M15 starting)
+- **Last updated:** 2026-11-20 (session 4, M15 merged and tagged; M16 starting)
 - **Session:** 4
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 15 — Fracture patterns (`context/PLAN-PRODUCTION.md` section 3.2; order M15 → M16 → M17 → M20 → M18 → M21)
-- **Current branch:** `milestone/15-patterns` (from `main` at `0091427`)
-- **Latest tag:** `m19-redesign` (on `0091427`)
+- **Current milestone:** 16 — Motions and materials (`context/PLAN-PRODUCTION.md` sections 3.3–3.4; order M16 → M17 → M20 → M18 → M21)
+- **Current branch:** `milestone/16-motions` (from `main` at `fad5e63`)
+- **Latest tag:** `m15-patterns` (on `fad5e63`)
 
 ## Done so far
 
-- Milestones 0–14 and 19 merged and tagged (`PROGRESS.md`; ADR-001..052). The docs site deploys from `main`; it is the "Material lab" redesign now (Lighthouse 96–100 / 100 on production).
-- M19 (PR #17): design system, materials switcher, glass rail, micro-interactions (ADR-050); faster captures for every user of the library (ADR-051 fonts and custom properties, ADR-052 below-the-fold pruning); Firefox sandbox fix.
+- Milestones 0–15 and 19 merged and tagged (`PROGRESS.md`; ADR-001..053). Live: https://shatter-router.vercel.app (Material lab redesign; eight fracture patterns).
 
-## Next steps (M15: fracture patterns)
+## Next steps (M16: motions and materials)
 
-1. ADR-053: the public `FracturePattern` interface (today internal: `cells(input) → Shard[]`, ADR-048) and the pattern list of plan 3.2: radial (spider web), triangles, hex, bricks/tiles, strips, rings, dom (one piece per layout block), text (per word/letter), pixels, mask. Decide which need workers (≤ 4 ms for 400 pieces, else a worker).
-2. Each pattern a lazy chunk with a size budget; tests per pattern: cells tile the viewport (area sum, no gaps), UVs, first-frame seam at rest, fracture time.
-3. Docs: the playground gets a pattern control (URL state, generated code); the API page lists patterns.
-4. Ritual, tag `m15-patterns`.
+1. **Shatter vs explode, unmistakable** (plan 3.3, the review's first complaint): `shatter` = `impact` cracks + `fall` (a long, visible crack phase, then the pane drops with little outward speed); `explode` = no crack, `radial` pattern, `blast` (white flash on impact, a shockwave ring bending the page outward, pieces flung at the camera with motion stretch, camera shake, then gravity). Side-by-side review of frozen frames.
+2. New motions in families (gravity: fall, crumble, rain; force: blast, vortex, wind, magnet; order: blinds, domino, slide, peel, fold; matter: dust, melt, ripple, glitch), each a lazy chunk with budget, true reverse (ADR-047) and seams; 0 B/frame allocations; 60 fps at 160 pieces on the GPU.
+3. Materials (glass, ice, mirror, obsidian, paper, metal, holo): shading parameters per material, zero lighting at rest (ADR-038); the site's material switcher then sets the transition's material too (ADR-050 left this to M16).
+4. Stagger/easing controls; docs and playground; ritual, tag `m16-motions`.
+
+## Deferred patterns (ADR-053)
+
+- `dom`, `text` (need layout boxes in the pattern input), `mask` (image input), `pixels` (with the `dust` motion, beyond 400 pieces).
 
 ## Deferred (tracked, not forgotten)
 

@@ -198,3 +198,4 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **Jittered grid quads can be non-convex**; splitting one along the outer diagonal gives overlapping triangles whose area sum still looks right. Only a sample-point coverage test (each point in exactly one cell) catches it (M15).
 - **A polygonal ring (chords between rays) sags inside its radius by cos(gap/2)**: the radial web's outer ring must reach farther than the farthest corner, or the corners stay uncovered at low piece counts (M15).
 - **A test that presses right after `page.goto` can act before React hydrates** (WebKit, intermittently): wait for an "interactive" marker the page sets on mount.
+- **The Next example's "waitFor 'commit'" test (committing < 350 ms) is load-sensitive**: it failed twice in full local runs (517 and 1520 ms) with two workers sharing the Next server and the slow route's 400 ms delay, and passes alone (5/5) and in CI every time.
