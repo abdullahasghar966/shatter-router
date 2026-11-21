@@ -19,7 +19,17 @@ export const MOTIONS: Readonly<Record<string, () => Promise<ShatterEffect>>> = {
 /** Built-in fracture patterns, by name. */
 export const PATTERNS: Readonly<Record<string, () => Promise<FracturePattern>>> = {
   impact: () => import('./patterns/impact').then((module) => module.impactPattern),
+  radial: () => import('./patterns/radial').then((module) => module.radialPattern),
+  rings: () => import('./patterns/radial').then((module) => module.ringsPattern),
+  triangles: () => import('./patterns/triangles').then((module) => module.trianglesPattern),
+  hex: () => import('./patterns/hex').then((module) => module.hexPattern),
+  bricks: () => import('./patterns/grid').then((module) => module.bricksPattern),
+  tiles: () => import('./patterns/grid').then((module) => module.tilesPattern),
+  strips: () => import('./patterns/grid').then((module) => module.stripsPattern),
 };
+
+/** Names of the fracture patterns that ship with the library. */
+export const BUILT_IN_PATTERN_NAMES: readonly string[] = Object.keys(PATTERNS);
 
 /**
  * Built-in motions a physics backend can drive (their per-shard data is

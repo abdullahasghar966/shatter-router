@@ -172,7 +172,11 @@
         "./effects/implode.js",
         "./effects/flip.js",
         "./effects/assemble.js",
-        "./patterns/impact.js"
+        "./patterns/impact.js",
+        "./patterns/radial.js",
+        "./patterns/triangles.js",
+        "./patterns/hex.js",
+        "./patterns/grid.js"
       ],
       "gzip": true,
       "limit": "15 KB"
@@ -208,6 +212,34 @@
     {
       "name": "motion: assemble (lazy)",
       "path": "dist/effects/assemble.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "pattern: radial, rings (lazy)",
+      "path": "dist/patterns/radial.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "pattern: triangles (lazy)",
+      "path": "dist/patterns/triangles.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "pattern: hex (lazy)",
+      "path": "dist/patterns/hex.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "pattern: tiles, bricks, strips (lazy)",
+      "path": "dist/patterns/grid.js",
       "import": "*",
       "gzip": true,
       "limit": "2 KB"
