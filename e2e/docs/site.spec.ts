@@ -132,6 +132,8 @@ test.describe('docs site', () => {
 
     if (browserName === 'chromium') {
       await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // The copy follows the framework tab (Next.js unless chosen).
+      await page.getByRole('tab', { name: 'Vanilla' }).click();
       await page.getByRole('button', { name: 'Copy config' }).click();
       await expect(page.getByRole('status')).toHaveText('Copied.');
       const copied = await page.evaluate(() => navigator.clipboard.readText());

@@ -30,7 +30,7 @@ const mono = Martian_Mono({
  * Applies the remembered theme and material before the first paint, so the
  * page never flashes the default (ADR-050). Kept tiny and dependency-free.
  */
-const THEME_SCRIPT = `(function(){try{var r=document.documentElement,t=localStorage.getItem('lab-theme'),m=localStorage.getItem('lab-material');if(t==='light'||t==='dark')r.setAttribute('data-theme',t);if(m==='glass'||m==='ice'||m==='obsidian'||m==='paper')r.setAttribute('data-material',m);}catch(e){}})();`;
+const THEME_SCRIPT = `(function(){try{var r=document.documentElement,t=localStorage.getItem('lab-theme'),m=localStorage.getItem('lab-material'),f=localStorage.getItem('docs-framework');if(t==='light'||t==='dark')r.setAttribute('data-theme',t);if(m==='glass'||m==='ice'||m==='obsidian'||m==='paper')r.setAttribute('data-material',m);if(f==='next'||f==='react-router'||f==='react'||f==='vanilla')r.setAttribute('data-framework',f);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: { default: 'Shatter Router — break the page', template: '%s — Shatter Router' },

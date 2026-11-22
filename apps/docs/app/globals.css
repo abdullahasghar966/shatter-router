@@ -1197,7 +1197,86 @@ pre code {
   margin: 0;
 }
 
-/* Playground */
+/* Framework tabs (ADR-061): <html data-framework> picks the panel before
+   first paint; Next.js when nothing was chosen. */
+.fw-tabs {
+  margin: 1.5rem 0;
+}
+
+.fw-tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.fw-tab {
+  margin-bottom: -1px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.fw-tab:hover {
+  color: var(--fg);
+}
+
+.fw-panel {
+  display: none;
+}
+
+.fw-panel > .code-block:first-child,
+.fw-panel > pre:first-child {
+  margin-top: 0.75rem;
+}
+
+:root:not([data-framework]) .fw-tab[data-fw='next'],
+:root[data-framework='next'] .fw-tab[data-fw='next'],
+:root[data-framework='react-router'] .fw-tab[data-fw='react-router'],
+:root[data-framework='react'] .fw-tab[data-fw='react'],
+:root[data-framework='vanilla'] .fw-tab[data-fw='vanilla'] {
+  border-color: var(--line);
+  border-bottom-color: var(--bg);
+  color: var(--fg);
+  background: var(--bg-raised);
+}
+
+:root:not([data-framework]) .fw-panel[data-fw='next'],
+:root[data-framework='next'] .fw-panel[data-fw='next'],
+:root[data-framework='react-router'] .fw-panel[data-fw='react-router'],
+:root[data-framework='react'] .fw-panel[data-fw='react'],
+:root[data-framework='vanilla'] .fw-panel[data-fw='vanilla'] {
+  display: block;
+}
+
+/* Playground ("Studio", ADR-061) */
+
+.studio-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 var(--gutter) 1.25rem;
+}
+
+.studio-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
 
 .playground {
   display: grid;

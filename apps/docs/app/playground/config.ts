@@ -4,6 +4,7 @@ import {
   type Easing,
   type Stagger,
 } from 'shatter-router';
+import type { Framework } from '../../lib/frameworks';
 
 /** The playground's settings: every option, with the library's defaults. */
 export interface PlaygroundConfig {
@@ -200,11 +201,161 @@ export function configFromSearch(search: string): PlaygroundConfig {
   return config;
 }
 
+/** A named composition in the Studio (ADR-061): the defaults plus a few settings. */
+export interface Preset {
+  readonly name: string;
+  readonly note: string;
+  readonly settings: Partial<PlaygroundConfig>;
+}
+
+export const PRESETS: readonly Preset[] = [
+  {
+    name: 'Windscreen',
+    note: 'a blast through a spider web of glass',
+    settings: { effect: 'explode', pattern: 'radial', material: 'glass' },
+  },
+  {
+    name: 'Frost',
+    note: 'a frozen pane that drops, easing out',
+    settings: { effect: 'shatter', material: 'ice', easing: 'ease-out', shards: 220 },
+  },
+  {
+    name: 'Obsidian vortex',
+    note: 'dark glass flung up in a spiral',
+    settings: { effect: 'vortex', pattern: 'triangles', material: 'obsidian', stagger: 'spiral' },
+  },
+  {
+    name: 'Paper deal',
+    note: 'paper tiles dealt off in reading order',
+    settings: { effect: 'slide', pattern: 'tiles', material: 'paper', stagger: 'reading-order' },
+  },
+  {
+    name: 'Honeycomb fold',
+    note: 'mirror hexagons folding toward the click',
+    settings: { effect: 'fold', pattern: 'hex', material: 'mirror' },
+  },
+  {
+    name: 'Holo glitch',
+    note: 'an iridescent signal dropping out',
+    settings: { effect: 'glitch', material: 'holo' },
+  },
+];
+
+/** The settings of a preset: everything else back to the defaults (debug kept). */
+export function presetConfig(preset: Preset, current: PlaygroundConfig): PlaygroundConfig {
+  return { ...DEFAULTS, ...preset.settings, debug: current.debug };
+}
+
+function pick<T>(items: readonly T[], random: () => number): T {
+  const item = items[Math.min(items.length - 1, Math.floor(random() * items.length))];
+  if (item === undefined) throw new Error('pick from an empty list');
+  return item;
+}
+
+function between(min: number, max: number, step: number, random: () => number): number {
+  return min + Math.round((random() * (max - min)) / step) * step;
+}
+
 /**
- * The `createShatter({...})` call that matches the settings. Options left at
- * their defaults are omitted (the effect is always shown).
+ * Random settings (ADR-061): a motion, pattern, stagger, material and easing,
+ * with motion values in a range that still reads well. Physics stays
+ * procedural (Rapier is a 1.7 MB download), the seed random, debug as it was.
  */
-export function configCode(config: PlaygroundConfig): string {
+export function randomConfig(current: PlaygroundConfig, random = Math.random): PlaygroundConfig {
+  return {
+    ...DEFAULTS,
+    effect: pick(EFFECT_NAMES, random),
+    pattern: pick(PATTERNS, random),
+    stagger: pick(STAGGERS, random),
+    material: pick(MATERIAL_NAMES, random),
+    easing: pick(EASINGS, random),
+    shards: between(40, 240, 10, random),
+    gravity: between(1600, 4000, 100, random),
+    impulse: between(500, 1600, 50, random),
+    thickness: between(3, 12, 1, random),
+    debug: current.debug,
+  };
+}
+
+const ADAPTERS: Readonly<Record<Exclude<Framework, 'vanilla'>, { from: string; where: string }>> = {
+  next: {
+    from: 'shatter-router/next',
+    where: '// app/shatter.tsx: wrap {children} in app/layout.tsx',
+  },
+  'react-router': {
+    from: 'shatter-router/react-router',
+    where: '// Render inside the router, in your root route (see Getting started)',
+  },
+  react: {
+    from: 'shatter-router/react',
+    where: '// Wrap your app; pass navigate={…} to connect your router',
+  },
+};
+
+/**
+ * The code that matches the settings for one framework (ADR-061): a
+ * `createShatter({...})` call for vanilla, a `<ShatterProvider options>`
+ * component for the React adapters. Options left at their defaults are
+ * omitted (the effect is always shown).
+ */
+export function configCode(config: PlaygroundConfig, framework: Framework = 'vanilla'): string {
+  const lines = optionLines(config);
+  const custom = config.effect === 'ripple-out';
+  const extra = [
+    ...(config.physics === 'rapier' ? [`import { rapier } from 'shatter-router/rapier';`] : []),
+    ...(custom
+      ? [`import { rippleOut } from './effects/ripple-out'; // see “Writing a custom effect”`]
+      : []),
+  ];
+  if (framework === 'vanilla') {
+    const imports = [`import { createShatter } from 'shatter-router';`, ...extra];
+    const register = custom ? '\nshatter.registerEffect(rippleOut);' : '';
+    return `${imports.join('\n')}\n\nconst shatter = createShatter({\n${lines.join('\n')}\n});${register}\n`;
+  }
+  const adapter = ADAPTERS[framework];
+  const imports = [
+    ...(framework === 'next' ? [`'use client';`, ''] : []),
+    ...(custom ? [`import { useEffect } from 'react';`] : []),
+    `import { ShatterProvider${custom ? ', useShatter' : ''} } from '${adapter.from}';`,
+    ...extra,
+  ];
+  const options = lines.map((line) => `      ${line}`).join('\n');
+  const children = custom ? '      <RegisterEffects />\n      {children}' : '      {children}';
+  const register = custom
+    ? [
+        '',
+        '',
+        '// Inside the provider: makes the custom effect available by name.',
+        'function RegisterEffects() {',
+        '  const shatter = useShatter();',
+        '  useEffect(() => {',
+        '    shatter?.registerEffect(rippleOut);',
+        '  }, [shatter]);',
+        '  return null;',
+        '}',
+      ].join('\n')
+    : '';
+  return [
+    imports.join('\n'),
+    '',
+    adapter.where,
+    'export function Shatter({ children }) {',
+    '  return (',
+    '    <ShatterProvider',
+    '      options={{',
+    options,
+    '      }}',
+    '    >',
+    children,
+    '    </ShatterProvider>',
+    '  );',
+    `}${register}`,
+    '',
+  ].join('\n');
+}
+
+/** The option lines of the config, each indented by two spaces. */
+function optionLines(config: PlaygroundConfig): string[] {
   const effect = effectOf(config);
   const parts: string[] = [];
   if (typeof effect !== 'string') {
@@ -239,14 +390,5 @@ export function configCode(config: PlaygroundConfig): string {
   }
   if (config.seed !== DEFAULTS.seed) lines.push(`  seed: ${String(config.seed)},`);
   if (config.debug) lines.push('  debug: true,');
-
-  const imports = [`import { createShatter } from 'shatter-router';`];
-  if (config.physics === 'rapier') imports.push(`import { rapier } from 'shatter-router/rapier';`);
-  if (config.effect === 'ripple-out') {
-    imports.push(
-      `import { rippleOut } from './effects/ripple-out'; // see “Writing a custom effect”`,
-    );
-  }
-  const register = config.effect === 'ripple-out' ? '\nshatter.registerEffect(rippleOut);' : '';
-  return `${imports.join('\n')}\n\nconst shatter = createShatter({\n${lines.join('\n')}\n});${register}\n`;
+  return lines;
 }

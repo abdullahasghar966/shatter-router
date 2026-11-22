@@ -19,7 +19,7 @@ import {
 
 const NAV = [
   ['/effects', 'Effects'],
-  ['/playground', 'Playground'],
+  ['/playground', 'Studio'],
   ['/docs', 'Docs'],
 ] as const;
 
