@@ -18,7 +18,7 @@
 
 ## Next steps
 
-1. Full local e2e (`--project=chromium --project=webkit --workers=2`, stop stale servers on 4173–4176, `NEXT_TELEMETRY_DISABLED=1 pnpm build:examples` first); fix anything red.
+1. Full local e2e done: 442 passed, 26 skipped, 0 failed (Chromium + WebKit).
 2. PR "Milestone 16 part 3: materials and easing", three-engine CI green, merge with `--merge`, tag `m16-motions` on `main`, record PR/merge/tag in PROGRESS (first commit of the next branch).
 3. Production: check https://shatter-router.vercel.app after the deploy (new gallery pages, switcher material, playground), Lighthouse 12.6.0 mobile on `/`, `/effects`, an effect page, `/playground`, `/docs/api` (≥ 95 / 100); then M17 (interaction, cursor, sound; plan 3.5, 3.8), then M20, M18, M21.
 
