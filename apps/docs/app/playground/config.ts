@@ -1,4 +1,9 @@
-import type { Stagger } from 'shatter-router';
+import {
+  BUILT_IN_MATERIAL_NAMES,
+  type BuiltInMaterialName,
+  type Easing,
+  type Stagger,
+} from 'shatter-router';
 
 /** The playground's settings: every option, with the library's defaults. */
 export interface PlaygroundConfig {
@@ -7,6 +12,10 @@ export interface PlaygroundConfig {
   stagger: StaggerChoice;
   /** Fracture pattern (ADR-053); `'default'` keeps the effect's own. */
   pattern: PatternChoice;
+  /** What the pieces are made of (ADR-057). */
+  material: BuiltInMaterialName;
+  /** Pace of the motion (ADR-059). */
+  easing: Easing;
   /** 0 = `'auto'`. */
   shards: number;
   /** 0 = the effect's own duration. */
@@ -43,16 +52,21 @@ export type PatternChoice = (typeof PATTERNS)[number];
  */
 export function effectOf(
   config: PlaygroundConfig,
-): string | { motion: string; pattern?: string; stagger?: Stagger } {
+): string | { motion: string; pattern?: string; stagger?: Stagger; timing?: { easing: Easing } } {
   const stagger = staggerOf(config.stagger);
   const pattern = config.pattern === 'default' ? undefined : config.pattern;
-  if (!stagger && !pattern) return config.effect;
+  const easing = config.easing === 'linear' ? undefined : config.easing;
+  if (!stagger && !pattern && !easing) return config.effect;
   return {
     motion: config.effect,
     ...(pattern ? { pattern } : {}),
     ...(stagger ? { stagger } : {}),
+    ...(easing ? { timing: { easing } } : {}),
   };
 }
+
+/** The paces the panel offers (ADR-059). */
+export const EASINGS: readonly Easing[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
 /** The stagger orders the panel offers. */
 export const STAGGERS = [
@@ -77,6 +91,8 @@ export const DEFAULTS: PlaygroundConfig = {
   effect: 'shatter',
   stagger: 'default',
   pattern: 'default',
+  material: 'glass',
+  easing: 'linear',
   shards: 0,
   duration: 0,
   gravity: 2600,
@@ -90,7 +106,29 @@ export const DEFAULTS: PlaygroundConfig = {
   debug: false,
 };
 
-export const EFFECT_NAMES = ['shatter', 'explode', 'implode', 'flip', 'assemble', 'ripple-out'];
+export const EFFECT_NAMES = [
+  'shatter',
+  'explode',
+  'implode',
+  'flip',
+  'assemble',
+  // Motion families (ADR-055).
+  'crumble',
+  'rain',
+  'vortex',
+  'wind',
+  'blinds',
+  'domino',
+  'slide',
+  'fold',
+  'melt',
+  'ripple',
+  'glitch',
+  'ripple-out',
+];
+
+/** The materials the panel offers (ADR-057). */
+export const MATERIAL_NAMES: readonly BuiltInMaterialName[] = BUILT_IN_MATERIAL_NAMES;
 
 type NumberKey = {
   [K in keyof PlaygroundConfig]: PlaygroundConfig[K] extends number ? K : never;
@@ -137,6 +175,10 @@ export function configFromSearch(search: string): PlaygroundConfig {
   if (stagger) config.stagger = stagger;
   const pattern = PATTERNS.find((choice) => choice === params.get('pattern'));
   if (pattern) config.pattern = pattern;
+  const material = MATERIAL_NAMES.find((choice) => choice === params.get('material'));
+  if (material) config.material = material;
+  const easing = EASINGS.find((choice) => choice === params.get('easing'));
+  if (easing) config.easing = easing;
   for (const key of Object.keys(LIMITS) as NumberKey[]) {
     const raw = params.get(key);
     if (raw === null || raw.trim() === '') continue;
@@ -174,11 +216,13 @@ export function configCode(config: PlaygroundConfig): string {
         `stagger: ${typeof stagger === 'string' ? `'${stagger}'` : `{ type: 'linear', angle: ${String(stagger.angle)} }`}`,
       );
     }
+    if (effect.timing) parts.push(`timing: { easing: '${effect.timing.easing}' }`);
   }
   // A pattern or stagger makes the effect a composition of parts (ADR-048).
   const lines: string[] = [
     typeof effect === 'string' ? `  effect: '${effect}',` : `  effect: { ${parts.join(', ')} },`,
   ];
+  if (config.material !== DEFAULTS.material) lines.push(`  material: '${config.material}',`);
   if (config.shards !== DEFAULTS.shards) lines.push(`  shards: ${String(config.shards)},`);
   if (config.duration !== DEFAULTS.duration) lines.push(`  duration: ${String(config.duration)},`);
   if (config.gravity !== DEFAULTS.gravity) lines.push(`  gravity: ${String(config.gravity)},`);

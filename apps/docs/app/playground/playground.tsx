@@ -16,7 +16,9 @@ import {
   configFromSearch,
   configToSearch,
   DEFAULTS,
+  EASINGS,
   EFFECT_NAMES,
+  MATERIAL_NAMES,
   LIMITS,
   type PlaygroundConfig,
   effectOf,
@@ -61,7 +63,11 @@ async function optionsFor(config: PlaygroundConfig): Promise<ShatterOptions> {
     gravity: config.gravity,
     impulse: config.impulse,
     thickness: config.thickness,
-    glassTint: config.glassTint,
+    material: config.material,
+    // Only a changed tint overrides the material's own (ADR-057).
+    ...(config.glassTint.toLowerCase() === DEFAULTS.glassTint
+      ? {}
+      : { glassTint: config.glassTint }),
     chromatic: config.chromatic,
     physics,
     ...(config.seed === 0 ? {} : { seed: config.seed }),
@@ -125,6 +131,9 @@ export function Playground(): ReactNode {
       pane.addBinding(params, 'stagger', {
         options: Object.fromEntries(STAGGERS.map((name) => [name, name])),
       });
+      pane.addBinding(params, 'easing', {
+        options: Object.fromEntries(EASINGS.map((name) => [name, name])),
+      });
       pane.addBinding(params, 'shards', { ...LIMITS.shards, label: 'shards (0 = auto)' });
       pane.addBinding(params, 'duration', {
         ...LIMITS.duration,
@@ -137,7 +146,10 @@ export function Playground(): ReactNode {
         options: { procedural: 'procedural', rapier: 'rapier' },
       });
       motion.addBinding(params, 'floor', { label: 'floor (rapier)' });
-      const glass = pane.addFolder({ title: 'Glass' });
+      const glass = pane.addFolder({ title: 'Material' });
+      glass.addBinding(params, 'material', {
+        options: Object.fromEntries(MATERIAL_NAMES.map((name) => [name, name])),
+      });
       glass.addBinding(params, 'thickness', LIMITS.thickness);
       glass.addBinding(params, 'glassTint', { label: 'tint' });
       glass.addBinding(params, 'chromatic');
