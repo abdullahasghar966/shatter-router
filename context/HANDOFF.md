@@ -23,7 +23,7 @@
 
 ## Next steps
 
-1. Full local e2e (`--project=chromium --project=webkit --workers=2`), push, PR "Milestone 16 part 2: motion families", three-engine CI green, merge with `--merge` (no tag yet).
+1. Full local e2e done (413 passed, 26 skipped, the known load-sensitive Next test passed 5/5 alone); PR "Milestone 16 part 2: motion families", three-engine CI green, merge with `--merge` (no tag yet).
 2. **ADR-057, materials** (plan 3.4), new branch from `main`: glass (today), ice, mirror, obsidian, paper, metal, holo as shading parameters (tint, rim, glint, chromatic, edge style) passed per transition (composition `material`, today only `'glass'` in `plugins.ts` `MATERIALS` and `engine.setShading`), all lighting exactly 0 at rest (ADR-038). Then the docs site's material switcher (ADR-050) sets the transition material too.
 3. Playground: motion select with the new motions, material select; docs tables and gallery entries per motion (`apps/docs/lib/effects.ts`, `apps/docs/app/playground/config.ts`); production Lighthouse 12.6.0 mobile (≥ 95 / 100); tag `m16-motions`. Then M17, M20, M18, M21 (plan section 9).
 
