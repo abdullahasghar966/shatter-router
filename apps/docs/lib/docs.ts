@@ -9,4 +9,5 @@ export const DOCS = [
   ['/docs/csp', 'Content Security Policy'],
   ['/docs/troubleshooting', 'Troubleshooting'],
   ['/docs/browser-support', 'Browser support'],
+  ['/docs/changelog', 'Changelog'],
 ] as const;

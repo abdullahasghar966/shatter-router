@@ -11,7 +11,8 @@ export function currentFramework(): Framework {
   return FRAMEWORKS.find((framework) => framework.id === value)?.id ?? DEFAULT_FRAMEWORK;
 }
 
-function choose(framework: Framework): void {
+/** Shows `framework` in every tab group on the site and remembers it. */
+export function chooseFramework(framework: Framework): void {
   document.documentElement.setAttribute('data-framework', framework);
   try {
     localStorage.setItem(FRAMEWORK_KEY, framework);
@@ -69,7 +70,7 @@ export function FrameworkTabs({
     const target = FRAMEWORKS[next];
     if (!target) return;
     event.preventDefault();
-    choose(target.id);
+    chooseFramework(target.id);
     document.getElementById(`${id}-tab-${target.id}`)?.focus();
   };
 
@@ -88,7 +89,7 @@ export function FrameworkTabs({
             aria-controls={`${id}-panel-${framework.id}`}
             tabIndex={selected === framework.id ? 0 : -1}
             onClick={() => {
-              choose(framework.id);
+              chooseFramework(framework.id);
             }}
             onKeyDown={onKey}
           >

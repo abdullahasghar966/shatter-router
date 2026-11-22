@@ -338,6 +338,124 @@ q {
   cursor: pointer;
 }
 
+/* Search (ADR-061): a header button and a modal dialog over a prebuilt index. */
+.search-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2rem;
+  padding: 0 0.45rem 0 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.search-button:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.search-button svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.search-button kbd {
+  padding: 0 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.search-dialog {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: min(34rem, calc(100vh - 6rem));
+  margin: 4.5rem auto auto;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  /* It sits in the header, whose labels are mono: read in the text face. */
+  font-family: var(--display);
+  font-size: 1rem;
+  letter-spacing: normal;
+}
+
+.search-dialog::backdrop {
+  background: rgb(10 10 8 / 0.45);
+}
+
+.search-box {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: inherit;
+}
+
+.search-input {
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--display);
+  font-size: 1.15rem;
+}
+
+.search-input:focus-visible {
+  outline: none;
+}
+
+.search-results {
+  margin: 0;
+  padding: 0.4rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.search-result {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.search-result[aria-selected='true'] {
+  background: var(--bg-sunk);
+}
+
+.search-result-title {
+  font-weight: 600;
+}
+
+.search-result-title span {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.search-result-text {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.search-status {
+  margin: 0;
+  padding: 0.55rem 1.1rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
 .theme-toggle svg {
   width: 1rem;
   height: 1rem;
@@ -1238,6 +1356,33 @@ pre code {
 
 .next-page a {
   color: var(--fg);
+}
+
+/* Changelog (ADR-061) */
+.changes h2 {
+  margin-top: 3rem;
+}
+
+.changes > ul {
+  padding: 0;
+  list-style: none;
+}
+
+.changes > ul > li {
+  padding: 0.25rem 0 0.25rem 1rem;
+  border-left: 2px solid var(--line);
+}
+
+.change-bump {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--signal-ink);
+}
+
+.change-bump + p {
+  margin-top: 0.25rem;
 }
 
 .callout {

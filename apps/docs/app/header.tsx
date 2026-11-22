@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { type CSSProperties, type MouseEvent, type ReactNode, useEffect, useState } from 'react';
 import { ShatterLink, useShatter } from 'shatter-router/next';
 import { CrackText } from './crack-text';
+import { Search } from './search';
 import {
   applyMaterial,
   applySound,
@@ -71,6 +72,7 @@ function LabControls(): ReactNode {
   const nextTheme: Theme = theme === 'dark' ? 'light' : 'dark';
   return (
     <div className="lab-controls">
+      <Search />
       <div className="swatches" role="group" aria-label="Material">
         {MATERIALS.map((name) => (
           <button

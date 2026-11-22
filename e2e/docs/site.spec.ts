@@ -30,6 +30,7 @@ const PAGES = [
   ['/docs/csp', 'Content Security Policy'],
   ['/docs/troubleshooting', 'Troubleshooting'],
   ['/docs/browser-support', 'Browser support'],
+  ['/docs/changelog', 'Changelog'],
 ] as const;
 
 async function lastEffect(page: Page): Promise<string | null> {
