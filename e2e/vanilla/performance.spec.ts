@@ -211,8 +211,40 @@ test.describe('vanilla example: performance (section 8)', () => {
 
       // Phases from the lifecycle events: start, covered, committed, animating, end.
       const [start = 0, covered = 0, , animating = 0, end = 0] = result.times;
+      // The capture of the incoming page (flip, assemble) is a capture step
+      // too (master prompt 4.7): its tasks are allowed to be long (ADR-056).
+      const incoming = await page.evaluate(() => {
+        const hook = (
+          window as {
+            __SHATTER_TEST__?: {
+              lastIncomingCaptureStart: number | null;
+              lastIncomingCaptureMs: number | null;
+            };
+          }
+        ).__SHATTER_TEST__;
+        return {
+          start: hook?.lastIncomingCaptureStart ?? null,
+          ms: hook?.lastIncomingCaptureMs ?? null,
+        };
+      });
+      // A task overlapping it belongs to it: the task that starts the capture
+      // also finishes the wait before it, and the one that ends it uploads the
+      // texture (measured: a long task 1 ms before the recorded start).
+      const inIncomingCapture = (task: { start: number; duration: number }): boolean =>
+        incoming.start !== null &&
+        incoming.ms !== null &&
+        task.start < incoming.start + incoming.ms &&
+        task.start + task.duration > incoming.start;
       const outside = result.longTasks.filter(
-        (task) => task.start + task.duration > covered && task.start < end,
+        (task) =>
+          task.start + task.duration > covered && task.start < end && !inIncomingCapture(task),
+      );
+      const duringIncoming = result.longTasks.filter(inIncomingCapture);
+      // Where each long task lies, ms from `covered` (start+duration).
+      console.log(
+        `[timeline] ${testInfo.project.name} ${effect}: animating at ${(animating - covered).toFixed(0)}, end at ${(end - covered).toFixed(0)}, ` +
+          `incoming capture ${incoming.start === null ? '-' : `${(incoming.start - covered).toFixed(0)}+${incoming.ms?.toFixed(0) ?? '?'}`}; ` +
+          `long tasks ${result.longTasks.map((t) => `${(t.start - covered).toFixed(0)}+${t.duration.toFixed(0)}`).join(' ') || 'none'}`,
       );
       const animation = state.animation;
       const worstLong = Math.max(0, ...outside.map((task) => task.duration));
@@ -222,7 +254,10 @@ test.describe('vanilla example: performance (section 8)', () => {
           `worst frame ${animation?.worstFrameMs.toFixed(1) ?? '?'} ms; capture ${state.captureMs?.toFixed(1) ?? '?'} ms, ` +
           `start→covered ${(covered - start).toFixed(0)} ms, covered→animating ${(animating - covered).toFixed(0)} ms; ` +
           `draw calls per frame ${[...new Set(result.frames)].join('/')} over ${result.frames.length} frames; ` +
-          `long tasks outside capture: ${outside.length ? outside.map((task) => task.duration.toFixed(0)).join(', ') : 'none'} ms`,
+          `long tasks outside capture: ${outside.length ? outside.map((task) => task.duration.toFixed(0)).join(', ') : 'none'} ms` +
+          (incoming.ms === null
+            ? ''
+            : `; incoming capture ${incoming.ms.toFixed(0)} ms, its long tasks: ${duringIncoming.length ? duringIncoming.map((task) => task.duration.toFixed(0)).join(', ') : 'none'} ms`),
       );
       if (PERF) {
         expect(animation?.fps ?? 0).toBeGreaterThanOrEqual(58);

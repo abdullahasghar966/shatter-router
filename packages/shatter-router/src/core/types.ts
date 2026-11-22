@@ -193,6 +193,8 @@ export interface ShatterTestHook {
   lastPhysics: string | null;
   /** Duration of the most recent capture of the incoming page in ms, or null. */
   lastIncomingCaptureMs: number | null;
+  /** `performance.now()` when that capture started, or null (places it in a trace, ADR-056). */
+  lastIncomingCaptureStart: number | null;
   /** Grid the page copy is laid out on in this engine, once the capturer is loaded. */
   layoutGrid(): 'css' | 'device' | null;
   /** Most recent fracture: shard count, CPU time and the device tier used for `'auto'`. */

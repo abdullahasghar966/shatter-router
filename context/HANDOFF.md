@@ -1,6 +1,6 @@
 # Hand-off
 
-- **Last updated:** 2026-11-22 (session 5: M16 part 2 motions committed; capture-time comparison in progress)
+- **Last updated:** 2026-11-22 (session 5: M16 part 2 motions committed; long-task budget refined, ADR-056)
 - **Session:** 5
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
@@ -19,15 +19,17 @@
 
 ## In progress right now
 
-- **Open measurement:** on the RTX run, `flip`/`assemble` show one 68–90 ms long task in the incoming-capture step and `/effects` captures take 40–94 ms (M10: 21 ms, no long tasks). Next: run `SHATTER_PERF=1 npx playwright test e2e/vanilla/performance.spec.ts --project=chromium --workers=1 -g "(flip|assemble): one draw call"` on the code at tags `m15-patterns` and `m10-performance` (a `git worktree` in `coverage/`, its own `pnpm install`/build; see LEARNINGS for worktree removal on Windows) to find whether it is the machine or a code change (suspects: M19's capture changes ADR-051/052, the priming capture ADR-043). Fix if it is code; record either way.
+- Nothing half-done. The `flip`/`assemble` long-task question is settled (ADR-056: they lie inside the incoming capture; no regression, measured by an interleaved A/B against `m15-patterns`).
 
 ## Next steps
 
-1. Finish the measurement above; then the full local e2e (`--project=chromium --project=webkit --workers=2`), push, PR "Milestone 16 part 2: motion families", three-engine CI green, merge with `--merge` (no tag yet).
-2. **ADR-056, materials** (plan 3.4), new branch from `main`: glass (today), ice, mirror, obsidian, paper, metal, holo as shading parameters (tint, rim, glint, chromatic, edge style) passed per transition (composition `material`, today only `'glass'` in `plugins.ts` `MATERIALS` and `engine.setShading`), all lighting exactly 0 at rest (ADR-038). Then the docs site's material switcher (ADR-050) sets the transition material too.
+1. Full local e2e (`--project=chromium --project=webkit --workers=2`), push, PR "Milestone 16 part 2: motion families", three-engine CI green, merge with `--merge` (no tag yet).
+2. **ADR-057, materials** (plan 3.4), new branch from `main`: glass (today), ice, mirror, obsidian, paper, metal, holo as shading parameters (tint, rim, glint, chromatic, edge style) passed per transition (composition `material`, today only `'glass'` in `plugins.ts` `MATERIALS` and `engine.setShading`), all lighting exactly 0 at rest (ADR-038). Then the docs site's material switcher (ADR-050) sets the transition material too.
 3. Playground: motion select with the new motions, material select; docs tables and gallery entries per motion (`apps/docs/lib/effects.ts`, `apps/docs/app/playground/config.ts`); production Lighthouse 12.6.0 mobile (≥ 95 / 100); tag `m16-motions`. Then M17, M20, M18, M21 (plan section 9).
 
 ## Deferred (tracked, not forgotten)
+
+- A cheaper capture of the incoming page (it is one 70–100 ms task on a warm machine, ADR-056).
 
 - Patterns `dom`, `text`, `mask`, `pixels` (ADR-053); motions `magnet` (M17), `peel`, `dust` (with `pixels`) (ADR-055).
 - npm publish: at 1.0 (M21), with the user's npm login.
