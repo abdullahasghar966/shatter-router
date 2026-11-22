@@ -19,9 +19,9 @@
 
 ## Next steps
 
-1. Merge PR #22 (green CI), then `git merge origin/main` into this branch.
-2. E2E (cursor follows and is not captured, hold charges, drag tears with a seam at rest, keyboard and reduced-motion paths, no long tasks), docs site: cursor kit, sound toggle (remembered), hero hold-to-charge; docs pages.
-3. Full ritual: PR, three-engine CI, merge, tag `m17-interaction`; production Lighthouse. Then M20, M18, M21.
+1. PR "Milestone 17: interaction, cursor, sound" (full local run: 464 passed, 28 skipped, 0 failed), three-engine CI green, merge with `--merge`, tag `m17-interaction`, production Lighthouse 12.6.0 mobile (≥ 95 / 100), record PR/merge/tag in PROGRESS.
+2. M20 (site features, plan section 5), as scoped in ADR-061 when it starts: Library by family with pattern and material filters; effect pages with replay, slow motion and parameters; Studio presets, randomise, undo, export for vanilla/React/React Router/Next; docs search (prebuilt index), highlighting at build, copy buttons, framework tabs; a live in-browser benchmark. Region-dependent features (live mini stages, compare mode, specimens strip, scroll-driven breaking) wait for M18; a showcase waits for real users.
+3. Then M18 (region transitions; engine core budget 13.95 of 15 kB, runtime 9.82 of 10 kB: plan the bytes first), then M21.
 
 ## Deferred (tracked, not forgotten)
 
