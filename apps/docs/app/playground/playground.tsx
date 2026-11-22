@@ -43,6 +43,13 @@ const SCENES = [
   { title: 'Shards', note: 'scene two of two', colors: ['#2cb5a0', '#c3f3e8'] },
 ] as const;
 
+/** Lets the browser run other work (input, paint) before continuing. */
+function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+
 /** The site's `?budget=<ms>` test switch, read once like `providers.tsx` does. */
 function captureBudget(): { captureBudget?: number } {
   const raw = new URLSearchParams(window.location.search).get('budget');
@@ -113,15 +120,24 @@ export function Playground(): ReactNode {
 
   // Tweakpane, loaded on demand so it is not part of the page's first load.
   useEffect(() => {
-    let disposed = false;
+    // An object, not a `let`: it changes while the panel is built across awaits.
+    const life = { disposed: false };
+    // Read through a call: TypeScript keeps a property's narrowing across awaits.
+    const gone = (): boolean => life.disposed;
     let dispose = (): void => undefined;
     let pending: number | undefined;
-    void import('tweakpane').then(({ Pane }) => {
+    void import('tweakpane').then(async ({ Pane }) => {
+      // Evaluating Tweakpane is one task; building the panel is split into
+      // a few more, so none blocks the main thread for long (Lighthouse TBT).
+      await yieldToMain();
       const container = paneHost.current;
-      if (disposed || !container) return;
+      if (gone() || !container) return;
       const params = configFromSearch(window.location.search);
       setConfig({ ...params });
       const pane = new Pane({ container, title: 'Options' });
+      dispose = () => {
+        pane.dispose();
+      };
       pane.addBinding(params, 'effect', {
         options: Object.fromEntries(EFFECT_NAMES.map((name) => [name, name])),
       });
@@ -139,6 +155,8 @@ export function Playground(): ReactNode {
         ...LIMITS.duration,
         label: 'duration ms (0 = effect)',
       });
+      await yieldToMain();
+      if (gone()) return;
       const motion = pane.addFolder({ title: 'Motion' });
       motion.addBinding(params, 'gravity', LIMITS.gravity);
       motion.addBinding(params, 'impulse', LIMITS.impulse);
@@ -146,6 +164,8 @@ export function Playground(): ReactNode {
         options: { procedural: 'procedural', rapier: 'rapier' },
       });
       motion.addBinding(params, 'floor', { label: 'floor (rapier)' });
+      await yieldToMain();
+      if (gone()) return;
       const glass = pane.addFolder({ title: 'Material' });
       glass.addBinding(params, 'material', {
         options: Object.fromEntries(MATERIAL_NAMES.map((name) => [name, name])),
@@ -172,12 +192,9 @@ export function Playground(): ReactNode {
         }
       });
       nameControls(container);
-      dispose = () => {
-        pane.dispose();
-      };
     });
     return () => {
-      disposed = true;
+      life.disposed = true;
       window.clearTimeout(pending);
       dispose();
     };

@@ -56,6 +56,9 @@ test.describe('docs site: Material lab', () => {
     // Applied before the first paint by the inline script.
     expect(await root(page, 'data-material')).toBe('obsidian');
     // A fresh load (with the test hook) takes the stored material for its transitions.
+    // Let the reloaded page's prefetches finish first: WebKit reports ones that
+    // a navigation cuts short as page errors (LEARNINGS).
+    await page.waitForLoadState('networkidle');
     await page.goto(`${BASE}/docs${QUERY}`);
     await waitForShatterReady(page);
     await page.getByRole('link', { name: 'Effects', exact: true }).click();
