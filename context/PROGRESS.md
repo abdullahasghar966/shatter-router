@@ -26,10 +26,10 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
 | 16  | Motions and materials         | ☑      | `milestone/16-motions`, `milestone/16-motions-2`, `milestone/16-materials` | [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), [#21](https://github.com/abdullahasghar966/shatter-router/pull/21) | `91b83d4`, `44a7544`, `3382b96` | `m16-motions` |
-| 17  | Interaction, cursor, sound    | ◐      | `milestone/17-interaction`     |     |           |             |
+| 17  | Interaction, cursor, sound    | ☑      | `milestone/17-interaction`     | [#23](https://github.com/abdullahasghar966/shatter-router/pull/23) | `1e7c826` | `m17-interaction` |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
-| 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
+| 20  | Site features                 | ◐      | `milestone/20-site-features`   |     |           |             |
 | 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
 ## Installed dependency versions
@@ -374,6 +374,12 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Unit:** blast vs fall speeds ≥ 5× apart in the screen plane and in depth; `shatter` has no upward kick.
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
+
+### Production after M17 (`1e7c826`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
+
+- `/` 97/100 (LCP 1.7 s, TBT 20 ms), `/effects` 96/100 (LCP 2.5 s, TBT 50 ms), `/effects/vortex` 99/100, `/playground` 97/100 (TBT 140 ms), `/docs/api` 98/100; CLS ≤ 0.001 everywhere. Target (≥ 95 / 100) met on every page.
+- Playground after the PR #22 fix (`09a431b`), 3 runs: 96, 99, 98 (TBT 70–100 ms; before: 90–96, TBT 150–360 ms).
+- PR #22 (`fix/playground-panel-tasks`, merge `09a431b`): playground panel built in steps, lab test prefetch race, overlay diagnostics.
 
 ### Interaction, cursor, sound (Milestone 17, 2026-11-22, ADR-060)
 

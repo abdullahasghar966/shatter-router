@@ -1,43 +1,43 @@
 # Hand-off
 
-- **Last updated:** 2026-11-22 (session 5: M16 merged and tagged `m16-motions`; M17 started)
-- **Session:** 5
+- **Last updated:** 2026-11-22 (session 5 end: M16 and M17 merged and tagged; M20 branch created)
+- **Session:** 5 (the next session is 6)
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 17 — Interaction, cursor, sound (`context/PLAN-PRODUCTION.md` 3.5, 3.8)
-- **Current branch:** `milestone/17-interaction` (from `main` at `3382b96`)
-- **Latest tag:** `m16-motions` (on `3382b96`)
+- **Current milestone:** 20 — Site features (`context/PLAN-PRODUCTION.md` section 5), not started beyond this branch.
+- **Current branch:** `milestone/20-site-features` (from `main` at `1e7c826`, the PR #23 merge). Its first commit is this hand-off.
+- **Latest tag:** `m17-interaction` (on `1e7c826`). Order still to do (plan section 9): M20, then M18, then M21.
 
-## Done so far
+## Done in session 5
 
-- Milestones 0–16 and 19 merged and tagged. M16: PRs #19–#21 (motions ADR-054/055, long-task budget ADR-056, materials ADR-057, last-visible completion ADR-058, easing ADR-059).
-- M17 (ADR-060), committed on this branch: interaction and sound chunks, gestures remembered by the core and merged by the runtime (`intensity` scales the impulse, a tear `path` reaches the `impact` seeds, piece distances and the crack shader), sound loaded after the first gesture, `setSound()`. 576 unit tests. Not yet: e2e, the docs site (cursor kit, sound toggle, hero charge), docs pages.
-- `fix/playground-panel-tasks` (PR #22): the playground's Tweakpane panel built in steps (Lighthouse TBT), the WebKit prefetch race in `lab.spec.ts`, overlay diagnostics; merge it into this branch after it merges.
+- **M16** (tag `m16-motions`, PRs #19–#21): 11 motions in four families (ADR-055), the long-task budget leaves out the incoming capture (ADR-056), materials glass/ice/mirror/obsidian/paper/metal/holo (ADR-057), falling effects complete from a remembered last-visible time (ADR-058), easing (ADR-059). Side faces of resting pieces are no longer drawn (a web over the page during every Back).
+- **PR #22** (`09a431b`): playground panel built in steps (Lighthouse TBT), WebKit prefetch race in `e2e/docs/lab.spec.ts`, overlay diagnostics on failed seams (`describeOverlay` in `e2e/seam.ts`).
+- **M17** (tag `m17-interaction`, PR #23, ADR-060): `interaction` (cursor kits, pre-crack, hold to charge, drag to tear, haptics) and `sound` (procedural WebAudio, `setSound()`) as lazy chunks; gestures remembered by the core, merged by the runtime (`intensity`, `path`); docs site uses the library cursor and has a sound toggle.
+- Production Lighthouse after M17: 96–99 performance, 100 accessibility on `/`, `/effects`, `/effects/vortex`, `/playground`, `/docs/api`.
 
-## Next steps
+## Next steps (M20, plan section 5)
 
-1. PR "Milestone 17: interaction, cursor, sound" (full local run: 464 passed, 28 skipped, 0 failed), three-engine CI green, merge with `--merge`, tag `m17-interaction`, production Lighthouse 12.6.0 mobile (≥ 95 / 100), record PR/merge/tag in PROGRESS.
-2. M20 (site features, plan section 5), as scoped in ADR-061 when it starts: Library by family with pattern and material filters; effect pages with replay, slow motion and parameters; Studio presets, randomise, undo, export for vanilla/React/React Router/Next; docs search (prebuilt index), highlighting at build, copy buttons, framework tabs; a live in-browser benchmark. Region-dependent features (live mini stages, compare mode, specimens strip, scroll-driven breaking) wait for M18; a showcase waits for real users.
-3. Then M18 (region transitions; engine core budget 13.95 of 15 kB, runtime 9.82 of 10 kB: plan the bytes first), then M21.
-
-## Deferred (tracked, not forgotten)
-
-- A cheaper capture of the incoming page (it is one 70–100 ms task on a warm machine, ADR-056).
-- Engine core budget: 13.36 of 15 kB after materials; M18 (regions) adds engine code, so measure early and move data (e.g. the material table) to a lazy chunk if needed.
-
-- Patterns `dom`, `text`, `mask`, `pixels` (ADR-053); motions `magnet` (M17), `peel`, `dust` (with `pixels`) (ADR-055).
-- npm publish: at 1.0 (M21), with the user's npm login.
+1. **Write ADR-061 (M20 scope) first.** Region-dependent items wait for M18 (live mini stages that break on hover-hold, compare mode with two stages, the strip of breakable specimens, scroll-driven breaking): the engine always covers the whole viewport (ADR-042). A showcase needs real sites using the library: not before 1.0 (no invented entries, master prompt rule 2). Everything else is in scope:
+   - **Library** (`apps/docs/app/effects/page.tsx`, data in `apps/docs/lib/effects.ts`): group the 16 motions by family (gravity, force, order, matter, assembly), filters by pattern and material (query string, so Back keeps them), each card still navigates with its own effect.
+   - **Effect page** (`apps/docs/app/effects/[effect]/page.tsx`): replay button (break in place like the hero, `transition({ commit: () => undefined, effect })`), slow motion (×4 duration), pattern/material/easing selects, the code for the current settings, "open in Studio" (playground URL with the same query).
+   - **Studio** (`apps/docs/app/playground/`): presets (a few named compositions), randomise, undo (history of configs), export tabs for vanilla / React / React Router / Next (extend `configCode`). Recording a GIF/WebM is out: the overlay canvas holds only the glass, not the page under it (ADR-061 should say so).
+   - **Docs:** search (Cmd-K, a prebuilt index generated at build from the docs pages' text), syntax highlighting at build (Shiki; check the Lighthouse cost), copy buttons, framework tabs that remember the choice (localStorage), a changelog page from `packages/shatter-router/CHANGELOG.md`.
+   - **Benchmark page:** live in-browser numbers from the library's public events (`covered.captureMs`, `fractured.fractureMs`, frames during `animating`) next to the reference machine's (PROGRESS).
+   - E2E for every feature; Lighthouse ≥ 95 / 100 on new pages; docs complete for every new API.
+2. M20 ritual: PR, three-engine CI, merge `--merge`, tag `m20-site-features`, production Lighthouse.
+3. **M18 region transitions** (`transition({ target })`, plan 3.7): plan the bytes first. Engine core is 13.95 of 15 kB, runtime 9.82 of 10 kB; move data (the material table) to a lazy chunk or write a budget ADR. Then M21 (production foundations, npm 1.0 with the user's login).
 
 ## Open problems / blockers
 
-- Local Firefox and Playwright's full Chromium cannot launch on this machine (LEARNINGS); CI runs Firefox headed under xvfb (ADR-015). For headed or real-GPU runs, use installed Chrome 157 (`channel: 'chrome'`), which may pick the Intel iGPU unless forced.
+- **Firefox CI white frame (unexplained):** `flip`'s fractured first frame was a fully white overlay (97.0018 %) in 2 of 5 Firefox CI runs (PR #21 first run, PR #22 first run), never locally (WSL Linux Firefox 1572 on llvmpipe, 5 of 5 at 0.0000 %). Failed seams now log `describeOverlay` (the pixel the shader draws, the top element, styles, context lost). If it recurs, read the `[overlay]` line in the CI log before anything else.
+- Budgets close to their limits: runtime 9.82 / 10 kB, engine core 13.95 / 15 kB.
+- Local Firefox: only through WSL (`coverage/wsl/run-repro.sh`, see LEARNINGS); Windows Firefox and Playwright's full Chromium cannot launch. Real-GPU runs use installed Chrome 157 with `--force_high_performance_gpu` (Chrome picked the Intel iGPU once).
 - Windows WebKit crashes on a View Transition right after a CSP-blocked image: that test is `fixme` on win32 only.
 - The Claude desktop browser pane throttles frames: use headless Playwright for visual checks and numbers.
-- Local e2e: `--workers=2`; stop stale servers on ports 4173–4176 first. Don't measure captures while the e2e suite is running.
-- `pnpm` is not on the PATH of PowerShell terminal tabs; use `npx` there.
+- This laptop's capture times drift 2–3× as it warms up: compare builds interleaved (`coverage/m16/ab-perf.sh`).
 
 ## Questions waiting on the user
 
@@ -45,7 +45,7 @@
 
 ## Working tree
 
-- Clean, everything pushed after the commit that carries this file. `.env.local` (Vercel OIDC token) and `.vercel/` exist locally and are git-ignored.
+- Clean, everything pushed after the commit that carries this file. `.env.local` (Vercel OIDC token) and `.vercel/` exist locally and are git-ignored. `coverage/` (git-ignored) holds the review and probe scripts of sessions 1–5.
 
 ## Resume commands (PowerShell)
 
@@ -53,23 +53,26 @@
 cd "D:\Shatter Router"
 git fetch --all --tags
 git status
-git switch milestone/17-interaction
+git switch milestone/20-site-features
 pnpm install
 pnpm build
-pnpm build:examples
+$env:NEXT_TELEMETRY_DISABLED=1; pnpm build:examples
 pnpm typecheck
 pnpm lint
+pnpm format:check
 pnpm test
-pnpm test:e2e --project=chromium --project=webkit --workers=2   # Firefox cannot launch on this machine
 pnpm size
+# e2e (stop stale servers on 4173-4176 first; Firefox only in CI or WSL):
+pnpm test:e2e --project=chromium --project=webkit --workers=2
 # real-GPU budgets (installed Chrome, headed, discrete GPU forced in the spec):
 # $env:SHATTER_PERF=1; npx playwright test e2e/vanilla/performance.spec.ts --project=chromium --workers=1
-# frozen frames of every motion (contact sheets in coverage/m16/):
-# node coverage/m16/motion-shots.mjs coverage/m16
+# Lighthouse on production (target >= 95 performance / 100 accessibility):
+# npx --yes lighthouse@12.6.0 https://shatter-router.vercel.app/ --only-categories=performance,accessibility --chrome-flags="--headless=new"
 ```
 
 ## Read first
 
-- `context/DECISIONS.md` ADR-047, ADR-048, ADR-055–059; `context/PLAN-PRODUCTION.md` 3.3–3.5
-- `packages/shatter-router/src/core/effect.ts` (the interface), `src/engine/effects/reverse.ts`, `src/engine/plugins.ts`
-- `e2e/vanilla/motions.spec.ts`, `e2e/vanilla/performance.spec.ts`
+- `SHATTER_ROUTER_MASTER_PROMPT.md` (rules, A.5 ritual, B.3/B.4), `context/PLAN-PRODUCTION.md` sections 5 and 9
+- `context/DECISIONS.md` ADR-042, ADR-050, ADR-055–060
+- `apps/docs/app/` (pages), `apps/docs/lib/effects.ts`, `apps/docs/app/playground/config.ts`
+- `e2e/docs/site.spec.ts`, `e2e/docs/lab.spec.ts`
