@@ -11,6 +11,7 @@ import {
 } from '../hook';
 import {
   compareScreenshots,
+  describeOverlay,
   pauseAt,
   resumeAndFinish,
   SEAM_MAX_BLOCK_PERCENT,
@@ -54,6 +55,12 @@ async function check(
   console.log(
     `[seam] ${testInfo.project.name} ${name}: ${result.percent.toFixed(4)} % differ (raw ${result.rawPercent.toFixed(4)} %, worst block ${result.worstBlockPercent.toFixed(1)} %)`,
   );
+  if (
+    result.percent > seamLimit(testInfo.project.name, dpr) ||
+    result.worstBlockPercent > SEAM_MAX_BLOCK_PERCENT
+  ) {
+    console.log(`[overlay] ${testInfo.project.name} ${name}: ${await describeOverlay(page)}`);
+  }
   expect(result.percent).toBeLessThanOrEqual(seamLimit(testInfo.project.name, dpr));
   expect(result.worstBlockPercent).toBeLessThanOrEqual(SEAM_MAX_BLOCK_PERCENT);
 }

@@ -25,8 +25,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
-| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` (part 2, [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), `44a7544`), `milestone/16-materials` (part 3) |     |           |             |
-| 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
+| 16  | Motions and materials         | ☑      | `milestone/16-motions`, `milestone/16-motions-2`, `milestone/16-materials` | [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), [#21](https://github.com/abdullahasghar966/shatter-router/pull/21) | `91b83d4`, `44a7544`, `3382b96` | `m16-motions` |
+| 17  | Interaction, cursor, sound    | ◐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
 | 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |

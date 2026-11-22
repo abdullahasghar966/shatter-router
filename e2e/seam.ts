@@ -300,3 +300,35 @@ export async function readHook(page: Page): Promise<{
     };
   });
 }
+
+/**
+ * The overlay's state, for the message of a failed seam check. Session 5 saw
+ * Firefox in CI paint the whole overlay white once (twice in a row, then never
+ * again, never locally): the next occurrence says whether the context was
+ * lost, the overlay hidden or the canvas resized.
+ */
+export async function describeOverlay(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const host = document.querySelector<HTMLElement>('[data-shatter-overlay]');
+    const canvas = host?.querySelector('canvas') ?? null;
+    const gl = canvas?.getContext('webgl2') ?? null;
+    const hook = (
+      window as {
+        __SHATTER_TEST__?: { state(): string; lastFallback: string | null; paused: string | null };
+      }
+    ).__SHATTER_TEST__;
+    return JSON.stringify({
+      host: host !== null,
+      open: host ? host.matches(':popover-open') : null,
+      display: host ? getComputedStyle(host).display : null,
+      canvas: canvas
+        ? `${String(canvas.width)}x${String(canvas.height)} (css ${canvas.style.width} x ${canvas.style.height})`
+        : null,
+      contextLost: gl ? gl.isContextLost() : null,
+      state: hook?.state() ?? null,
+      paused: hook?.paused ?? null,
+      fallback: hook?.lastFallback ?? null,
+      visibility: document.visibilityState,
+    });
+  });
+}

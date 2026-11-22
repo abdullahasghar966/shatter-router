@@ -1,26 +1,26 @@
 # Hand-off
 
-- **Last updated:** 2026-11-22 (session 5: M16 part 2 merged; part 3 materials and easing on its branch)
+- **Last updated:** 2026-11-22 (session 5: M16 merged and tagged `m16-motions`; M17 started)
 - **Session:** 5
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
 ## Where we are
 
-- **Current milestone:** 16 — Motions and materials, part 3 (`context/PLAN-PRODUCTION.md` 3.3–3.4)
-- **Current branch:** `milestone/16-materials` (from `main` at `44a7544`, the PR #20 merge)
-- **Latest tag:** `m15-patterns`. M16 is tagged `m16-motions` once this part merges.
+- **Current milestone:** 17 — Interaction, cursor, sound (`context/PLAN-PRODUCTION.md` 3.5, 3.8)
+- **Current branch:** `milestone/17-interaction` (from `main` at `3382b96`)
+- **Latest tag:** `m16-motions` (on `3382b96`)
 
 ## Done so far
 
-- Milestones 0–15 and 19 merged and tagged. M16 part 1 (PR #19, `91b83d4`) and part 2 (PR #20, `44a7544`: 11 motions ADR-055, long-task budget ADR-056, last-visible completion ADR-058) merged; CI green on all three engines.
-- **Part 3 (this branch):** materials (ADR-057: glass, ice, mirror, obsidian, paper, metal, holo; `material` option, per-call, per-effect, `setMaterial()`; side faces of resting pieces not drawn), easing (ADR-059), docs site: switcher sets the transition material, playground motion/material/easing selects, gallery pages for the 11 motions, API reference and README. Local: 564 unit tests, materials e2e, docs e2e 48 + playground, GPU 136–144 fps per material.
+- Milestones 0–16 and 19 merged and tagged. M16: PRs #19–#21 (motions ADR-054/055, long-task budget ADR-056, materials ADR-057, last-visible completion ADR-058, easing ADR-059).
+- M17, not committed yet (new files in the working tree, nothing wired): `src/sound/index.ts` (procedural WebAudio voices per material and motion), `src/core/interaction.ts` (options, gesture types), `src/interaction/index.ts` (cursor kits, pre-crack, hold to charge, drag to tear, haptics, CSSOM styles only), `src/engine/path.ts` (tear path geometry).
 
 ## Next steps
 
-1. Full local e2e done: 442 passed, 26 skipped, 0 failed (Chromium + WebKit).
-2. PR "Milestone 16 part 3: materials and easing", three-engine CI green, merge with `--merge`, tag `m16-motions` on `main`, record PR/merge/tag in PROGRESS (first commit of the next branch).
-3. Production: check https://shatter-router.vercel.app after the deploy (new gallery pages, switcher material, playground), Lighthouse 12.6.0 mobile on `/`, `/effects`, an effect page, `/playground`, `/docs/api` (≥ 95 / 100); then M17 (interaction, cursor, sound; plan 3.5, 3.8), then M20, M18, M21.
+1. **ADR-060** and wiring: `ShatterOptions.interaction` and `sound` (lazy chunks `interaction`, `sound` with size budgets in `package.json` and tsup entries); the facade remembers a gesture (`GESTURE_TTL_MS`) and the runtime merges it into the next transition (`TransitionRequest.intensity`, `path`); intensity scales the impulse (`impulse × (0.5 + intensity)`); a tear path reaches the fracture (`impact` seeds around the path, shard distance and `maxRadius` measured to the path) and the crack shader (uniform array of up to 8 points); the runtime plays a `SoundCue` at `animating` (never under reduced motion, only after a user gesture); `shatter.setSound(on)`; hold Space on a button as the keyboard charge.
+2. Unit tests (gesture merge and TTL, path geometry, intensity, sound scheduling with a fake AudioContext, interaction with happy-dom), e2e (cursor follows and is not captured, hold charges, drag tears with a seam at rest, keyboard and reduced-motion paths, no long tasks), docs site: cursor kit, sound toggle (remembered), hero hold-to-charge; docs pages.
+3. Full ritual: PR, three-engine CI, merge, tag `m17-interaction`; production Lighthouse. Then M20, M18, M21.
 
 ## Deferred (tracked, not forgotten)
 
@@ -52,7 +52,7 @@
 cd "D:\Shatter Router"
 git fetch --all --tags
 git status
-git switch milestone/16-materials
+git switch milestone/17-interaction
 pnpm install
 pnpm build
 pnpm build:examples
