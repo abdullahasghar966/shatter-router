@@ -5,6 +5,7 @@ import {
   type InteractionHost,
   type InteractionOptions,
 } from '../core/interaction';
+import { CURSOR_ATTRIBUTE } from '../core/dom';
 
 /**
  * The interaction chunk (ADR-060): cursor kit, pre-crack, hold to charge,
@@ -82,7 +83,7 @@ class InteractionKit implements Interaction {
       const root = this.doc.createElement('div');
       root.setAttribute('aria-hidden', 'true');
       root.setAttribute('data-shatter-ignore', '');
-      root.setAttribute('data-shatter-cursor', kit);
+      root.setAttribute(CURSOR_ATTRIBUTE, kit);
       Object.assign(root.style, {
         position: 'fixed',
         left: '0',

@@ -1,4 +1,4 @@
-import { OVERLAY_ATTRIBUTE } from './dom';
+import { CURSOR_ATTRIBUTE, OVERLAY_ATTRIBUTE } from './dom';
 import type { Snapshot } from './snapshot';
 import type { ViewportMetrics } from './viewport';
 
@@ -8,18 +8,23 @@ export const PRECAPTURE_TTL_MS = 2000;
 function isOwnNode(node: Node): boolean {
   if (node.nodeType !== 1) return false;
   const element = node as Element;
-  return element.hasAttribute(OVERLAY_ATTRIBUTE) || element.id.startsWith('__SANDBOX__');
+  return (
+    element.hasAttribute(OVERLAY_ATTRIBUTE) ||
+    element.hasAttribute(CURSOR_ATTRIBUTE) ||
+    element.id.startsWith('__SANDBOX__')
+  );
 }
 
 /**
- * True for changes in Shatter's own nodes: the overlay, the live region, and
- * the capture library's sandbox iframe (it sets `srcdoc` after inserting it).
+ * True for changes in Shatter's own nodes: the overlay, the live region, the
+ * interaction cursor (it moves every frame, ADR-060), and the capture
+ * library's sandbox iframe (it sets `srcdoc` after inserting it).
  */
 function insideOwnNode(node: Node): boolean {
   const element = node.nodeType === 1 ? (node as Element) : node.parentElement;
   if (!element) return false;
   if (element.id.startsWith('__SANDBOX__')) return true;
-  return element.closest(`[${OVERLAY_ATTRIBUTE}]`) !== null;
+  return element.closest(`[${OVERLAY_ATTRIBUTE}], [${CURSOR_ATTRIBUTE}]`) !== null;
 }
 
 /**

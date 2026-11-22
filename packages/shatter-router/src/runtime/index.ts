@@ -850,9 +850,15 @@ class Runtime implements ShatterRuntime {
     loaded: Loaded,
     viewport: ViewportMetrics,
   ): Promise<{ snapshot: Snapshot; precaptured: boolean }> {
-    const pre = this.pending;
+    let pre = this.pending;
     this.pending = null;
     window.clearTimeout(this.precaptureExpiry);
+    // A tear moved the pointer away from the link after the press: the page
+    // looks different now (hover), so it is captured as it is (ADR-060).
+    if (pre && run.plan.path) {
+      pre.abandon();
+      pre = null;
+    }
     if (pre && pre.age < PRECAPTURE_TTL_MS) {
       const remaining = this.settings.captureBudget - pre.age;
       const snapshot = await this.withinBudget(pre.result, remaining, run, () => {

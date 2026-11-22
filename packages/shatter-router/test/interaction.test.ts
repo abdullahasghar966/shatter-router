@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Gesture, InteractionHost } from '../src/core/interaction';
+import { Precapture } from '../src/core/precapture';
+import type { Snapshot } from '../src/core/snapshot';
+import { readViewport } from '../src/core/viewport';
 import type { Shatter, ShatterOptions } from '../src/core/types';
 import { fracture } from '../src/engine/fracture';
 import {
@@ -317,5 +320,31 @@ describe('interaction kit (happy-dom)', () => {
     expect((cursor as HTMLElement | null)?.style.opacity).toBe('1');
     kit.destroy();
     expect(document.querySelector('[data-shatter-cursor]')).toBeNull();
+  });
+});
+
+describe('pre-capture with the cursor (ADR-060)', () => {
+  it("the cursor's moves are not page changes; a real change still is", async () => {
+    document.body.innerHTML = '<p id="text">page</p>';
+    const cursor = document.createElement('div');
+    cursor.setAttribute('data-shatter-cursor', 'ring');
+    document.body.append(cursor);
+    const viewport = readViewport(window);
+    const snapshot = { dispose: () => undefined } as unknown as Snapshot;
+    const kept = new Precapture(window, viewport, () => Promise.resolve(snapshot));
+    await kept.result;
+    cursor.style.transform = 'translate(10px, 10px)';
+    cursor.append(document.createElement('span'));
+    await flush();
+    expect(kept.isValid(viewport)).toBe(true);
+    kept.abandon();
+
+    const dirty = new Precapture(window, viewport, () => Promise.resolve(snapshot));
+    await dirty.result;
+    byId('text').textContent = 'changed';
+    await flush();
+    expect(dirty.isValid(viewport)).toBe(false);
+    dirty.abandon();
+    cursor.remove();
   });
 });
