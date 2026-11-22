@@ -1,3 +1,4 @@
+import { easeTime } from '../core/easing';
 import { type EffectSource, effectName, isComposition } from '../core/compose';
 import {
   type EffectComposition,
@@ -36,7 +37,9 @@ import { FrameLoop, type LoopStats } from './loop';
 import { Overlay } from './overlay';
 import { composeEffect } from './compose';
 import { reverseEffect, REVERSE_SUFFIX } from './effects/reverse';
-import { MATERIALS, MOTIONS, PATTERNS, PHYSICS_DAMPING } from './plugins';
+import { MATERIAL_FLOATS, packMaterial, resolveMaterial, type ResolvedMaterial } from './materials';
+import { MOTIONS, PATTERNS, PHYSICS_DAMPING } from './plugins';
+import type { MaterialSource } from '../core/material';
 import { PAGE_FRAGMENT, PAGE_VERTEX, shardFragmentSource, shardVertexSource } from './shaders';
 import { staggerOrder } from './stagger';
 
@@ -91,10 +94,10 @@ export interface MotionRequest {
   readonly seed?: number;
 }
 
-/** Glass shading settings (master prompt 5.5). */
+/** Shading settings that apply whatever the material (master prompt 5.5). */
 export interface ShadingOptions {
-  /** Tint of the cut edges, 0..1 channels. */
-  readonly tint: Rgb;
+  /** Tint of the cut edges, 0..1 channels, overriding the material's (`glassTint`); null keeps it. */
+  readonly tint: Rgb | null;
   /** Colour fringing along fast shards' motion. */
   readonly chromatic: boolean;
 }
@@ -112,7 +115,10 @@ export interface PhaseOptions {
 export class Engine {
   /** Draws every cell edge and the impact point (debug mode). */
   wireframe = false;
-  private shading: ShadingOptions = { tint: [0.812, 0.91, 1], chromatic: true };
+  private shading: ShadingOptions = { tint: null, chromatic: true };
+  /** The material of the current transition (ADR-057), and its uniforms. */
+  private material: ResolvedMaterial = resolveMaterial('glass');
+  private readonly materialData = packMaterial(this.material, new Float32Array(MATERIAL_FLOATS));
 
   private readonly device: GLDevice;
   private readonly overlay: Overlay;
@@ -207,9 +213,19 @@ export class Engine {
     return this.overlay.host;
   }
 
-  /** Sets the glass shading used by every following frame. */
+  /** Sets the shading used by every following frame. */
   setShading(shading: ShadingOptions): void {
     this.shading = shading;
+  }
+
+  /**
+   * Sets the material of the following frames (ADR-057): a built-in name or a
+   * material object. Throws for an unknown name. Returns the material's name.
+   */
+  setMaterial(source: MaterialSource): string {
+    this.material = resolveMaterial(source);
+    packMaterial(this.material, this.materialData);
+    return this.material.name;
   }
 
   /**
@@ -303,9 +319,8 @@ export class Engine {
   ): Promise<ShatterEffect> {
     const cached = this.composed.get(spec);
     if (cached) return cached;
-    if (spec.material !== undefined && !MATERIALS.includes(spec.material)) {
-      throw new GLError(`Unknown material "${spec.material}"`);
-    }
+    // An unknown material fails here, before anything is shown (ADR-057).
+    if (spec.material !== undefined) resolveMaterial(spec.material);
     // A registered effect object may serve as the motion; compositions do not nest.
     const own = registered.get(spec.motion);
     const motion = own && !isComposition(own) ? own : await this.loadMotion(spec.motion);
@@ -620,7 +635,7 @@ export class Engine {
       const simulation = this.simulation;
       const complete = simulation
         ? t >= state.duration || simulation.finished
-        : effect.isComplete(t, state);
+        : effect.isComplete(easeTime(effect.easing, t, state.duration), state);
       if (complete) {
         if (!endsAtRest) return true;
         // The frame in which the effect completes is not drawn otherwise: the
@@ -703,14 +718,22 @@ export class Engine {
       gl.uniform2f(program.uniform('uOrigin'), geometry.origin.x, geometry.origin.y);
       gl.uniform1f(program.uniform('uMaxRadius'), geometry.maxRadius);
       const state = this.state;
-      gl.uniform1f(program.uniform('uTimeValue'), this.moving ? this.time : 0);
+      // The motion's own pace (ADR-059): the shader sees the eased time.
+      gl.uniform1f(
+        program.uniform('uTimeValue'),
+        this.moving ? easeTime(effect.easing, this.time, state ? state.duration / 1000 : 0) : 0,
+      );
       // Lighting is exactly 0 until the motion starts and fades in over 60 ms.
       gl.uniform1f(program.uniform('uLight'), this.moving ? lightFade(this.time) : 0);
       gl.uniform1f(program.uniform('uChromatic'), this.shading.chromatic ? 1 : 0);
       // Indexed, not destructured: array destructuring creates an iterator
       // per frame in unoptimised code (ADR-040).
-      const tint = this.shading.tint;
+      const tint = this.shading.tint ?? this.material.tint;
       gl.uniform3f(program.uniform('uTint'), tint[0], tint[1], tint[2]);
+      const m = this.materialData;
+      gl.uniform4f(program.uniform('uMatA'), m[0] ?? 0, m[1] ?? 0, m[2] ?? 0, m[3] ?? 0);
+      gl.uniform4f(program.uniform('uMatB'), m[4] ?? 0, m[5] ?? 0, m[6] ?? 0, m[7] ?? 0);
+      gl.uniform4f(program.uniform('uMatC'), m[8] ?? 0, m[9] ?? 0, m[10] ?? 0, m[11] ?? 0);
       gl.uniform1f(program.uniform('uMoving'), this.moving ? 1 : 0);
       gl.uniform1f(program.uniform('uDuration'), state ? state.duration / 1000 : 1);
       gl.uniform1f(program.uniform('uGravity'), state ? state.gravity : 0);

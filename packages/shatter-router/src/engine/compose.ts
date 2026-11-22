@@ -10,6 +10,8 @@ export function composeEffect(spec: EffectComposition, motion: ShatterEffect): S
   const duration = spec.timing?.duration ?? motion.duration;
   const pattern = spec.pattern ?? motion.pattern;
   const stagger = spec.stagger ?? motion.stagger;
+  const material = spec.material ?? motion.material;
+  const easing = spec.timing?.easing ?? motion.easing;
   const seedPoints = motion.seedPoints?.bind(motion);
   return {
     name: effectName(spec),
@@ -20,6 +22,8 @@ export function composeEffect(spec: EffectComposition, motion: ShatterEffect): S
     ...(duration === undefined ? {} : { duration }),
     ...(pattern === undefined ? {} : { pattern }),
     ...(stagger === undefined ? {} : { stagger }),
+    ...(material === undefined ? {} : { material }),
+    ...(easing === undefined ? {} : { easing }),
     ...(seedPoints ? { seedPoints } : {}),
     shardAttributes: (ctx) => motion.shardAttributes(ctx),
     vertexChunk: motion.vertexChunk,

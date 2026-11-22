@@ -45,6 +45,8 @@ const EFFECTS = [
   'ripple',
   'glitch',
 ] as const;
+/** Materials (ADR-057). */
+const MATERIALS = ['glass', 'ice', 'mirror', 'obsidian', 'paper', 'metal', 'holo'] as const;
 /** Section 8: no long task over 50 ms outside the capture step. */
 const LONG_TASK_MS = 50;
 /** Waits for a whole transition: CI software GL can draw 2 fps (`flip`, 3 s of motion). */
@@ -173,14 +175,24 @@ async function warmUp(page: Page, effect: string): Promise<void> {
 }
 
 test.describe('vanilla example: performance (section 8)', () => {
-  for (const effect of EFFECTS) {
-    test(`${effect}: one draw call per frame, frame rate and long tasks`, async ({
+  // Every effect in glass, and `explode` (fast-turning faces, the most light)
+  // in every material (ADR-057).
+  const frameCases = [
+    ...EFFECTS.map((effect) => ({ label: effect, effect, query: QUERY })),
+    ...MATERIALS.filter((material) => material !== 'glass').map((material) => ({
+      label: `explode material=${material}`,
+      effect: 'explode',
+      query: `${QUERY}&material=${material}`,
+    })),
+  ];
+  for (const { label, effect, query } of frameCases) {
+    test(`${label}: one draw call per frame, frame rate and long tasks`, async ({
       page,
       browserName,
     }, testInfo) => {
       test.setTimeout(240_000);
       await instrument(page);
-      await page.goto(`${BASE}/effects${QUERY}`);
+      await page.goto(`${BASE}/effects${query}`);
       await waitForShatterReady(page);
       // Warm-up (shader compile, JIT), then measure the second run.
       await warmUp(page, effect);
@@ -242,14 +254,14 @@ test.describe('vanilla example: performance (section 8)', () => {
       const duringIncoming = result.longTasks.filter(inIncomingCapture);
       // Where each long task lies, ms from `covered` (start+duration).
       console.log(
-        `[timeline] ${testInfo.project.name} ${effect}: animating at ${(animating - covered).toFixed(0)}, end at ${(end - covered).toFixed(0)}, ` +
+        `[timeline] ${testInfo.project.name} ${label}: animating at ${(animating - covered).toFixed(0)}, end at ${(end - covered).toFixed(0)}, ` +
           `incoming capture ${incoming.start === null ? '-' : `${(incoming.start - covered).toFixed(0)}+${incoming.ms?.toFixed(0) ?? '?'}`}; ` +
           `long tasks ${result.longTasks.map((t) => `${(t.start - covered).toFixed(0)}+${t.duration.toFixed(0)}`).join(' ') || 'none'}`,
       );
       const animation = state.animation;
       const worstLong = Math.max(0, ...outside.map((task) => task.duration));
       console.log(
-        `[perf] ${testInfo.project.name} ${effect} (${gpu}): ${state.fracture?.shardCount ?? 0} shards, ` +
+        `[perf] ${testInfo.project.name} ${label} (${gpu}): ${state.fracture?.shardCount ?? 0} shards, ` +
           `${animation?.frames ?? 0} frames in ${animation?.durationMs.toFixed(0) ?? '?'} ms = ${animation?.fps.toFixed(1) ?? '?'} fps, ` +
           `worst frame ${animation?.worstFrameMs.toFixed(1) ?? '?'} ms; capture ${state.captureMs?.toFixed(1) ?? '?'} ms, ` +
           `start→covered ${(covered - start).toFixed(0)} ms, covered→animating ${(animating - covered).toFixed(0)} ms; ` +

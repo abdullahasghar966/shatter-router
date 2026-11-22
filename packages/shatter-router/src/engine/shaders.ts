@@ -1,4 +1,4 @@
-import { ABERRATION_FULL_SPEED, GLASS_TINT_STRENGTH, MAX_ABERRATION_PX } from '../core/shading';
+import { ABERRATION_FULL_SPEED, MAX_ABERRATION_PX } from '../core/shading';
 import { SETTLE_GLSL } from '../core/spring';
 
 /**
@@ -175,6 +175,19 @@ void main() {
     }
   }
 
+  // The sides of a piece at rest are not drawn (ADR-057): before the motion
+  // the engine draws front faces only, and in motion a side face at the rest
+  // pose would tie its neighbours' faces in depth along every cut edge
+  // (measured: 0.78 % of pixels with paper's bright edges at t = 0).
+  if (abs(aNormal.z) < 0.5) {
+    vec3 turn = abs(pose.rotate[0] - vec3(1.0, 0.0, 0.0)) + abs(pose.rotate[1] - vec3(0.0, 1.0, 0.0)) +
+      abs(pose.rotate[2] - vec3(0.0, 0.0, 1.0));
+    if (length(pose.translate) + turn.x + turn.y + turn.z + abs(pose.scale - 1.0) < 1e-4) {
+      gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+      return;
+    }
+  }
+
   vec3 world = place(pose);
   world.z = min(world.z, uMaxZ);
 
@@ -220,7 +233,10 @@ uniform float uFlash;          // 0..1 impact flash strength
 uniform float uWireframe;      // 1 = debug: show every cell edge and the impact point
 uniform float uLight;          // lighting fade-in: exactly 0 at t = 0, 1 after 60 ms of motion
 uniform float uChromatic;      // 1: colour fringing along fast shards' motion
-uniform vec3 uTint;            // glass tint of the cut edges, 0..1
+uniform vec3 uTint;            // material tint of the cut edges, 0..1
+uniform vec4 uMatA;            // material (ADR-057): rim, rim width px, glint, shininess
+uniform vec4 uMatB;            // chromatic scale, frost, reflect, iridescence
+uniform vec4 uMatC;            // brushed, side shade, diffuse, tint strength
 ${MOTION_PRELUDE}
 
 in vec2 vUv;
@@ -243,8 +259,6 @@ const float FRONT_GLOW = 70.0;        // CSS px behind the front that stay extra
 const float FLASH_RADIUS = 34.0;      // CSS px
 const float MAX_ABERRATION = ${MAX_ABERRATION_PX.toFixed(2)};   // CSS px
 const float ABERRATION_FULL_SPEED = ${ABERRATION_FULL_SPEED.toFixed(1)}; // px/s
-const float TINT_STRENGTH = ${GLASS_TINT_STRENGTH.toFixed(3)};
-const float EDGE_LIGHT_WIDTH = 2.0;   // CSS px of bright rim along each cut edge
 const vec3 LIGHT_DIR = vec3(-0.4472, -0.5367, 0.7155);  // from the top left, toward the viewer
 const vec3 HALF_VECTOR = normalize(LIGHT_DIR + vec3(0.0, 0.0, 1.0)); // Blinn-Phong, viewer on +z
 
@@ -255,7 +269,7 @@ const vec3 HALF_VECTOR = normalize(LIGHT_DIR + vec3(0.0, 0.0, 1.0)); // Blinn-Ph
  */
 vec4 glassSample(sampler2D tex, vec2 uv) {
   float speed = length(vVelocity);
-  float shift = uChromatic * uLight * vMotion * min(MAX_ABERRATION, speed * MAX_ABERRATION / ABERRATION_FULL_SPEED);
+  float shift = uChromatic * uMatB.x * uLight * vMotion * min(MAX_ABERRATION, speed * MAX_ABERRATION / ABERRATION_FULL_SPEED);
   vec4 color = texture(tex, uv);
   if (shift <= 0.0 || speed <= 0.0) return color;
   vec2 offset = (vVelocity / speed) * shift / uViewport;
@@ -270,7 +284,7 @@ vec4 pageColor() {
   // Thickness faces: darker glass edge.
   if (abs(vFace) < 0.5) {
     vec4 side = glassSample(uPage, vUv);
-    return vec4(mix(side.rgb * 0.55, uTint * side.a, TINT_STRENGTH), side.a);
+    return vec4(mix(side.rgb * uMatC.y, uTint * side.a, uMatC.w), side.a);
   }
 
   float d = distance(vPos, uOrigin);
@@ -282,6 +296,14 @@ vec4 pageColor() {
   float len = length(toCentre);
   vec2 dir = len > 1e-3 ? toCentre / len : vec2(0.0);
   vec4 page = glassSample(uPage, vUv + dir * band * REFRACT_SHIFT / uViewport);
+  // Frosted materials cloud the faces while they move (0 at rest).
+  float frost = uMatB.y * uLight * vMotion;
+  if (frost > 0.0) {
+    vec2 r = vec2(3.0 * frost) / uViewport;
+    vec4 cloud = texture(uPage, vUv + r) + texture(uPage, vUv - r) +
+      texture(uPage, vUv + vec2(r.x, -r.y)) + texture(uPage, vUv + vec2(-r.x, r.y));
+    page = mix(page, cloud * 0.25, 0.8 * frost);
+  }
 
   // The crack line itself, anti-aliased with screen-space derivatives.
   float aa = max(fwidth(vEdge), 1e-4);
@@ -306,20 +328,32 @@ vec4 pageColor() {
 }
 
 /**
- * Glass lighting (master prompt 5.5): a bright rim along the cut edges that
- * is stronger where the shard faces the light, and a Blinn-Phong glint that
- * sweeps across a shard as it turns. Scaled by uLight (0 at t = 0, faded in
- * over 60 ms) and vMotion (0 at the rest pose), so the first frame and the
- * settled last frame of every effect are unlit.
+ * Material lighting (master prompt 5.5, ADR-057): a bright rim along the cut
+ * edges, stronger where the piece faces the light, and a Blinn-Phong glint
+ * that sweeps across a piece as it turns; per material also brushed streaks
+ * in the glint, thin-film colours, a mirrored sky and diffuse shading. Every
+ * term is scaled by uLight (0 at t = 0, faded in over 60 ms) and vMotion (0 at
+ * the rest pose), so the first and settled last frames of every effect are
+ * the page, whatever the material.
  */
-float glassLight() {
-  float strength = uLight * vMotion;
-  if (strength <= 0.0) return 0.0;
+void materialLight(inout vec4 color) {
+  float gate = uLight * vMotion;
+  if (gate <= 0.0) return;
   vec3 normal = normalize(vNormal);
   float facing = max(dot(normal, LIGHT_DIR), 0.0);
-  float glint = pow(max(dot(normal, HALF_VECTOR), 0.0), 60.0);
-  float rim = abs(vFace) < 0.5 ? 0.25 * facing : (1.0 - smoothstep(0.0, EDGE_LIGHT_WIDTH, vEdge)) * (0.15 + 0.55 * facing);
-  return strength * (rim + 0.55 * glint);
+  bool side = abs(vFace) < 0.5;
+  if (!side) color.rgb *= 1.0 - uMatC.z * gate * (1.0 - facing);
+  // A soft studio sky (y is down: a normal with negative y faces up).
+  vec3 sky = mix(vec3(0.30, 0.32, 0.36), vec3(0.97, 0.98, 1.0), clamp(0.5 - 0.6 * normal.y, 0.0, 1.0));
+  float mirror = uMatB.z * gate * clamp((1.0 - normal.z) * 3.0, 0.0, 1.0);
+  color.rgb = mix(color.rgb, sky * color.a, mirror);
+  float glint = pow(max(dot(normal, HALF_VECTOR), 0.0), uMatA.w);
+  glint *= mix(1.0, 0.35 + 0.65 * (0.5 + 0.5 * sin(dot(vPos, vec2(0.6, 0.8)) * 1.7)), uMatC.x);
+  float rim = side ? 0.25 * facing : (1.0 - smoothstep(0.0, uMatA.y, vEdge)) * (0.15 + 0.55 * facing);
+  float light = gate * (uMatA.x * rim + uMatA.z * glint);
+  vec3 film = 0.5 + 0.5 * cos(6.2832 * (facing * 1.3 + vEdge * 0.015 + vec3(0.0, 0.33, 0.67)));
+  vec3 tone = mix(vec3(1.0), film * 1.4, uMatB.w);
+  color.rgb = min(color.rgb + light * tone * color.a, vec3(color.a));
 }
 
 void main() {
@@ -328,7 +362,7 @@ void main() {
 #ifdef SHATTER_FRAGMENT_HOOK
   shardFragment(color);
 #endif
-  color.rgb = min(color.rgb + glassLight() * color.a, vec3(color.a));
+  materialLight(color);
   outColor = color * vAlpha;
 }
 `;

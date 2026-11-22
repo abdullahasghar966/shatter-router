@@ -1,4 +1,5 @@
 import type { EffectComposition, ShatterEffect } from './effect';
+import type { MaterialSource } from './material';
 import type { PhysicsPlugin } from './physics';
 import type { PhaseTimings, TransitionState } from './machine';
 import type { ScrollTarget } from './ready';
@@ -20,7 +21,18 @@ export interface ShatterOptions {
   impulse?: number;
   /** Glass thickness in CSS pixels, seen on the shards' sides as they tumble. Default 6. */
   thickness?: number;
-  /** Colour of the glass' cut edges (`#rgb` or `#rrggbb`), mixed in at 12 %. Default `'#cfe8ff'`. */
+  /**
+   * What the pieces are made of (ADR-057): `'glass'` (default), `'ice'`,
+   * `'mirror'`, `'obsidian'`, `'paper'`, `'metal'`, `'holo'`, or a material
+   * object. An effect or composition with its own material, and a
+   * transition's `material`, take precedence. Change it later with
+   * `setMaterial()`.
+   */
+  material?: MaterialSource;
+  /**
+   * Colour of the cut edges (`#rgb` or `#rrggbb`), overriding the material's
+   * own tint (glass: `'#cfe8ff'`, mixed in at 12 %). Default: the material's.
+   */
   glassTint?: string;
   /** Colour fringing along fast shards' motion, up to 1.5 px. Default true. */
   chromatic?: boolean;
@@ -96,6 +108,8 @@ export interface TransitionRequest {
   origin?: Point;
   /** Per-call effect override: a name, an effect object or a composition. */
   effect?: string | ShatterEffect | EffectComposition;
+  /** Per-call material (ADR-057), over the effect's own and the `material` option. */
+  material?: MaterialSource;
   /** Replace the current history entry instead of adding one (navigation memory, ADR-047). */
   replace?: boolean;
   /** Navigation direction. Default `'forward'`. */
@@ -152,6 +166,12 @@ export interface Shatter {
   on<K extends ShatterEventName>(event: K, handler: ShatterEventHandler<K>): () => void;
   /** Makes a custom effect, or a named composition of parts (ADR-048), available by name. */
   registerEffect(effect: ShatterEffect | (EffectComposition & { readonly name: string })): void;
+  /**
+   * Sets the material of the following transitions (ADR-057), replacing the
+   * `material` option; `undefined` goes back to it. An effect's own material
+   * and a transition's `material` still take precedence.
+   */
+  setMaterial(material: MaterialSource | undefined): void;
   /** The current state of the transition state machine. */
   readonly state: TransitionState;
   /** Removes listeners, frees GL resources and loses the context. Idempotent. */
@@ -189,6 +209,8 @@ export interface ShatterTestHook {
   lastFallback: FallbackReason | null;
   /** Effect the most recent transition played, after back/forward mapping and any substitution. */
   lastEffect: string | null;
+  /** Material of the most recent transition (ADR-057), or null. */
+  lastMaterial: string | null;
   /** Motion of the most recent transition: 'procedural' or the physics plugin's name. */
   lastPhysics: string | null;
   /** Duration of the most recent capture of the incoming page in ms, or null. */

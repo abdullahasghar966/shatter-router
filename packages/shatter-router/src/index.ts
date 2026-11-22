@@ -16,6 +16,9 @@ export type { PhaseTimings, TransitionState } from './core/machine';
 export type { ScrollTarget } from './core/ready';
 export type { ScrollLock } from './core/scroll-lock';
 export { SHARD_ATTRIBUTE_FLOATS } from './core/effect';
+export { BUILT_IN_MATERIAL_NAMES } from './core/material';
+export type { Easing } from './core/easing';
+export type { BuiltInMaterialName, MaterialSource, ShatterMaterial } from './core/material';
 export type { EffectSource } from './core/compose';
 export type {
   EffectComposition,

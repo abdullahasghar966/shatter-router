@@ -25,7 +25,7 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
-| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` |     |           |             |
+| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` (part 2, [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), `44a7544`), `milestone/16-materials` (part 3) |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
@@ -374,6 +374,14 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Unit:** blast vs fall speeds ≥ 5× apart in the screen plane and in depth; `shatter` has no upward kick.
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
+
+### Materials and easing (Milestone 16 part 3, 2026-11-22, ADR-057, ADR-059)
+
+- **Sizes:** engine core 13.36 kB (was 11.78; budget 15): material table, resolver, material shader, easing; core entry 1.95 kB (budget 6); motion chunks 0.54–1.74 kB.
+- **Motion at t = 0 per material** (`zero-probe`, headless Chromium, 960×600, `explode`): before hiding resting side faces glass 0.0958 %, paper 0.7807 %, metal 0.7774 %; after, every material 0.0830 %.
+- **E2E per material** (`motions.spec.ts`): t = 0 vs live page Chromium 0.1051 %, WebKit 0.0021 %; Back's reverse last frame Chromium 0.1010 %, WebKit 0.0021 %; all seven land with no fallback.
+- **Real GPU** (RTX 4050 forced, installed Chrome 157, 1440×900, 161 pieces, `explode`): glass 144.4, ice 144.1, mirror 135.9, obsidian 143.4, paper 142.8, metal 144.5, holo 139.8 fps; no long tasks outside capture.
+- **Review:** frozen frames of every material at 0 / 160 / 300 ms (`coverage/m16/material-shots.mjs`): ice clouds the faces, mirror reflects a sky, obsidian darkens with a hard glint, paper has white edges and no shine, metal shows brushed streaks, holo has thin-film colours.
 
 ### Motion families (Milestone 16 part 2, 2026-11-22, ADR-055)
 

@@ -1,4 +1,5 @@
 import type { EffectComposition, ShatterEffect } from './effect';
+import type { MaterialSource } from './material';
 import { isBrowser } from './env';
 import { classifyLinkClick, findAnchor, getLinkEffect } from './links';
 import type { TransitionState } from './machine';
@@ -17,6 +18,8 @@ export interface RuntimeHost {
   readonly effects: ReadonlyMap<string, ShatterEffect | EffectComposition>;
   /** `pathname + search` when Shatter was created: the page the memory starts on (ADR-047). */
   readonly startKey: string;
+  /** The material set with `setMaterial()`, else the `material` option (ADR-057). */
+  material(): MaterialSource | undefined;
   emit<K extends ShatterEventName>(event: K, payload: ShatterEventMap[K]): void;
 }
 
@@ -51,6 +54,8 @@ export class ShatterFacade implements Shatter {
   private runtime: ShatterRuntime | null = null;
   private loading: Promise<ShatterRuntime | null> | null = null;
   private destroyed = false;
+  /** Set with `setMaterial()`; undefined: the `material` option (ADR-057). */
+  private material: MaterialSource | undefined = undefined;
   private readonly startKey = isBrowser() ? location.pathname + location.search : '';
 
   constructor(
@@ -96,6 +101,10 @@ export class ShatterFacade implements Shatter {
     this.effects.set(effect.name, effect);
   }
 
+  setMaterial(material: MaterialSource | undefined): void {
+    this.material = material;
+  }
+
   async transition(request: TransitionRequest): Promise<void> {
     if (this.destroyed || !isBrowser()) {
       await request.commit();
@@ -131,6 +140,7 @@ export class ShatterFacade implements Shatter {
           options: this.options,
           effects: this.effects,
           startKey: this.startKey,
+          material: () => this.material ?? this.options.material,
           emit: (event, payload) => {
             this.emit(event, payload);
           },

@@ -28,6 +28,7 @@ export function fakeShatter(): FakeShatter {
       committed.push(request);
     }),
     on: () => () => undefined,
+    setMaterial: () => undefined,
     registerEffect: () => undefined,
     destroy: () => {
       fake.destroyCount += 1;
