@@ -659,3 +659,12 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
   8. No library API changes in M20, so no bundle budget moves.
 - **Alternatives considered:** filtering cards by their default pattern (most motions default to `impact`, so the filter would show nearly all or one); hand-written search keywords (they drift from the pages); client-side highlighting (a highlighter in every page's JavaScript); a Studio recorder through `getDisplayMedia` (prompt, 1080p cap, the visitor's whole tab).
 - **Consequences:** e2e for each feature; Lighthouse ≥ 95 / 100 on the new and changed pages; the capture cost of highlighted code (each token is an element, about 0.4 ms per capture, LEARNINGS) is measured on the docs pages.
+
+## ADR-062 — The capture leaves out elements with `display: none`
+
+- **Date:** 2026-11-22
+- **Status:** accepted
+- **Context:** M20's framework tabs keep every panel in the DOM and hide the unselected ones with `display: none` (ADR-061). LEARNINGS already recorded that `display: none` does not take an element out of a capture's cost: modern-screenshot 4.7.0 still clones and styles it, and the below-the-fold rule (ADR-052) cannot drop it because a hidden element reports a zero rect at the top of the page. Measured on `/docs/getting-started` (headless Chromium, 1440×900, interleaved, median of 18 warm captures): 228 ms with highlighted code in three hidden panels against 108 ms with the code as plain text.
+- **Decision:** `CloneSession.filter` leaves an HTML element with computed `display: none` out of the copy, with no substitute and no height pin (it takes no space). Kept anyway: `<body>`, anything inside a `<select>` (a select shows its selected option even when that option is hidden, e.g. a "Choose…" placeholder), and a hidden element that contains an `<svg>` (a sprite sheet that `<use>` elements elsewhere point into). SVG-namespace elements are never left out by this rule.
+- **Alternatives considered:** rendering only the selected tab panel (every app with hidden menus, dialogs or panels would still pay); removing hidden elements from the copy after cloning (the cost is in the cloning).
+- **Consequences:** unit tests `test/not-rendered.test.ts`; every vanilla, React Router and Next seam unchanged (local Chromium + WebKit, 141 passed). Measured afterwards on the same page: hidden panels present 199 ms against removed from the DOM 194 ms (same within noise). Capture chunk 13.86 of 16 kB.
