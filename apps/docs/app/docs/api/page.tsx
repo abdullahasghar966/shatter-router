@@ -86,6 +86,16 @@ const OPTIONS: readonly (readonly [string, string, string])[] = [
   ],
   ['chromatic', 'true', 'Colour fringing along fast shards’ motion, up to 1.5 px.'],
   [
+    'interaction',
+    'off',
+    `true or { cursor, charge, tear, preCrack, haptics }: a cursor kit ('ring', 'reticle', 'hammer', 'glass-cutter', 'none') that arms over links, press and hold to hit harder, drag across a link to tear the page along the drag, haptic ticks on touch. A lazy chunk; off under reduced motion.`,
+  ],
+  [
+    'sound',
+    'off',
+    'true or { volume }: procedural sound for every motion and material, after the first click or key press, never under reduced motion. Toggle with setSound().',
+  ],
+  [
     'physics',
     `'procedural'`,
     'Or a physics plugin such as rapier({ floor: true }) from shatter-router/rapier, loaded lazily. Drives shatter and explode.',
@@ -209,6 +219,8 @@ await shatter.transition({
   origin: { x: 640, y: 360 },          // impact point, viewport px (default: centre)
   effect: 'flip',                      // per-call effect
   material: 'ice',                     // per-call material
+  intensity: 0.8,                      // 0..1, how hard it is hit (0.5: as set)
+  path: [{ x: 200, y: 300 }, { x: 900, y: 420 }], // tear along these points
   direction: 'forward',                // or 'back'
   replace: false,                      // true: the commit replaces the history entry
   scroll: 'top',                       // 'top' | 'none' | { x, y }
@@ -217,6 +229,7 @@ await shatter.transition({
 const off = shatter.on('end', ({ fallback }) => console.log('done', fallback));
 shatter.registerEffect(myEffect);
 shatter.setMaterial('obsidian');       // following transitions; undefined: back to the option
+shatter.setSound(true);                // turn sound on or off (still waits for a gesture)
 shatter.state;     // 'idle' | 'capturing' | 'covering' | 'committing' | 'waiting' | 'animating' | 'revealing' | 'fallback'
 shatter.destroy(); // frees the WebGL context; idempotent
 `}</Code>

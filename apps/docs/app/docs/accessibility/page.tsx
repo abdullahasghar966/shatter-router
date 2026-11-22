@@ -23,6 +23,16 @@ export default function Accessibility(): ReactNode {
         plays the full effect anyway. It exists for demos and is discouraged.
       </p>
 
+      <h2>Interaction and sound</h2>
+      <p>
+        The <code>interaction</code> option adds a decorative cursor (the native cursor stays, the
+        kit is hidden from assistive technology), press-and-hold to hit harder and drag to tear.
+        None of it is needed to navigate: the keyboard follows links at the default strength, and
+        under reduced motion the kit does not load at all. <code>sound</code> is off until you turn
+        it on, stays silent until the visitor first clicks or presses a key, and never plays under
+        reduced motion.
+      </p>
+
       <h2>Focus</h2>
       <p>After the reveal, focus moves to the first of:</p>
       <ol>
