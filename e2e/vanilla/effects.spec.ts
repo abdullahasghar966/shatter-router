@@ -150,7 +150,7 @@ test.describe('vanilla example: every effect', () => {
       await page.goBack();
       await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
       await waitForIdle(page);
-      await expect(page.locator('h1')).toHaveText('Five ways to break.');
+      await expect(page.locator('h1')).toHaveText('Sixteen ways to break.');
       expect((await effectHook(page)).lastEffect).toBe(`${effect}:reverse`);
       expect((await hookState(page)).fallback).toBeNull();
 
@@ -179,7 +179,7 @@ test.describe('vanilla example: every effect', () => {
       const overlay = await page.screenshot();
       await check(page, testInfo, `first-${effect}-reverse`, live, overlay);
       await resumeAndFinish(page);
-      await expect(page.locator('h1')).toHaveText('Five ways to break.');
+      await expect(page.locator('h1')).toHaveText('Sixteen ways to break.');
     });
 
     test(`${effect}:reverse: the last frame matches the page returned to`, async ({
@@ -198,7 +198,7 @@ test.describe('vanilla example: every effect', () => {
         (window as HookWindow).__SHATTER_TEST__?.resume();
       });
       await waitForIdle(page);
-      await expect(page.locator('h1')).toHaveText('Five ways to break.');
+      await expect(page.locator('h1')).toHaveText('Sixteen ways to break.');
       expect((await effectHook(page)).lastEffect).toBe(`${effect}:reverse`);
       const live = await page.screenshot();
       await check(page, testInfo, `last-${effect}-reverse`, live, overlay);
@@ -222,7 +222,7 @@ test.describe('vanilla example: every effect', () => {
     await page.goBack();
     await expect.poll(() => lifecycleEvents(page)).toEqual(FULL_EFFECT);
     await waitForIdle(page);
-    await expect(page.locator('h1')).toHaveText('Five ways to break.');
+    await expect(page.locator('h1')).toHaveText('Sixteen ways to break.');
     expect((await effectHook(page)).lastEffect).toBe('sweep:reverse');
   });
 

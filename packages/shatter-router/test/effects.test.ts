@@ -89,7 +89,25 @@ const NEW_EFFECTS = [explodeEffect, implodeEffect, flipEffect, assembleEffect];
 describe('built-in effects', () => {
   it('are all registered by name', () => {
     expect([...BUILT_IN_EFFECT_NAMES].sort()).toEqual(
-      ['assemble', 'explode', 'flip', 'implode', 'shatter'].sort(),
+      [
+        'assemble',
+        'explode',
+        'flip',
+        'implode',
+        'shatter',
+        // Motion families (ADR-055).
+        'crumble',
+        'rain',
+        'vortex',
+        'wind',
+        'blinds',
+        'domino',
+        'slide',
+        'fold',
+        'melt',
+        'ripple',
+        'glitch',
+      ].sort(),
     );
   });
 

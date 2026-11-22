@@ -23,6 +23,21 @@ export function tumbleAxis(random: Random, depth = 0.35): { x: number; y: number
   return { x: x / length, y: y / length, z: z / length };
 }
 
+/**
+ * How far the shard's outline reaches from its centroid along the unit
+ * direction (dx, dy), CSS px: the support distance. Effects that turn a piece
+ * about one of its edges (domino, fold, melt) put the hinge there.
+ */
+export function reach(shard: ShardInfo, dx: number, dy: number): number {
+  const { polygon, centroid } = shard;
+  let best = 0;
+  for (let k = 0; k + 1 < polygon.length; k += 2) {
+    const along = ((polygon[k] ?? 0) - centroid.x) * dx + ((polygon[k + 1] ?? 0) - centroid.y) * dy;
+    if (along > best) best = along;
+  }
+  return best;
+}
+
 /** Spin multiplier: smaller shards turn faster. */
 export function sizeFactor(shard: ShardInfo, ctx: EffectContext): number {
   const meanArea = (ctx.width * ctx.height) / Math.max(1, ctx.shards.length);

@@ -86,12 +86,20 @@ const EFFECTS = [
   ['assemble', 'The old page falls away as the new one flies together.'],
 ] as const;
 
+/** The motion families (ADR-055), one link each. */
+const MOTION_FAMILIES = [
+  ['Gravity', ['crumble', 'rain']],
+  ['Force', ['vortex', 'wind']],
+  ['Order', ['blinds', 'domino', 'slide', 'fold']],
+  ['Matter', ['melt', 'ripple', 'glitch']],
+] as const;
+
 export const effectsPage: Page = {
   title: 'Effects',
   render: () => `
     <section class="hero compact">
       <p class="eyebrow">Effects</p>
-      <h1>Five ways to break.</h1>
+      <h1>Sixteen ways to break.</h1>
     </section>
     <section class="prose" aria-label="Effects">
       <ul class="effects">
@@ -101,6 +109,12 @@ export const effectsPage: Page = {
         ).join('')}
         <li><a href="/work" data-shatter-effect="sweep">sweep</a> — a composition: shatter, left to right.</li>
       </ul>
+      <p class="families">
+        ${MOTION_FAMILIES.map(
+          ([family, names]) =>
+            `<span>${family}: ${names.map((name) => `<a href="/work" data-shatter-effect="${name}">${name}</a>`).join(' · ')}</span>`,
+        ).join('<br>')}
+      </p>
     </section>`,
 };
 

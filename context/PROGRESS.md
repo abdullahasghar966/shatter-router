@@ -25,7 +25,7 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
-| 16  | Motions and materials         | ◐      | `milestone/16-motions-materials` |     |           |             |
+| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
@@ -375,6 +375,15 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
 
+### Motion families (Milestone 16 part 2, 2026-11-22, ADR-055)
+
+- **Chunks (gzip, budget 2 kB each):** crumble 953 B, rain 892 B, vortex 1.09 kB, wind 916 B, blinds 538 B, domino 743 B, slide 757 B, fold 802 B, melt 812 B, ripple 772 B, glitch 979 B; engine core 11.78 kB (budget 15).
+- **Motion frozen at t = 0 vs the live page** (`motions.spec.ts`, local): Chromium 0.0991–0.1507 % for all 16 effects (worst block ≤ 4.0 %); WebKit 0.0021–0.0023 %.
+- **Back's reverse, last frame vs the page returned to:** Chromium 0.1147–0.1494 %, WebKit 0.0021–0.0024 % for all 14 reversible motions. `glitch:reverse` was 8.9908 % (Chromium) / 8.4958 % (WebKit) before the wrapper ran fragment chunks at the reversed time.
+- **Draw calls and allocations** (headless Chromium, `performance.spec.ts`): 1 draw call per frame for all 16 effects; 0 B beyond boxed numbers in the frame loop for every motion (28–90 frames per run, 3 s motion).
+- **Real GPU** (installed Chrome 157 headed, RTX 4050 forced with `--force_high_performance_gpu`, 1440×900, 160 pieces, 144 Hz display): crumble 144.1, rain 141.6, vortex 142.6, wind 135.0, blinds 129.4 (25 strips), domino 141.7, slide 143.1, fold 144.1, melt 142.7, ripple 144.1 (152 pieces), glitch 144.0 fps (168 pieces); no long tasks outside capture for any new motion. On the Intel UHD iGPU (Chrome's own pick that run): 50.8–88.4 fps.
+- **Open (measuring):** `flip` and `assemble` report one 68–90 ms long task in the incoming-capture step on the RTX run (M10: none), and captures of `/effects` took 40–94 ms against 21 ms in M10. Not caused by the motions (they do not touch capture); being compared against older tags on this machine.
+
 ### Fracture patterns (Milestone 15, 2026-11-22, ADR-053)
 
 - **Chunks (gzip):** radial + rings 1.40 kB, triangles 1.26 kB, hex 1.05 kB, tiles + bricks + strips 1.36 kB (budget 2 kB each); engine core 11.55 kB.
@@ -437,3 +446,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 14 | 394 tests in 29 files (+ `composition.test.ts` 25: stagger orders, compositions, lazy part loaders, runtime handling; `snap-scroll.test.ts` 8) | + vanilla: `sweep` composition plays, lands, reverses, first-frame seam; first-frame seams at fractional scroll offsets (240.25/.5/.75, DPR 1 and 2); `scroll-snap.spec.ts` paint diagnostic (5 page variants); docs: playground stagger plays a composition. Local Chromium + WebKit 271 passed, 15 skipped. PR #16 CI (final, `3968e70`): Chromium, Firefox (129 passed, 14 skipped) and WebKit green |
 | 19 | 405 tests in 31 files (+ `fonts.test.ts` 9: unicode-range parsing, subset pruning, pending faces; `sandbox.test.ts` 2) | + `e2e/docs/lab.spec.ts` (material switch plays a flip and persists, theme toggle persists, system dark followed, glass rail tracks/drags and keyboard scrolling works, entrances only on first load, a press ends the entrance, reduced motion) and landing seams in light and dark. Local Chromium + WebKit: docs 46 passed; seams/effects across all apps 112 passed |
 | 15 | 454 tests in 32 files (+ `patterns.test.ts` 49: each pattern tiles exactly — convex cells, area, sample-point coverage over 400 seeded layouts — determinism, timing; clipper) | + `e2e/vanilla/patterns.spec.ts` (16 per engine: every pattern plays and lands, first-frame seam at rest); docs playground pattern test. Local Chromium + WebKit 320 passed, 15 skipped (1 load-sensitive Next timing test passed 5/5 alone). PR #18 CI: Chromium, Firefox and WebKit green |
+| 16 (part 2) | 537 tests in 33 files (+ `motions.test.ts` 63: interface, layout, delays from order, gone by the end, wind/slide exits, hinges, reverse wrapper keeps pattern/stagger and reverses fragment time) | + `e2e/vanilla/motions.spec.ts` (60 per engine pair: motion at t = 0 for 16 effects, play + Back reverse last frame for 14); performance suite covers all 16. Local Chromium + WebKit: motions 60 passed; effects/patterns/history 80 passed |

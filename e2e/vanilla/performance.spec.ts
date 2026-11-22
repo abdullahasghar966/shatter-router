@@ -26,7 +26,25 @@ import { pauseAt, waitForPause, waitForShatterReady } from '../seam';
 const PERF = Boolean(process.env.SHATTER_PERF);
 const BASE = APPS.vanilla;
 const QUERY = '?debug&budget=5000&seed=7&shards=160';
-const EFFECTS = ['shatter', 'explode', 'implode', 'flip', 'assemble'] as const;
+const EFFECTS = [
+  'shatter',
+  'explode',
+  'implode',
+  'flip',
+  'assemble',
+  // Motion families (ADR-055).
+  'crumble',
+  'rain',
+  'vortex',
+  'wind',
+  'blinds',
+  'domino',
+  'slide',
+  'fold',
+  'melt',
+  'ripple',
+  'glitch',
+] as const;
 /** Section 8: no long task over 50 ms outside the capture step. */
 const LONG_TASK_MS = 50;
 /** Waits for a whole transition: CI software GL can draw 2 fps (`flip`, 3 s of motion). */
@@ -39,7 +57,15 @@ if (PERF) {
     // not start on the dev machine (side-by-side error, LEARNINGS).
     channel: 'chrome',
     headless: false,
-    launchOptions: { args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization'] },
+    // The discrete GPU the budgets were measured on: Chrome may otherwise
+    // pick the integrated one (it did in session 5, LEARNINGS).
+    launchOptions: {
+      args: [
+        '--ignore-gpu-blocklist',
+        '--enable-gpu-rasterization',
+        '--force_high_performance_gpu',
+      ],
+    },
   });
 }
 
@@ -179,7 +205,9 @@ test.describe('vanilla example: performance (section 8)', () => {
       expect(new Set(result.frames)).toEqual(new Set([1]));
       expect(state.textures).toBe(0);
       expect(state.fallback).toBeNull();
-      expect(state.fracture?.shardCount).toBeGreaterThanOrEqual(150);
+      // 160 requested; `blinds` breaks into `strips`, which use fewer, wider
+      // pieces by design (ADR-053).
+      expect(state.fracture?.shardCount).toBeGreaterThanOrEqual(effect === 'blinds' ? 12 : 150);
 
       // Phases from the lifecycle events: start, covered, committed, animating, end.
       const [start = 0, covered = 0, , animating = 0, end = 0] = result.times;

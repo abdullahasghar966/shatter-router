@@ -201,3 +201,12 @@ Grouped by topic. Append, de-duplicate. Facts must cite package versions or comm
 - **The Next example's "waitFor 'commit'" test (committing < 350 ms) is load-sensitive**: it failed twice in full local runs (517 and 1520 ms) with two workers sharing the Next server and the slow route's 400 ms delay, and passes alone (5/5) and in CI every time.
 - **A per-frame result object becomes visible to the allocation test when its loop runs longer**: `crackAt` returned a new `{ radius, flash, done }` each crack frame; harmless at 140 ms, 640 B over the limit once `shatter`'s crack took 380 ms. Write into a reused object (M16).
 - **A pattern that extends past the viewport loses its clipped-away cells from the piece count** (the radial web: 101 of 160 requested); aim at the count on the page.
+
+## Session 5 (M16 part 2)
+
+- **The reverse wrapper had three latent bugs** that no v1 test could see (ADR-055): it dropped `pattern`/`stagger`; the base fragment chunk sampled `uPage` (the page being left) while drawing the incoming layer; and it ran that chunk at real time, so a colour effect showed at the wrong end. `explode:reverse` passed its last-frame seam only because its flash is gone by 220 ms; `glitch:reverse` measured 8.99 %. A wrapper that remaps time must remap it in every stage.
+- **A seam at the `fractured` pause does not prove the motion starts at rest**: `uMoving` is 0 there and the effect's code does not run. Freeze the motion at t = 0 (`pauseAt('animating')`, `setCrack(0)`, `setMotionTime(0)`) and compare that (`motions.spec.ts`).
+- **Exit distances must use the trailing edge**: `slide` added the leading edge's reach, so asymmetric pieces could end partly on screen (caught by a unit test using `reach()`).
+- **Contact-sheet thumbnails misled me** (288×180 per frame): I read a crack-like web in `domino`'s t = 0 frame; the full-size frame and a pixel diff (0.10 %) showed the page, and the web was at 150 ms (first pieces tipping, rims lit). Check suspicious frames at full size and with a diff before chasing a cause.
+- **Installed Chrome picked the Intel UHD iGPU** for the headed perf run in session 5 (on mains power), where session-3 numbers came from the RTX 4050: v1 `flip` fell to 48 fps. `--force_high_performance_gpu` pins the discrete GPU (now in `performance.spec.ts`); check the renderer string in every `[perf]` line.
+- **New e2e tests that compare a live page after Back need the blur** (WebKit's focus ring on the programmatically focused heading: 0.53 %, worst block 9.3 % without it).
