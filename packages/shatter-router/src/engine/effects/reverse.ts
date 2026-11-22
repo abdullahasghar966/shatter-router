@@ -20,7 +20,11 @@ export const REVERSE_SUFFIX = ':reverse';
  */
 export function reverseEffect(base: ShatterEffect): ShatterEffect {
   const motion = base.vertexChunk.replace(/\bshardMotion\b/g, 'forwardMotion');
-  const fragment = base.fragmentChunk?.replace(/\bshardFragment\b/g, 'forwardFragment');
+  // The effect's own fragment work runs on layer 1, which shows the incoming
+  // page: what it reads from "the page" must be that page (ADR-055).
+  const fragment = base.fragmentChunk
+    ?.replace(/\bshardFragment\b/g, 'forwardFragment')
+    .replace(/\buPage\b/g, 'uIncoming');
   const seeds = base.seedPoints?.bind(base);
   return {
     name: `${base.name}${REVERSE_SUFFIX}`,
@@ -28,6 +32,9 @@ export function reverseEffect(base: ShatterEffect): ShatterEffect {
     crack: false,
     layers: 2,
     ...(base.duration === undefined ? {} : { duration: base.duration }),
+    // The pieces come back along the paths they left on: same cells, same order (ADR-055).
+    ...(base.pattern === undefined ? {} : { pattern: base.pattern }),
+    ...(base.stagger === undefined ? {} : { stagger: base.stagger }),
     ...(seeds ? { seedPoints: seeds } : {}),
     shardAttributes: (ctx) => base.shardAttributes(ctx),
     vertexChunk: /* glsl */ `${motion}
@@ -48,7 +55,18 @@ void shardFragment(inout vec4 color) {
   vec4 page = glassSample(uIncoming, vUv);
   if (abs(vFace) < 0.5) page.rgb *= 0.55;
   else if (vFace < -0.5) page.rgb *= 0.82;
-  color = page;${fragment ? '\n  forwardFragment(color);' : ''}
+  color = page;${
+    fragment
+      ? `
+  // The effect's own colour work (a flash, a split) at the reversed time too,
+  // and never on the last frame, which is the page (ADR-055).
+  float now = uTime;
+  if (now >= uDuration) return;
+  uTime = max(0.0, uDuration - now);
+  forwardFragment(color);
+  uTime = now;`
+      : ''
+  }
 }
 `,
     // Every piece is home once the reversed time reaches 0.

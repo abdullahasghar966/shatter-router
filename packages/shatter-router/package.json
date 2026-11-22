@@ -172,6 +172,17 @@
         "./effects/implode.js",
         "./effects/flip.js",
         "./effects/assemble.js",
+        "./effects/crumble.js",
+        "./effects/rain.js",
+        "./effects/vortex.js",
+        "./effects/wind.js",
+        "./effects/blinds.js",
+        "./effects/domino.js",
+        "./effects/slide.js",
+        "./effects/fold.js",
+        "./effects/melt.js",
+        "./effects/ripple.js",
+        "./effects/glitch.js",
         "./patterns/impact.js",
         "./patterns/radial.js",
         "./patterns/triangles.js",
@@ -212,6 +223,83 @@
     {
       "name": "motion: assemble (lazy)",
       "path": "dist/effects/assemble.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: crumble (lazy)",
+      "path": "dist/effects/crumble.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: rain (lazy)",
+      "path": "dist/effects/rain.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: vortex (lazy)",
+      "path": "dist/effects/vortex.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: wind (lazy)",
+      "path": "dist/effects/wind.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: blinds (lazy)",
+      "path": "dist/effects/blinds.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: domino (lazy)",
+      "path": "dist/effects/domino.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: slide (lazy)",
+      "path": "dist/effects/slide.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: fold (lazy)",
+      "path": "dist/effects/fold.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: melt (lazy)",
+      "path": "dist/effects/melt.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: ripple (lazy)",
+      "path": "dist/effects/ripple.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "2 KB"
+    },
+    {
+      "name": "motion: glitch (lazy)",
+      "path": "dist/effects/glitch.js",
       "import": "*",
       "gzip": true,
       "limit": "2 KB"

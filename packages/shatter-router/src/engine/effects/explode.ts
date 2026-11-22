@@ -5,7 +5,14 @@ import {
   type ShardAttributes,
   type ShatterEffect,
 } from '../../core/effect';
-import { radialDirection, sizeFactor, tumbleAxis } from './common';
+import {
+  radialDirection,
+  sizeFactor,
+  tumbleAxis,
+  finished,
+  rememberLastVisible,
+  type Visible,
+} from './common';
 
 /** Air drag, 1/s: the blast is violent, then slows down. */
 const DRAG = 3;
@@ -39,6 +46,21 @@ function offsetAt(vx: number, vy: number, delay: number, gravity: number, t: num
 
 /** `offsetAt`'s result, reused: `isComplete` runs every frame and must not allocate (ADR-040). */
 const OFFSET = new Float64Array(2);
+
+/** Still near the screen at `seconds` (generous margin, ADR-058). */
+const visible: Visible = (data, shard, seconds, ctx) => {
+  const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
+  const offset = offsetAt(data[o] ?? 0, data[o + 1] ?? 0, data[o + 3] ?? 0, ctx.gravity, seconds);
+  const x = shard.centroid.x + (offset[0] ?? 0);
+  const y = shard.centroid.y + (offset[1] ?? 0);
+  const reach = Math.sqrt(shard.area) * (2 + MAX_STRETCH);
+  return (
+    x + reach > -ctx.width * 0.5 &&
+    x - reach < ctx.width * 1.5 &&
+    y + reach > -ctx.height * 0.5 &&
+    y - reach < ctx.height * 1.5
+  );
+};
 
 /**
  * `explode`: the blast (ADR-054), unmistakably not `shatter`. No crack: the
@@ -82,6 +104,7 @@ export const explodeEffect: ShatterEffect = {
       data[o + 6] = axis.z;
       data[o + 7] = omega;
     });
+    rememberLastVisible(data, ctx, visible);
     return { data };
   },
 
@@ -135,34 +158,8 @@ void shardFragment(inout vec4 color) {
 }
 `,
 
+  // Done at the end of the phase, or early once every shard is outside the viewport (ADR-058).
   isComplete(t: number, ctx: EffectState): boolean {
-    if (t >= ctx.duration) return true;
-    // Done early once every shard is outside the viewport (generous margin).
-    const seconds = t / 1000;
-    const data = ctx.attributes;
-    const { shards } = ctx;
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this runs every frame (ADR-040)
-    for (let i = 0; i < shards.length; i++) {
-      const shard = shards[i];
-      if (!shard) continue;
-      const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
-      const offset = offsetAt(
-        data[o] ?? 0,
-        data[o + 1] ?? 0,
-        data[o + 3] ?? 0,
-        ctx.gravity,
-        seconds,
-      );
-      const x = shard.centroid.x + (offset[0] ?? 0);
-      const y = shard.centroid.y + (offset[1] ?? 0);
-      const reach = Math.sqrt(shard.area) * (2 + MAX_STRETCH);
-      const inside =
-        x + reach > -ctx.width * 0.5 &&
-        x - reach < ctx.width * 1.5 &&
-        y + reach > -ctx.height * 0.5 &&
-        y - reach < ctx.height * 1.5;
-      if (inside) return false;
-    }
-    return true;
+    return finished(t, ctx, visible);
   },
 };

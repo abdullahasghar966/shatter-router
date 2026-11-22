@@ -26,7 +26,25 @@ import { pauseAt, waitForPause, waitForShatterReady } from '../seam';
 const PERF = Boolean(process.env.SHATTER_PERF);
 const BASE = APPS.vanilla;
 const QUERY = '?debug&budget=5000&seed=7&shards=160';
-const EFFECTS = ['shatter', 'explode', 'implode', 'flip', 'assemble'] as const;
+const EFFECTS = [
+  'shatter',
+  'explode',
+  'implode',
+  'flip',
+  'assemble',
+  // Motion families (ADR-055).
+  'crumble',
+  'rain',
+  'vortex',
+  'wind',
+  'blinds',
+  'domino',
+  'slide',
+  'fold',
+  'melt',
+  'ripple',
+  'glitch',
+] as const;
 /** Section 8: no long task over 50 ms outside the capture step. */
 const LONG_TASK_MS = 50;
 /** Waits for a whole transition: CI software GL can draw 2 fps (`flip`, 3 s of motion). */
@@ -39,7 +57,15 @@ if (PERF) {
     // not start on the dev machine (side-by-side error, LEARNINGS).
     channel: 'chrome',
     headless: false,
-    launchOptions: { args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization'] },
+    // The discrete GPU the budgets were measured on: Chrome may otherwise
+    // pick the integrated one (it did in session 5, LEARNINGS).
+    launchOptions: {
+      args: [
+        '--ignore-gpu-blocklist',
+        '--enable-gpu-rasterization',
+        '--force_high_performance_gpu',
+      ],
+    },
   });
 }
 
@@ -179,12 +205,46 @@ test.describe('vanilla example: performance (section 8)', () => {
       expect(new Set(result.frames)).toEqual(new Set([1]));
       expect(state.textures).toBe(0);
       expect(state.fallback).toBeNull();
-      expect(state.fracture?.shardCount).toBeGreaterThanOrEqual(150);
+      // 160 requested; `blinds` breaks into `strips`, which use fewer, wider
+      // pieces by design (ADR-053).
+      expect(state.fracture?.shardCount).toBeGreaterThanOrEqual(effect === 'blinds' ? 12 : 150);
 
       // Phases from the lifecycle events: start, covered, committed, animating, end.
       const [start = 0, covered = 0, , animating = 0, end = 0] = result.times;
+      // The capture of the incoming page (flip, assemble) is a capture step
+      // too (master prompt 4.7): its tasks are allowed to be long (ADR-056).
+      const incoming = await page.evaluate(() => {
+        const hook = (
+          window as {
+            __SHATTER_TEST__?: {
+              lastIncomingCaptureStart: number | null;
+              lastIncomingCaptureMs: number | null;
+            };
+          }
+        ).__SHATTER_TEST__;
+        return {
+          start: hook?.lastIncomingCaptureStart ?? null,
+          ms: hook?.lastIncomingCaptureMs ?? null,
+        };
+      });
+      // A task overlapping it belongs to it: the task that starts the capture
+      // also finishes the wait before it, and the one that ends it uploads the
+      // texture (measured: a long task 1 ms before the recorded start).
+      const inIncomingCapture = (task: { start: number; duration: number }): boolean =>
+        incoming.start !== null &&
+        incoming.ms !== null &&
+        task.start < incoming.start + incoming.ms &&
+        task.start + task.duration > incoming.start;
       const outside = result.longTasks.filter(
-        (task) => task.start + task.duration > covered && task.start < end,
+        (task) =>
+          task.start + task.duration > covered && task.start < end && !inIncomingCapture(task),
+      );
+      const duringIncoming = result.longTasks.filter(inIncomingCapture);
+      // Where each long task lies, ms from `covered` (start+duration).
+      console.log(
+        `[timeline] ${testInfo.project.name} ${effect}: animating at ${(animating - covered).toFixed(0)}, end at ${(end - covered).toFixed(0)}, ` +
+          `incoming capture ${incoming.start === null ? '-' : `${(incoming.start - covered).toFixed(0)}+${incoming.ms?.toFixed(0) ?? '?'}`}; ` +
+          `long tasks ${result.longTasks.map((t) => `${(t.start - covered).toFixed(0)}+${t.duration.toFixed(0)}`).join(' ') || 'none'}`,
       );
       const animation = state.animation;
       const worstLong = Math.max(0, ...outside.map((task) => task.duration));
@@ -194,7 +254,10 @@ test.describe('vanilla example: performance (section 8)', () => {
           `worst frame ${animation?.worstFrameMs.toFixed(1) ?? '?'} ms; capture ${state.captureMs?.toFixed(1) ?? '?'} ms, ` +
           `start→covered ${(covered - start).toFixed(0)} ms, covered→animating ${(animating - covered).toFixed(0)} ms; ` +
           `draw calls per frame ${[...new Set(result.frames)].join('/')} over ${result.frames.length} frames; ` +
-          `long tasks outside capture: ${outside.length ? outside.map((task) => task.duration.toFixed(0)).join(', ') : 'none'} ms`,
+          `long tasks outside capture: ${outside.length ? outside.map((task) => task.duration.toFixed(0)).join(', ') : 'none'} ms` +
+          (incoming.ms === null
+            ? ''
+            : `; incoming capture ${incoming.ms.toFixed(0)} ms, its long tasks: ${duringIncoming.length ? duringIncoming.map((task) => task.duration.toFixed(0)).join(', ') : 'none'} ms`),
       );
       if (PERF) {
         expect(animation?.fps ?? 0).toBeGreaterThanOrEqual(58);
@@ -254,13 +317,14 @@ test.describe('vanilla example: performance (section 8)', () => {
       // Tracking runs the loop unoptimised, which boxes doubles (12 B each,
       // see HEAP_NUMBER_BYTES); any real object costs more. Measured: a
       // per-frame array destructuring (fixed in M10) added 35 B per frame, a
-      // planted 8-field object 32 B. Noise: one-offs up to ~120 B per run;
-      // `explode` also checks 160 shards with closed-form maths every frame,
-      // thousands of boxed numbers per run, a varying share of which V8 pads
-      // to 16 B: 0–832 B per run whatever the frame count (PR #14 CI: 576 B).
-      // Limit: 20 B per frame, at least 400 B (1000 B for `explode`; the other
-      // four effects still catch a per-frame object in shared code at 400 B).
-      const floor = effect === 'explode' ? 1000 : 400;
+      // planted 8-field object 32 B. Noise: one-offs up to ~120 B per run.
+      // V8 pads a varying share of boxed numbers to 16 B, so an effect that
+      // re-ran every piece's closed-form motion each frame measured 0–832 B
+      // per run whatever the frame count (`explode`, PR #14; `shatter` 640 B
+      // = 160 pieces x 4 B in PR #20's push run). Since ADR-058 those effects
+      // compare one remembered time per frame instead.
+      // Limit: 20 B per frame, at least 400 B.
+      const floor = 400;
       expect(allocations.oursExcessBytes).toBeLessThan(Math.max(floor, frames * 20));
     });
   }

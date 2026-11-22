@@ -717,6 +717,7 @@ class Runtime implements ShatterRuntime {
    */
   private async captureIncoming(run: Run, loaded: Loaded): Promise<Snapshot | null> {
     const started = performance.now();
+    if (this.hook) this.hook.lastIncomingCaptureStart = started;
     try {
       const snapshot = await this.withinBudget(
         loaded.capturer.capture({
@@ -1001,6 +1002,7 @@ class Runtime implements ShatterRuntime {
       lastEffect: null,
       lastPhysics: null,
       lastIncomingCaptureMs: null,
+      lastIncomingCaptureStart: null,
       layoutGrid: () => this.loaded?.capturer.layoutGrid ?? null,
       lastFracture: null,
       lastAnimation: null,

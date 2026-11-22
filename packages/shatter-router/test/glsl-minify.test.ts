@@ -90,7 +90,8 @@ describe('build-time GLSL minifier (ADR-039)', () => {
         rewritten++;
       }
     }
-    expect(rewritten).toBe(8);
+    // 8 before ADR-055, plus its 11 motions.
+    expect(rewritten).toBe(19);
   });
 
   it('refuses inputs it cannot rewrite safely', () => {
