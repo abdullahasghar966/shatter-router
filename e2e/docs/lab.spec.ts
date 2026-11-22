@@ -13,6 +13,14 @@ async function root(page: Page, name: string): Promise<string | null> {
   return page.evaluate((attribute) => document.documentElement.getAttribute(attribute), name);
 }
 
+function lastMaterial(page: Page): Promise<string | null> {
+  return page.evaluate(
+    () =>
+      (window as { __SHATTER_TEST__?: { lastMaterial: string | null } }).__SHATTER_TEST__
+        ?.lastMaterial ?? null,
+  );
+}
+
 test.describe('docs site: Material lab', () => {
   test('a material switch plays a flip and is remembered across navigation and reload', async ({
     page,
@@ -37,13 +45,22 @@ test.describe('docs site: Material lab', () => {
             ?.lastEffect,
       ),
     ).toBe('flip');
+    // ...and the flip itself, and every transition after it, is obsidian (ADR-057).
+    expect(await lastMaterial(page)).toBe('obsidian');
 
     await page.getByRole('link', { name: 'Docs', exact: true }).click();
     await waitForIdle(page, 15_000);
     expect(await root(page, 'data-material')).toBe('obsidian');
+    expect(await lastMaterial(page)).toBe('obsidian');
     await page.reload();
     // Applied before the first paint by the inline script.
     expect(await root(page, 'data-material')).toBe('obsidian');
+    // A fresh load (with the test hook) takes the stored material for its transitions.
+    await page.goto(`${BASE}/docs${QUERY}`);
+    await waitForShatterReady(page);
+    await page.getByRole('link', { name: 'Effects', exact: true }).click();
+    await waitForIdle(page, 15_000);
+    expect(await lastMaterial(page)).toBe('obsidian');
   });
 
   test('the theme toggle switches light and dark and is remembered', async ({ page }) => {

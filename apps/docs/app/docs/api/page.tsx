@@ -15,6 +15,38 @@ const PATTERNS: readonly (readonly [string, string])[] = [
   [`'strips'`, 'Vertical blinds, a few dozen wide pieces.'],
 ];
 
+const MOTIONS: readonly (readonly [string, string])[] = [
+  [`'shatter'`, 'Gravity. A long crack, then the pane drops (the default).'],
+  [`'crumble'`, 'Gravity. Gives way from the bottom up, rows dropping in turn.'],
+  [`'rain'`, 'Gravity. Tiles drop straight down at random moments and streak.'],
+  [`'explode'`, 'Force. A flash, a shockwave and a blast at the viewer.'],
+  [`'implode'`, 'Force. Pieces spiral into the click and vanish.'],
+  [`'vortex'`, 'Force. A twister flings pieces outward and up.'],
+  [`'wind'`, 'Force. A gust from the click’s side blows pieces away.'],
+  [`'flip'`, 'Order. Pieces turn over; their backs are the new page.'],
+  [`'blinds'`, 'Order. Strips turn edge-on like venetian blinds.'],
+  [`'domino'`, 'Order. Pieces tip over in a cascade, then drop.'],
+  [`'slide'`, 'Order. Rows slide out in opposite directions.'],
+  [`'fold'`, 'Order. Pieces fold over toward the click like origami.'],
+  [`'melt'`, 'Matter. The page sags and drips away.'],
+  [`'ripple'`, 'Matter. Rings bob on a swell from the click.'],
+  [`'glitch'`, 'Matter. Rows jump, colours split, the page drops out.'],
+  [`'assemble'`, 'Assembly. The old page falls while the new one flies together.'],
+];
+
+const MATERIALS: readonly (readonly [string, string])[] = [
+  [
+    `'glass'`,
+    'Clear glass: a bright rim on every cut edge, a glint, colour fringing (the default).',
+  ],
+  [`'ice'`, 'Frosted: faces cloud over as they move, wide white edges, a soft glint.'],
+  [`'mirror'`, 'A turning face mirrors a soft sky; a hard, bright glint.'],
+  [`'obsidian'`, 'Dark volcanic glass: deep shade away from the light, a razor glint.'],
+  [`'paper'`, 'No shine: white paper edges and soft shading as pieces turn.'],
+  [`'metal'`, 'Brushed steel: grey edges and a streaked glint.'],
+  [`'holo'`, 'Holographic foil: thin-film colours along the edges and in the glint.'],
+];
+
 const STAGGERS: readonly (readonly [string, string])[] = [
   [`'radial'`, 'From the impact point outward (the default of every built-in effect).'],
   [`'linear'`, 'Across the page, left to right.'],
@@ -31,7 +63,7 @@ const OPTIONS: readonly (readonly [string, string, string])[] = [
   [
     'effect',
     `'shatter'`,
-    'Effect name, effect object or composition: shatter, explode, implode, flip, assemble, one you registered, or { motion, stagger, … } (see Compositions).',
+    'Effect name (see Motions), effect object or composition: one you registered, or { motion, pattern, material, stagger, … } (see Compositions).',
   ],
   ['duration', 'the effect’s own, else 1000', 'Motion phase length in ms, not counting the crack.'],
   [
@@ -42,7 +74,16 @@ const OPTIONS: readonly (readonly [string, string, string])[] = [
   ['gravity', '2600', 'px/s², positive is down.'],
   ['impulse', '900', 'Launch speed in px/s.'],
   ['thickness', '6', 'Glass thickness in CSS px, seen on the shards’ sides as they tumble.'],
-  ['glassTint', `'#cfe8ff'`, 'Colour of the cut edges (#rgb or #rrggbb), mixed in at 12 %.'],
+  [
+    'material',
+    `'glass'`,
+    'What the pieces are made of: a name (see Materials) or an object with your own values. Change it later with setMaterial().',
+  ],
+  [
+    'glassTint',
+    'the material’s',
+    'Colour of the cut edges (#rgb or #rrggbb), overriding the material’s own tint.',
+  ],
   ['chromatic', 'true', 'Colour fringing along fast shards’ motion, up to 1.5 px.'],
   [
     'physics',
@@ -167,6 +208,7 @@ await shatter.transition({
   commit: () => router.push('/work'),  // show the new route (may return a promise)
   origin: { x: 640, y: 360 },          // impact point, viewport px (default: centre)
   effect: 'flip',                      // per-call effect
+  material: 'ice',                     // per-call material
   direction: 'forward',                // or 'back'
   replace: false,                      // true: the commit replaces the history entry
   scroll: 'top',                       // 'top' | 'none' | { x, y }
@@ -174,6 +216,7 @@ await shatter.transition({
 
 const off = shatter.on('end', ({ fallback }) => console.log('done', fallback));
 shatter.registerEffect(myEffect);
+shatter.setMaterial('obsidian');       // following transitions; undefined: back to the option
 shatter.state;     // 'idle' | 'capturing' | 'covering' | 'committing' | 'waiting' | 'animating' | 'revealing' | 'fallback'
 shatter.destroy(); // frees the WebGL context; idempotent
 `}</Code>
@@ -198,14 +241,32 @@ shatter.registerEffect({
   name: 'curtain',
   motion: 'flip',                          // how the pieces move: a built-in effect or one you registered
   pattern: 'hex',                          // how the page breaks (see Patterns)
-  material: 'glass',                       // the surface (more materials are coming)
+  material: 'paper',                       // what the pieces are made of (see Materials)
   stagger: { type: 'linear', angle: 90 },  // the order the pieces start in
   timing: { duration: 1400 },              // motion length, ms
 });
 // then effect: 'curtain' or data-shatter-effect="curtain"
 `}</Code>
+      <Table head={['Motion', 'How the pieces move']} rows={MOTIONS} />
       <Table head={['Pattern', 'How the page breaks']} rows={PATTERNS} />
       <Table head={['Stagger', 'Order the pieces start in']} rows={STAGGERS} />
+      <h3 id="materials">Materials</h3>
+      <p>
+        A material is a set of shading values, so any material goes with any motion and pattern. All
+        of its light is exactly zero while a piece is at rest, so the first and last frames are the
+        page whatever it is made of. Precedence: a transition’s <code>material</code>, then the
+        effect’s own, then <code>setMaterial()</code> or the option.
+      </p>
+      <Table head={['Material', 'What it looks like']} rows={MATERIALS} />
+      <Code lang="ts">{`
+// Your own: any of these fields; the rest come from glass (or from the
+// built-in material whose name you reuse, to tweak it).
+createShatter({
+  material: { name: 'amber', tint: '#ffb000', glint: 1.2, shininess: 90, frost: 0.2 },
+});
+// Fields: tint, tintStrength, sideShade, rim, rimWidth, glint, shininess,
+// chromatic, frost, reflect, iridescence, brushed, diffuse.
+`}</Code>
       <p>
         Back plays the reverse of a composition too: <code>flip</code> compositions turn back, and
         every other one runs backwards in time.

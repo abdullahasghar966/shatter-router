@@ -55,6 +55,3 @@ export const PHYSICS_DAMPING: Readonly<Record<string, number>> = {
 
 /** Names of the effects that ship with the library. */
 export const BUILT_IN_EFFECT_NAMES: readonly string[] = Object.keys(MOTIONS);
-
-/** The material every effect uses until M16 adds others. */
-export const MATERIALS: readonly string[] = ['glass'];

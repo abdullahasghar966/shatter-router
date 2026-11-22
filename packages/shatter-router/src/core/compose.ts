@@ -26,9 +26,14 @@ export function effectName(effect: EffectSource): string {
   const parts = [effect.motion];
   if (effect.pattern !== undefined) parts.push(`pattern=${effect.pattern}`);
   if (effect.stagger !== undefined) parts.push(`stagger=${staggerName(effect.stagger)}`);
-  if (effect.material !== undefined) parts.push(`material=${effect.material}`);
+  if (effect.material !== undefined) {
+    parts.push(
+      `material=${typeof effect.material === 'string' ? effect.material : effect.material.name}`,
+    );
+  }
   if (effect.timing?.duration !== undefined) {
     parts.push(`duration=${String(effect.timing.duration)}`);
   }
+  if (effect.timing?.easing !== undefined) parts.push(`easing=${effect.timing.easing}`);
   return parts.join(' ');
 }

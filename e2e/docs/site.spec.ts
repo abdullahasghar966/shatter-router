@@ -208,6 +208,37 @@ test.describe('docs site', () => {
       .toBe('shatter pattern=hex stagger=spiral');
   });
 
+  test('playground: a motion, an easing and a material (ADR-055, ADR-057, ADR-059)', async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/playground${QUERY}`);
+    await waitForShatterReady(page);
+    const code = page.getByTestId('config-code');
+    // The selects: effect, pattern, stagger, easing, then physics and material.
+    await page.locator('.pane-host select').nth(0).selectOption('vortex');
+    await page.locator('.pane-host select').nth(3).selectOption('ease-out');
+    await page
+      .locator('.pane-host select', { has: page.locator('option', { hasText: 'obsidian' }) })
+      .selectOption('ice');
+    await expect(code).toContainText(
+      "effect: { motion: 'vortex', timing: { easing: 'ease-out' } },",
+    );
+    await expect(code).toContainText("material: 'ice',");
+    await expect.poll(() => new URL(page.url()).searchParams.get('material')).toBe('ice');
+    await expect.poll(() => new URL(page.url()).searchParams.get('easing')).toBe('ease-out');
+    await clearLifecycleEvents(page);
+    await page.getByRole('button', { name: /click to break/ }).click();
+    await expect(page.getByTestId('stage-title')).toHaveText('Shards', { timeout: 15_000 });
+    await expect.poll(() => lastEffect(page), { timeout: 15_000 }).toBe('vortex easing=ease-out');
+    expect(
+      await page.evaluate(
+        () =>
+          (window as { __SHATTER_TEST__?: { lastMaterial: string | null } }).__SHATTER_TEST__
+            ?.lastMaterial ?? null,
+      ),
+    ).toBe('ice');
+  });
+
   test.describe('not found', () => {
     test.use({ expectedConsole: /Failed to load resource: .*404/ });
     test('an unknown route shows the 404 page', async ({ page }) => {

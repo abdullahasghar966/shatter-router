@@ -140,3 +140,52 @@ for (const motion of MOTIONS) {
     await check(page, testInfo, `last-${motion}-reverse`, live, overlay);
   });
 }
+
+/** Materials (ADR-057): every one starts on the page, plays, lands and reverses onto the page. */
+const MATERIALS = ['glass', 'ice', 'mirror', 'obsidian', 'paper', 'metal', 'holo'] as const;
+
+for (const material of MATERIALS) {
+  test(`material ${material}: at t = 0 the page, then plays and reverses onto the page`, async ({
+    page,
+  }, testInfo) => {
+    await page.goto(`${BASE}/${query('explode')}&material=${material}`);
+    await waitForShatterReady(page);
+    const link = page.getByRole('link', { name: 'Work', exact: true });
+    await link.hover();
+    const start = await page.screenshot();
+    await pauseAt(page, 'animating');
+    await link.click();
+    await waitForPause(page, 'animating');
+    await page.evaluate(() => {
+      (
+        (window as HookWindow).__SHATTER_TEST__ as unknown as { setMotionTime(ms: number): void }
+      ).setMotionTime(0);
+    });
+    await check(page, testInfo, `material-zero-${material}`, start, await page.screenshot());
+    await resumeAndFinish(page);
+    await expect(page.locator('h1')).toHaveText('Six pieces of glass.');
+    expect((await hookState(page)).fallback).toBeNull();
+    expect(
+      await page.evaluate(
+        () =>
+          (window as HookWindow & { __SHATTER_TEST__?: { lastMaterial: string | null } })
+            .__SHATTER_TEST__?.lastMaterial ?? null,
+      ),
+    ).toBe(material);
+
+    await page.mouse.move(4, 400);
+    await pauseAt(page, 'settled');
+    await page.goBack();
+    await waitForPause(page, 'settled');
+    const overlay = await page.screenshot();
+    await page.evaluate(() => {
+      (window as HookWindow).__SHATTER_TEST__?.resume();
+    });
+    await waitForIdle(page);
+    await expect(page.locator('h1')).toHaveText('Break the page.');
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
+    await check(page, testInfo, `material-last-${material}`, await page.screenshot(), overlay);
+  });
+}

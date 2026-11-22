@@ -1,3 +1,5 @@
+import type { MaterialSource } from '../../src/core/material';
+import { resolveMaterial } from '../../src/engine/materials';
 import { vi } from 'vitest';
 import { type EffectSource, effectName, isComposition } from '../../src/core/compose';
 import type { EffectComposition, EffectState, ShatterEffect } from '../../src/core/effect';
@@ -74,7 +76,9 @@ export function fakeSnapshot(duration = 40): FakeSnapshot {
 export class FakeWorld {
   readonly calls: string[] = [];
   /** The shading the runtime set on the engine (glassTint, chromatic). */
-  shading: { tint: readonly [number, number, number]; chromatic: boolean } | null = null;
+  shading: { tint: readonly [number, number, number] | null; chromatic: boolean } | null = null;
+  /** The material of each transition, as the runtime set it (ADR-057). */
+  materials: string[] = [];
   /** Effect names passed to loadEffect, in order. */
   readonly resolved: string[] = [];
   /** Impact points passed to fracture, in order. */
@@ -127,8 +131,10 @@ export class FakeWorld {
         if (spec && !isComposition(spec)) return spec;
         // A composition takes its motion's needs.
         const motion = spec ? spec.motion : name;
+        // A composition's own material travels with it, as in composeEffect (ADR-057).
+        const material = spec?.material === undefined ? {} : { material: spec.material };
         const own = registered.get(motion);
-        if (own && !isComposition(own)) return { ...own, name };
+        if (own && !isComposition(own)) return { ...own, name, ...material };
         // '<name>:reverse' wraps a known effect and always needs the new page.
         const base = motion.endsWith(':reverse') ? motion.slice(0, -':reverse'.length) : null;
         if (base !== null && (registered.has(base) || base in FAKE_BUILT_INS)) {
@@ -136,7 +142,7 @@ export class FakeWorld {
         }
         const needsIncoming = FAKE_BUILT_INS[motion];
         if (needsIncoming === undefined) throw new Error(`Unknown effect "${motion}"`);
-        return { ...testEffect, name, needsIncomingSnapshot: needsIncoming };
+        return { ...testEffect, name, needsIncomingSnapshot: needsIncoming, ...material };
       },
       /** Fetching chunks ahead of time is not observable in these tests. */
       preloadEffect: () => Promise.resolve(),
@@ -157,8 +163,14 @@ export class FakeWorld {
       replaceEffect(effect: ShatterEffect) {
         world.calls.push(`replaceEffect:${effect.name}`);
       },
-      setShading(shading: { tint: readonly [number, number, number]; chromatic: boolean }) {
+      setShading(shading: { tint: readonly [number, number, number] | null; chromatic: boolean }) {
         world.shading = shading;
+      },
+      setMaterial(source: MaterialSource) {
+        // The real resolver: unknown names throw as in the engine.
+        const name = resolveMaterial(source).name;
+        world.materials.push(name);
+        return name;
       },
       startPhysics() {
         world.calls.push('startPhysics');

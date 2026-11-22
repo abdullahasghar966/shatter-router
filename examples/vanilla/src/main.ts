@@ -16,7 +16,7 @@ const outlet: HTMLElement = app;
 // drives falling shards with Rapier, loaded lazily. `?backForward=<mode>`
 // picks the back/forward behaviour ('mirror' by default). `?pattern=<name>`
 // breaks the page with that fracture pattern (ADR-053); `?motion=<name>` makes
-// that motion the default effect (ADR-055).
+// that motion the default effect (ADR-055); `?material=<name>` sets the material (ADR-057).
 const params = new URLSearchParams(location.search);
 const number = (name: string): number | undefined => {
   const value = Number(params.get(name));
@@ -32,6 +32,7 @@ const BACK_FORWARD = ['mirror', 'reverse', 'same', 'none'] as const;
 const backForward = BACK_FORWARD.find((mode) => mode === params.get('backForward'));
 const pattern = params.get('pattern');
 const motion = params.get('motion');
+const material = params.get('material');
 const shatter = createShatter({
   ...(pattern
     ? { effect: { motion: motion ?? 'shatter', pattern } }
@@ -39,6 +40,7 @@ const shatter = createShatter({
       ? { effect: motion }
       : {}),
   ...(physics ? { physics } : {}),
+  ...(material ? { material } : {}),
   ...(backForward ? { backForward } : {}),
   debug: params.has('debug') ? { panel: params.has('panel') } : false,
   ...(seed === undefined ? {} : { seed }),

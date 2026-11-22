@@ -48,8 +48,10 @@ describe('glass shading maths (master prompt 5.5)', () => {
 
   it('the shaders gate every lighting term by the fade-in and the rest pose', () => {
     const fragment = shardFragmentSource();
-    expect(fragment).toContain('float strength = uLight * vMotion;');
-    expect(fragment).toContain('uChromatic * uLight * vMotion');
+    expect(fragment).toContain('float gate = uLight * vMotion;');
+    expect(fragment).toContain('if (gate <= 0.0) return;');
+    expect(fragment).toContain('uChromatic * uMatB.x * uLight * vMotion');
+    expect(fragment).toContain('float frost = uMatB.y * uLight * vMotion;');
     expect(fragment).toContain('vec4 glassSample(sampler2D tex, vec2 uv)');
     const vertex = shardVertexSource('void shardMotion(Shard shard, inout Pose pose) {}');
     // The rest pose is exactly 0 away; the velocity is 0 until the motion starts.
@@ -70,10 +72,12 @@ describe('runtime: shading options', () => {
     vi.restoreAllMocks();
   });
 
-  it('defaults to the cool #cfe8ff tint with chromatic aberration on', async () => {
+  it("defaults to the material's own tint with chromatic aberration on (ADR-057)", async () => {
     const world = new FakeWorld();
     await create(world).transition({ commit: () => undefined });
-    expect(world.shading).toEqual({ tint: parseHexColor('#cfe8ff'), chromatic: true });
+    // No override: glass's own #cfe8ff applies in the engine.
+    expect(world.shading).toEqual({ tint: null, chromatic: true });
+    expect(world.materials).toEqual(['glass']);
   });
 
   it('passes glassTint and chromatic through', async () => {
@@ -84,13 +88,13 @@ describe('runtime: shading options', () => {
     expect(world.shading).toEqual({ tint: [1, 0, 0], chromatic: false });
   });
 
-  it('an invalid tint falls back to the default (with a warning in debug mode)', async () => {
+  it("an invalid tint falls back to the material's (with a warning in debug mode)", async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const world = new FakeWorld();
     await create(world, { glassTint: 'sky blue', debug: true }).transition({
       commit: () => undefined,
     });
-    expect(world.shading?.tint).toEqual(parseHexColor('#cfe8ff'));
+    expect(world.shading?.tint).toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('glassTint "sky blue"'));
   });
 });

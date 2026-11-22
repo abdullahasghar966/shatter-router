@@ -25,7 +25,7 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
-| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` |     |           |             |
+| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` (part 2, [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), `44a7544`), `milestone/16-materials` (part 3) |     |           |             |
 | 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
@@ -375,6 +375,14 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
 
+### Materials and easing (Milestone 16 part 3, 2026-11-22, ADR-057, ADR-059)
+
+- **Sizes:** engine core 13.36 kB (was 11.78; budget 15): material table, resolver, material shader, easing; core entry 1.95 kB (budget 6); motion chunks 0.54–1.74 kB.
+- **Motion at t = 0 per material** (`zero-probe`, headless Chromium, 960×600, `explode`): before hiding resting side faces glass 0.0958 %, paper 0.7807 %, metal 0.7774 %; after, every material 0.0830 %.
+- **E2E per material** (`motions.spec.ts`): t = 0 vs live page Chromium 0.1051 %, WebKit 0.0021 %; Back's reverse last frame Chromium 0.1010 %, WebKit 0.0021 %; all seven land with no fallback.
+- **Real GPU** (RTX 4050 forced, installed Chrome 157, 1440×900, 161 pieces, `explode`): glass 144.4, ice 144.1, mirror 135.9, obsidian 143.4, paper 142.8, metal 144.5, holo 139.8 fps; no long tasks outside capture.
+- **Review:** frozen frames of every material at 0 / 160 / 300 ms (`coverage/m16/material-shots.mjs`): ice clouds the faces, mirror reflects a sky, obsidian darkens with a hard glint, paper has white edges and no shine, metal shows brushed streaks, holo has thin-film colours.
+
 ### Motion families (Milestone 16 part 2, 2026-11-22, ADR-055)
 
 - **Chunks (gzip, budget 2 kB each):** crumble 953 B, rain 892 B, vortex 1.09 kB, wind 916 B, blinds 538 B, domino 743 B, slide 757 B, fold 802 B, melt 812 B, ripple 772 B, glitch 979 B; engine core 11.78 kB (budget 15).
@@ -449,3 +457,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 19 | 405 tests in 31 files (+ `fonts.test.ts` 9: unicode-range parsing, subset pruning, pending faces; `sandbox.test.ts` 2) | + `e2e/docs/lab.spec.ts` (material switch plays a flip and persists, theme toggle persists, system dark followed, glass rail tracks/drags and keyboard scrolling works, entrances only on first load, a press ends the entrance, reduced motion) and landing seams in light and dark. Local Chromium + WebKit: docs 46 passed; seams/effects across all apps 112 passed |
 | 15 | 454 tests in 32 files (+ `patterns.test.ts` 49: each pattern tiles exactly — convex cells, area, sample-point coverage over 400 seeded layouts — determinism, timing; clipper) | + `e2e/vanilla/patterns.spec.ts` (16 per engine: every pattern plays and lands, first-frame seam at rest); docs playground pattern test. Local Chromium + WebKit 320 passed, 15 skipped (1 load-sensitive Next timing test passed 5/5 alone). PR #18 CI: Chromium, Firefox and WebKit green |
 | 16 (part 2) | 537 tests in 33 files (+ `motions.test.ts` 63: interface, layout, delays from order, gone by the end, wind/slide exits, hinges, reverse wrapper keeps pattern/stagger and reverses fragment time) | + `e2e/vanilla/motions.spec.ts` (60 per engine pair: motion at t = 0 for 16 effects, play + Back reverse last frame for 14); performance suite covers all 16. Full local run (Chromium + WebKit, 2 workers): 413 passed, 26 skipped, 1 failed: the load-sensitive Next `waitFor 'commit'` test (LEARNINGS), 5/5 passed alone |
+| 16 (part 3) | 564 tests in 35 files (+ `materials.test.ts` 12, `easing.test.ts` 11, last-visible completion 4 in `motions.test.ts`) | + materials in `motions.spec.ts` (t = 0 and Back's last frame per material), docs: switcher sets the transition material, playground motion/easing/material. Full local run (Chromium + WebKit, 2 workers): 442 passed, 26 skipped, 0 failed |

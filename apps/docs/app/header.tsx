@@ -40,8 +40,16 @@ function LabControls(): ReactNode {
     setTheme(currentTheme());
     setMaterial(currentMaterial());
   }, []);
+  // Every transition on the site is made of the chosen material (ADR-057).
+  useEffect(() => {
+    shatter?.setMaterial(material);
+  }, [shatter, material]);
 
-  const switchTo = (apply: () => void, event: MouseEvent<HTMLElement>): void => {
+  const switchTo = (
+    apply: () => void,
+    event: MouseEvent<HTMLElement>,
+    nextMaterial?: Material,
+  ): void => {
     if (!shatter) {
       apply();
       return;
@@ -51,6 +59,8 @@ function LabControls(): ReactNode {
       effect: 'flip',
       origin: centre(event),
       scroll: 'none',
+      // The switch itself turns over in the new material.
+      ...(nextMaterial ? { material: nextMaterial } : {}),
     });
   };
 
@@ -69,10 +79,14 @@ function LabControls(): ReactNode {
             title={name}
             onClick={(event) => {
               if (name === material) return;
-              switchTo(() => {
-                applyMaterial(name);
-                setMaterial(name);
-              }, event);
+              switchTo(
+                () => {
+                  applyMaterial(name);
+                  setMaterial(name);
+                },
+                event,
+                name,
+              );
             }}
           />
         ))}

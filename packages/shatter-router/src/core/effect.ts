@@ -94,6 +94,8 @@
  * the user sees is the live page underneath (last-frame seam guarantee).
  */
 
+import type { Easing } from './easing';
+import type { MaterialSource } from './material';
 import type { Random } from './random';
 
 export type { Random } from './random';
@@ -155,13 +157,15 @@ export interface EffectComposition {
   readonly motion: string;
   /** Fracture pattern. Default: the motion's own (`'impact'`). */
   readonly pattern?: string;
-  /** Surface. Only `'glass'` so far. */
-  readonly material?: 'glass';
+  /** What the pieces are made of (ADR-057): a built-in name or a material object. Default: the `material` option. */
+  readonly material?: MaterialSource;
   /** Order in which shards start. Default: the motion's own (`'radial'`). */
   readonly stagger?: Stagger;
   readonly timing?: {
     /** Motion length in ms. Default: the motion's own. */
     readonly duration?: number;
+    /** Pace of the motion (ADR-059): `'linear'` (default), `'ease-in'`, `'ease-out'`, `'ease-in-out'`. */
+    readonly easing?: Easing;
   };
 }
 
@@ -228,6 +232,10 @@ export interface ShatterEffect {
   readonly pattern?: string;
   /** Order in which shards start, as `EffectContext.order`. Default `'radial'`. */
   readonly stagger?: Stagger;
+  /** What the pieces are made of (ADR-057). Default: the `material` option (`'glass'`). */
+  readonly material?: MaterialSource;
+  /** Pace of the motion (ADR-059); the engine eases the time it hands to the shader and `isComplete`. Default `'linear'`. */
+  readonly easing?: Easing;
   /** Custom seed layout `[x0, y0, x1, y1, …]` for the `impact` pattern; default is impact-biased blue noise. */
   seedPoints?(ctx: FractureContext): Float32Array;
   /** Per-shard data for the vertex shader. */

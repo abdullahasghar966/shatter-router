@@ -7,7 +7,7 @@ import { type EffectSource, effectName, isComposition } from '../core/compose';
 import type { EffectComposition, ShatterEffect } from '../core/effect';
 import type { PhysicsBackend, PhysicsPlugin } from '../core/physics';
 import { prefersReducedMotion } from '../core/env';
-import { DEFAULT_GLASS_TINT, parseHexColor, type Rgb } from '../core/shading';
+import { parseHexColor, type Rgb } from '../core/shading';
 import { StateMachine, type TransitionState } from '../core/machine';
 import { Precapture, PRECAPTURE_TTL_MS } from '../core/precapture';
 import { type ScrollTarget, waitUntilReady } from '../core/ready';
@@ -46,6 +46,7 @@ export type EngineLike = Pick<
   | 'replaceEffect'
   | 'startPhysics'
   | 'setShading'
+  | 'setMaterial'
   | 'prepareMotion'
   | 'crack'
   | 'animate'
@@ -439,6 +440,12 @@ class Runtime implements ShatterRuntime {
       // The effect's chunks (ADR-048), usually prefetched already.
       const effect = await engine.loadEffect(run.plan.effect, this.registry());
       this.throwIfCancelled(run);
+      // The material (ADR-057): the call's, the effect's own, else the option's.
+      // An unknown one throws here, before anything is shown.
+      const material = engine.setMaterial(
+        request.material ?? effect.material ?? this.host.material() ?? 'glass',
+      );
+      if (this.hook) this.hook.lastMaterial = material;
 
       const { snapshot, precaptured } = await this.snapshotFor(run, loaded, viewport);
       // A real capture warmed the capturer: no priming capture needed.
@@ -900,16 +907,19 @@ class Runtime implements ShatterRuntime {
     return this.loading;
   }
 
-  /** The `glassTint` option as channels; the default when it is not a `#rgb`/`#rrggbb` colour. */
-  private glassTint(): Rgb {
+  /**
+   * The `glassTint` option as channels, overriding the material's tint; null
+   * when unset or not a `#rgb`/`#rrggbb` colour (the material's tint is used).
+   */
+  private glassTint(): Rgb | null {
     const option = this.host.options.glassTint;
     const parsed = option === undefined ? null : parseHexColor(option);
     if (option !== undefined && !parsed && this.settings.debug) {
       console.warn(
-        `[shatter-router] glassTint "${option}" is not #rgb or #rrggbb; using ${DEFAULT_GLASS_TINT}`,
+        `[shatter-router] glassTint "${option}" is not #rgb or #rrggbb; using the material's tint`,
       );
     }
-    return parsed ?? parseHexColor(DEFAULT_GLASS_TINT) ?? [0.812, 0.91, 1];
+    return parsed;
   }
 
   /**
@@ -1003,6 +1013,7 @@ class Runtime implements ShatterRuntime {
       lastPhysics: null,
       lastIncomingCaptureMs: null,
       lastIncomingCaptureStart: null,
+      lastMaterial: null,
       layoutGrid: () => this.loaded?.capturer.layoutGrid ?? null,
       lastFracture: null,
       lastAnimation: null,

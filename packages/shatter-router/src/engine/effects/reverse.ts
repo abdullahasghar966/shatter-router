@@ -1,3 +1,4 @@
+import { mirrorEasing } from '../../core/easing';
 import type { ShatterEffect } from '../../core/effect';
 
 /** Name suffix of a reversed effect: `'shatter:reverse'`. */
@@ -35,6 +36,9 @@ export function reverseEffect(base: ShatterEffect): ShatterEffect {
     // The pieces come back along the paths they left on: same cells, same order (ADR-055).
     ...(base.pattern === undefined ? {} : { pattern: base.pattern }),
     ...(base.stagger === undefined ? {} : { stagger: base.stagger }),
+    ...(base.material === undefined ? {} : { material: base.material }),
+    // Mirrored, so the reverse retraces the eased motion exactly (ADR-059).
+    ...(base.easing === undefined ? {} : { easing: mirrorEasing(base.easing) }),
     ...(seeds ? { seedPoints: seeds } : {}),
     shardAttributes: (ctx) => base.shardAttributes(ctx),
     vertexChunk: /* glsl */ `${motion}
