@@ -14,12 +14,13 @@
 ## Done so far
 
 - Milestones 0–16 and 19 merged and tagged. M16: PRs #19–#21 (motions ADR-054/055, long-task budget ADR-056, materials ADR-057, last-visible completion ADR-058, easing ADR-059).
-- M17, not committed yet (new files in the working tree, nothing wired): `src/sound/index.ts` (procedural WebAudio voices per material and motion), `src/core/interaction.ts` (options, gesture types), `src/interaction/index.ts` (cursor kits, pre-crack, hold to charge, drag to tear, haptics, CSSOM styles only), `src/engine/path.ts` (tear path geometry).
+- M17 (ADR-060), committed on this branch: interaction and sound chunks, gestures remembered by the core and merged by the runtime (`intensity` scales the impulse, a tear `path` reaches the `impact` seeds, piece distances and the crack shader), sound loaded after the first gesture, `setSound()`. 576 unit tests. Not yet: e2e, the docs site (cursor kit, sound toggle, hero charge), docs pages.
+- `fix/playground-panel-tasks` (PR #22): the playground's Tweakpane panel built in steps (Lighthouse TBT), the WebKit prefetch race in `lab.spec.ts`, overlay diagnostics; merge it into this branch after it merges.
 
 ## Next steps
 
-1. **ADR-060** and wiring: `ShatterOptions.interaction` and `sound` (lazy chunks `interaction`, `sound` with size budgets in `package.json` and tsup entries); the facade remembers a gesture (`GESTURE_TTL_MS`) and the runtime merges it into the next transition (`TransitionRequest.intensity`, `path`); intensity scales the impulse (`impulse × (0.5 + intensity)`); a tear path reaches the fracture (`impact` seeds around the path, shard distance and `maxRadius` measured to the path) and the crack shader (uniform array of up to 8 points); the runtime plays a `SoundCue` at `animating` (never under reduced motion, only after a user gesture); `shatter.setSound(on)`; hold Space on a button as the keyboard charge.
-2. Unit tests (gesture merge and TTL, path geometry, intensity, sound scheduling with a fake AudioContext, interaction with happy-dom), e2e (cursor follows and is not captured, hold charges, drag tears with a seam at rest, keyboard and reduced-motion paths, no long tasks), docs site: cursor kit, sound toggle (remembered), hero hold-to-charge; docs pages.
+1. Merge PR #22 (green CI), then `git merge origin/main` into this branch.
+2. E2E (cursor follows and is not captured, hold charges, drag tears with a seam at rest, keyboard and reduced-motion paths, no long tasks), docs site: cursor kit, sound toggle (remembered), hero hold-to-charge; docs pages.
 3. Full ritual: PR, three-engine CI, merge, tag `m17-interaction`; production Lighthouse. Then M20, M18, M21.
 
 ## Deferred (tracked, not forgotten)

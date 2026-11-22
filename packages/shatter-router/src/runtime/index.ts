@@ -1,5 +1,7 @@
 import type { DomCapturer } from '../capture/index';
 import type { DebugPanel } from '../debug/index';
+import type { SoundCue } from '../sound/index';
+import { DEFAULT_INTENSITY } from '../core/interaction';
 import type { Engine } from '../engine/index';
 import { announceTitle, focusNewPage } from '../core/a11y';
 import { crossfade } from '../core/crossfade';
@@ -68,8 +70,17 @@ export interface Loaded {
 }
 
 /** How the controller gets its engine and capturer. Tests inject fakes. */
+/** The sound engine as the runtime uses it (ADR-060). */
+export interface SoundLike {
+  resume(): void;
+  play(cue: SoundCue): void;
+  destroy(): void;
+}
+
 export interface ShatterDeps {
   load(doc: Document): Promise<Loaded>;
+  /** Creates the sound engine (lazy chunk); tests pass a fake. */
+  loadSound?(win: Window, volume: number): Promise<SoundLike>;
 }
 
 const defaultDeps: ShatterDeps = {
@@ -88,6 +99,10 @@ const defaultDeps: ShatterDeps = {
       throw error;
     }
     return { engine, capturer };
+  },
+  async loadSound(win, volume) {
+    const module = await import('../sound/index');
+    return module.createSoundEngine(win, volume);
   },
 };
 
@@ -126,6 +141,10 @@ interface Run {
 interface Plan {
   readonly effect: EffectSource;
   readonly origin: Point | undefined;
+  /** How hard the page is hit, 0..1 (ADR-060). */
+  readonly intensity: number;
+  /** A tear: the points the page breaks along (ADR-060). */
+  readonly path: readonly Point[] | undefined;
   /** `uDirection`: a reversed effect runs forward in reverse time. */
   readonly direction: 'forward' | 'back';
 }
@@ -251,6 +270,10 @@ class Runtime implements ShatterRuntime {
   private primed = false;
   private removePrimeListeners: (() => void) | null = null;
 
+  /** The sound engine, once loaded (ADR-060). */
+  private sound: SoundLike | null = null;
+  private soundLoading: Promise<SoundLike | null> | null = null;
+
   constructor(
     private readonly host: RuntimeHost,
     private readonly deps: ShatterDeps,
@@ -261,6 +284,48 @@ class Runtime implements ShatterRuntime {
     this.hook = this.settings.debug ? this.installHook() : null;
     if (this.hook && this.settings.panel) this.openPanel(this.hook);
     this.scrollLock = createScrollLock(window, host.options.scrollLock);
+  }
+
+  /**
+   * The visitor interacted, or sound was turned on afterwards (ADR-060):
+   * loads the sound engine once and resumes it. Never under reduced motion.
+   */
+  soundGesture(): void {
+    const settings = this.host.sound();
+    if (!settings.enabled || this.destroyed || prefersReducedMotion() || !this.deps.loadSound)
+      return;
+    if (this.sound) {
+      this.sound.resume();
+      return;
+    }
+    this.soundLoading ??= this.deps.loadSound(window, settings.volume).then(
+      (sound) => {
+        if (this.destroyed) {
+          sound.destroy();
+          return null;
+        }
+        this.sound = sound;
+        sound.resume();
+        return sound;
+      },
+      (error: unknown) => {
+        // No Web Audio, a blocked chunk: transitions stay silent.
+        if (this.settings.debug) console.warn('[shatter-router] sound unavailable', error);
+        return null;
+      },
+    );
+  }
+
+  /** Plays a transition's sounds when sound is on and allowed (ADR-060). */
+  private playSound(cue: SoundCue): void {
+    if (!this.sound || !this.host.sound().enabled || prefersReducedMotion()) return;
+    try {
+      this.sound.play(cue);
+      if (this.hook) this.hook.lastSound = cue.motion;
+    } catch (error) {
+      // Sound never breaks a transition.
+      if (this.settings.debug) console.warn('[shatter-router] sound failed', error);
+    }
   }
 
   warmUp(): void {
@@ -391,6 +456,8 @@ class Runtime implements ShatterRuntime {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.sound?.destroy();
+    this.sound = null;
     const run = this.current;
     if (run) {
       run.cancel.abort();
@@ -472,8 +539,13 @@ class Runtime implements ShatterRuntime {
         count,
         thickness: settings.thickness,
         ...(seed === undefined ? {} : { seed }),
+        ...(run.plan.path ? { path: run.plan.path } : {}),
       });
-      if (this.hook) this.hook.lastFracture = { ...stats, tier };
+      if (this.hook) {
+        this.hook.lastFracture = { ...stats, tier };
+        this.hook.lastIntensity = run.plan.intensity;
+        this.hook.lastTear = run.plan.path !== undefined && run.plan.path.length >= 2;
+      }
       this.emit('fractured', { shardCount: stats.shardCount, fractureMs: stats.fractureMs });
       await this.pause('fractured', run);
       this.throwIfCancelled(run);
@@ -505,7 +577,8 @@ class Runtime implements ShatterRuntime {
       engine.prepareMotion({
         duration: settings.duration ?? motionEffect.duration ?? DEFAULT_MOTION_MS,
         gravity: settings.gravity,
-        impulse: settings.impulse,
+        // A charged press hits harder (ADR-060): 0.5 (a click) leaves it as set.
+        impulse: settings.impulse * (0.5 + run.plan.intensity),
         direction: run.plan.direction,
         ...(seed === undefined ? {} : { seed }),
       });
@@ -517,6 +590,16 @@ class Runtime implements ShatterRuntime {
       }
       machine.enter('animating');
       this.emit('animating', { effect: motionEffect.name });
+      this.playSound({
+        motion: motionEffect.name.split(/[ :]/)[0] ?? motionEffect.name,
+        material,
+        crackMs: motionEffect.crack ? (motionEffect.crackDuration ?? 140) : 0,
+        durationMs: settings.duration ?? motionEffect.duration ?? DEFAULT_MOTION_MS,
+        shardCount: stats.shardCount,
+        intensity: run.plan.intensity,
+        reverse: motionEffect.name.endsWith(':reverse'),
+        pan: viewport.width > 0 ? (origin.x / viewport.width) * 2 - 1 : 0,
+      });
       if (motionEffect.crack) {
         await engine.crack({ signal: run.skip.signal });
         await this.pause('cracked', run);
@@ -646,8 +729,22 @@ class Runtime implements ShatterRuntime {
   private plan(request: TransitionRequest): Plan {
     const chosen = request.effect ?? this.settings.effect;
     if (typeof chosen !== 'string') this.seen.set(effectName(chosen), chosen);
+    // The press or drag that started this navigation, if any (ADR-060).
+    const gesture = request.direction === 'back' ? null : this.host.takeGesture();
+    const force = {
+      intensity: Math.min(
+        1,
+        Math.max(0, request.intensity ?? gesture?.intensity ?? DEFAULT_INTENSITY),
+      ),
+      path: request.path ?? gesture?.path,
+    };
     if (request.direction !== 'back') {
-      return { effect: chosen, origin: request.origin, direction: 'forward' };
+      return {
+        effect: chosen,
+        origin: gesture?.origin ?? request.origin,
+        direction: 'forward',
+        ...force,
+      };
     }
     const pop = this.memory.pop(locationKey(window.location));
     const mode = this.settings.backForward;
@@ -657,17 +754,22 @@ class Runtime implements ShatterRuntime {
           effect: pop.entry.effect,
           origin: request.origin ?? pop.entry.origin ?? undefined,
           direction: 'forward',
+          ...force,
         };
       }
       const left = pop.direction === 'back' ? pop.entry : null;
       const name = left?.effect ?? effectName(chosen);
-      return { ...this.mirrorOf(name), origin: request.origin ?? left?.origin ?? undefined };
+      return {
+        ...this.mirrorOf(name),
+        origin: request.origin ?? left?.origin ?? undefined,
+        ...force,
+      };
     }
     const reversed =
       mode === 'reverse' && typeof chosen === 'string' && !this.host.effects.has(chosen)
         ? (REVERSED[chosen] ?? chosen)
         : chosen;
-    return { effect: reversed, origin: request.origin, direction: 'back' };
+    return { effect: reversed, origin: request.origin, direction: 'back', ...force };
   }
 
   /**
@@ -1014,6 +1116,9 @@ class Runtime implements ShatterRuntime {
       lastIncomingCaptureMs: null,
       lastIncomingCaptureStart: null,
       lastMaterial: null,
+      lastIntensity: null,
+      lastTear: false,
+      lastSound: null,
       layoutGrid: () => this.loaded?.capturer.layoutGrid ?? null,
       lastFracture: null,
       lastAnimation: null,

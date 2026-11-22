@@ -40,6 +40,9 @@ export default defineConfig({
     capture: 'src/capture/index.ts',
     'rapier-backend': 'src/rapier/backend.ts',
     debug: 'src/debug/index.ts',
+    // Opt-in interaction and sound (ADR-060), loaded only when enabled.
+    interaction: 'src/interaction/index.ts',
+    sound: 'src/sound/index.ts',
     // Effect parts, one chunk each, loaded on first use (ADR-048).
     'effects/shatter': 'src/engine/effects/shatter.ts',
     'effects/explode': 'src/engine/effects/explode.ts',

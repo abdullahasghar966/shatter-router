@@ -1,5 +1,6 @@
 import { Delaunay } from 'd3-delaunay';
 import { createRandom, type Random } from '../../core/random';
+import { farthestCornerFromPath, pathLength, pointAlong } from '../path';
 import {
   clampShardCount,
   DEFAULT_FALLOFF,
@@ -28,7 +29,12 @@ export function sampleSeeds(
   const { width, height, origin } = options;
   const count = clampShardCount(options.count);
   const k = options.falloff ?? DEFAULT_FALLOFF;
-  const maxR = farthestCorner(origin, width, height);
+  // A tear (ADR-060): sample around points along the whole path.
+  const path = options.path && options.path.length >= 2 ? options.path : null;
+  const along = path ? pathLength(path) : 0;
+  const maxR = path
+    ? farthestCornerFromPath(path, width, height)
+    : farthestCorner(origin, width, height);
 
   // Calibrate the spacing law so `count` points would tile the viewport.
   const exponent = 1 - 1 / (2 * k);
@@ -78,8 +84,9 @@ export function sampleSeeds(
   for (let attempt = 0; attempt < maxAttempts && placed < count; attempt++) {
     const r = maxR * random() ** k;
     const angle = random() * Math.PI * 2;
-    const x = origin.x + Math.cos(angle) * r;
-    const y = origin.y + Math.sin(angle) * r;
+    const centre = path ? pointAlong(path, random() * along) : origin;
+    const x = centre.x + Math.cos(angle) * r;
+    const y = centre.y + Math.sin(angle) * r;
     if (x <= 0 || y <= 0 || x >= width || y >= height) continue;
     if (tooClose(x, y, spacingAt(r) * rejectFactor)) continue;
     const cell = Math.floor(y / cellSize) * columns + Math.floor(x / cellSize);

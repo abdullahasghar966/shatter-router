@@ -85,6 +85,14 @@ export class FakeWorld {
   readonly origins: ({ x: number; y: number } | undefined)[] = [];
   /** Directions passed to prepareMotion, in order. */
   readonly directions: string[] = [];
+  /** Tear paths and impulses the runtime asked for (ADR-060). */
+  readonly paths: (readonly { x: number; y: number }[] | undefined)[] = [];
+  readonly impulses: number[] = [];
+  /** Sound cues played through `deps.loadSound`, when a test enables it. */
+  readonly sounds: { motion: string; intensity: number; reverse: boolean }[] = [];
+  soundResumes = 0;
+  /** Set to give the runtime a sound engine (ADR-060). */
+  withSound = false;
   readonly overlay = document.createElement('div');
   readonly snapshots: FakeSnapshot[] = [];
   /** Hold the matching phase until opened (or aborted, for crack/animate). */
@@ -152,7 +160,11 @@ export class FakeWorld {
         if (world.coverGate) await world.coverGate.promise;
         if (world.coverError) throw world.coverError;
       },
-      fracture(options: { origin?: { x: number; y: number } }) {
+      fracture(options: {
+        origin?: { x: number; y: number };
+        path?: readonly { x: number; y: number }[];
+      }) {
+        world.paths.push(options.path);
         world.calls.push('fracture');
         world.origins.push(options.origin);
         return { shardCount: 40, vertexCount: 480, fractureMs: 1 };
@@ -176,7 +188,8 @@ export class FakeWorld {
         world.calls.push('startPhysics');
         return true;
       },
-      prepareMotion(options: { direction: string }) {
+      prepareMotion(options: { direction: string; impulse: number }) {
+        world.impulses.push(options.impulse);
         world.calls.push('prepareMotion');
         world.directions.push(options.direction);
         return {} as EffectState;
@@ -229,11 +242,31 @@ export class FakeWorld {
   }
 
   get deps(): ShatterDeps {
+    const sounds = this.sounds;
+    const resumed = (): void => {
+      this.soundResumes += 1;
+    };
     return {
       load: (): Promise<Loaded> =>
         this.loadError
           ? Promise.reject(this.loadError)
           : Promise.resolve({ engine: this.engine, capturer: this.capturer }),
+      ...(this.withSound
+        ? {
+            loadSound: () =>
+              Promise.resolve({
+                resume: resumed,
+                play: (cue: { motion: string; intensity: number; reverse: boolean }) => {
+                  sounds.push({
+                    motion: cue.motion,
+                    intensity: cue.intensity,
+                    reverse: cue.reverse,
+                  });
+                },
+                destroy: () => undefined,
+              }),
+          }
+        : {}),
     };
   }
 }

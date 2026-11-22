@@ -68,6 +68,8 @@
       "ignore": [
         "./runtime.js",
         "./engine.js",
+        "./interaction.js",
+        "./sound.js",
         "./capture.js"
       ],
       "gzip": true,
@@ -80,6 +82,8 @@
       "ignore": [
         "./runtime.js",
         "./engine.js",
+        "./interaction.js",
+        "./sound.js",
         "./capture.js",
         "react",
         "react-dom",
@@ -95,6 +99,8 @@
       "ignore": [
         "./runtime.js",
         "./engine.js",
+        "./interaction.js",
+        "./sound.js",
         "./capture.js",
         "react",
         "react-dom",
@@ -111,6 +117,8 @@
       "ignore": [
         "./runtime.js",
         "./engine.js",
+        "./interaction.js",
+        "./sound.js",
         "./capture.js",
         "react",
         "react-dom",
@@ -149,6 +157,8 @@
       "import": "*",
       "ignore": [
         "./engine.js",
+        "./interaction.js",
+        "./sound.js",
         "./capture.js",
         "./debug.js"
       ],
@@ -191,6 +201,20 @@
       ],
       "gzip": true,
       "limit": "15 KB"
+    },
+    {
+      "name": "interaction (lazy, opt-in: cursor, charge, tear; ADR-060)",
+      "path": "dist/interaction.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "3 KB"
+    },
+    {
+      "name": "sound (lazy, opt-in: procedural WebAudio; ADR-060)",
+      "path": "dist/sound.js",
+      "import": "*",
+      "gzip": true,
+      "limit": "3 KB"
     },
     {
       "name": "motion: shatter (lazy)",
