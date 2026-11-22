@@ -1176,45 +1176,6 @@ pre code {
 
 /* Cursor ring (CursorRing, ADR-050): the native cursor stays. */
 
-.cursor-ring {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 40;
-  width: 32px;
-  height: 32px;
-  margin: -16px 0 0 -16px;
-  border: 1px solid color-mix(in srgb, var(--fg) 55%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-  transition:
-    width var(--base) var(--ease),
-    height var(--base) var(--ease),
-    margin var(--base) var(--ease),
-    border-color var(--base) var(--ease),
-    background-color var(--base) var(--ease),
-    opacity var(--base) var(--ease);
-}
-
-.cursor-ring[data-visible='true'] {
-  opacity: 1;
-}
-
-.cursor-ring[data-over='true'] {
-  width: 56px;
-  height: 56px;
-  margin: -28px 0 0 -28px;
-  border-color: var(--signal);
-  background: color-mix(in srgb, var(--mat) 22%, transparent);
-}
-
-@media (pointer: coarse) {
-  .cursor-ring {
-    display: none;
-  }
-}
-
 /* First-load entrances (Reveal). Only on the first page load: on client
    navigations the transition is the entrance (ADR-050). */
 
@@ -1310,10 +1271,6 @@ pre code {
 
   .card {
     transform: none;
-  }
-
-  .cursor-ring {
-    display: none;
   }
 
   .button:active {

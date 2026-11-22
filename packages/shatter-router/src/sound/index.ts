@@ -67,7 +67,8 @@ export class SoundEngine {
   private random = Math.random;
 
   constructor(win: Window, volume: number) {
-    const Context = (win as Window & { AudioContext: typeof AudioContext }).AudioContext;
+    const Context = audioContextOf(win);
+    if (!Context) throw new Error('Web Audio is not available');
     this.context = new Context();
     const limiter = this.context.createDynamicsCompressor();
     limiter.threshold.value = -12;
@@ -293,6 +294,15 @@ export class SoundEngine {
     node.gain.exponentialRampToValueAtTime(0.0001, at + Math.max(0.01, length));
     return node;
   }
+}
+
+/** The page's AudioContext constructor (prefixed in older WebKit), if any. */
+export function audioContextOf(win: Window): typeof AudioContext | undefined {
+  const scope = win as Window & {
+    AudioContext?: typeof AudioContext;
+    webkitAudioContext?: typeof AudioContext;
+  };
+  return scope.AudioContext ?? scope.webkitAudioContext;
 }
 
 /** Entry for the lazy chunk. */

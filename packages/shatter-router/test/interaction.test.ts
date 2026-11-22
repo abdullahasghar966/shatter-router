@@ -131,8 +131,20 @@ describe('runtime: intensity, tears and sound', () => {
   afterEach(() => {
     for (const shatter of instances.splice(0)) shatter.destroy();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
   const commit = (): void => undefined;
+
+  it('without Web Audio, sound is unavailable and nothing is loaded', async () => {
+    const world = new FakeWorld();
+    world.withSound = true;
+    const shatter = create(world, { sound: true });
+    document.dispatchEvent(new Event('pointerdown'));
+    await flush(10);
+    await shatter.transition({ commit });
+    expect(world.soundResumes).toBe(0);
+    expect(world.sounds).toHaveLength(0);
+  });
 
   it('intensity scales the impulse; 0.5 (a click) leaves it as set', async () => {
     const world = new FakeWorld();
@@ -153,6 +165,10 @@ describe('runtime: intensity, tears and sound', () => {
   });
 
   it('sound waits for a gesture, plays at the motion, follows setSound', async () => {
+    // A browser with Web Audio (happy-dom has none: then sound stays off).
+    vi.stubGlobal('AudioContext', function AudioContext() {
+      // Only its presence matters: the test's sound engine is a fake.
+    });
     const world = new FakeWorld();
     world.withSound = true;
     const shatter = create(world, { sound: true });

@@ -6,10 +6,12 @@ import { ShatterLink, useShatter } from 'shatter-router/next';
 import { CrackText } from './crack-text';
 import {
   applyMaterial,
+  applySound,
   applyTheme,
   currentMaterial,
   currentTheme,
   type Material,
+  soundChosen,
   MATERIALS,
   SWATCHES,
   type Theme,
@@ -36,9 +38,11 @@ function LabControls(): ReactNode {
   // Rendered with defaults on the server; the real values after mount.
   const [theme, setTheme] = useState<Theme>('light');
   const [material, setMaterial] = useState<Material>('glass');
+  const [sound, setSound] = useState(false);
   useEffect(() => {
     setTheme(currentTheme());
     setMaterial(currentMaterial());
+    setSound(soundChosen());
   }, []);
   // Every transition on the site is made of the chosen material (ADR-057).
   useEffect(() => {
@@ -91,6 +95,45 @@ function LabControls(): ReactNode {
           />
         ))}
       </div>
+      <button
+        type="button"
+        className="theme-toggle"
+        aria-label="Sound"
+        aria-pressed={sound}
+        title={sound ? 'Sound on' : 'Sound off'}
+        onClick={() => {
+          const next = !sound;
+          setSound(next);
+          applySound(next);
+          shatter?.setSound(next);
+        }}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M2.5 6h2.5l3.5-3v10L5 10H2.5z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinejoin="round"
+          />
+          {sound ? (
+            <path
+              d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.6a6 6 0 0 1 0 8.8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+          ) : (
+            <path
+              d="M11 6l3.5 4M14.5 6L11 10"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+          )}
+        </svg>
+      </button>
       <button
         type="button"
         className="theme-toggle"

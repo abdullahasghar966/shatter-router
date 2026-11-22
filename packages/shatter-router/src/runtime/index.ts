@@ -294,6 +294,9 @@ class Runtime implements ShatterRuntime {
     const settings = this.host.sound();
     if (!settings.enabled || this.destroyed || prefersReducedMotion() || !this.deps.loadSound)
       return;
+    // No Web Audio in this browser: sound is simply unavailable, not an error.
+    const scope = window as Window & { AudioContext?: unknown; webkitAudioContext?: unknown };
+    if (!scope.AudioContext && !scope.webkitAudioContext) return;
     if (this.sound) {
       this.sound.resume();
       return;

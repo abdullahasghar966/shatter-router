@@ -13,6 +13,7 @@ export const SWATCHES: Readonly<Record<Material, string>> = {
 };
 
 const THEME_KEY = 'lab-theme';
+const SOUND_KEY = 'lab-sound';
 const MATERIAL_KEY = 'lab-material';
 
 function store(key: string, value: string): void {
@@ -43,4 +44,17 @@ export function applyTheme(theme: Theme): void {
 export function applyMaterial(material: Material): void {
   document.documentElement.setAttribute('data-material', material);
   store(MATERIAL_KEY, material);
+}
+
+/** Whether the visitor turned sound on (ADR-060). Off unless chosen. */
+export function soundChosen(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export function applySound(on: boolean): void {
+  store(SOUND_KEY, on ? 'on' : 'off');
 }

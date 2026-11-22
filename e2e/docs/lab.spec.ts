@@ -150,13 +150,59 @@ test.describe('docs site: Material lab', () => {
     await page.mouse.up();
   });
 
+  test('the cursor is the library kit (ADR-060), decorative and ignored by captures', async ({
+    page,
+  }) => {
+    await page.goto(`${BASE}/${QUERY}`);
+    await waitForShatterReady(page);
+    await page.mouse.move(300, 300);
+    const cursor = page.locator('[data-shatter-cursor]');
+    await expect(cursor).toHaveCount(1, { timeout: 10_000 });
+    await expect(cursor).toHaveAttribute('data-shatter-cursor', 'ring');
+    await expect(cursor).toHaveAttribute('data-shatter-ignore', '');
+    await expect(cursor).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  test('the sound toggle is remembered and makes transitions audible (ADR-060)', async ({
+    page,
+    browserName,
+  }) => {
+    await page.goto(`${BASE}/${QUERY}`);
+    await waitForShatterReady(page);
+    const toggle = page.getByRole('button', { name: 'Sound', exact: true });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await page.reload();
+    await waitForShatterReady(page);
+    await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    if (browserName === 'chromium') {
+      // Web Audio starts after the first gesture: the click itself.
+      await page.getByRole('link', { name: 'Docs', exact: true }).click();
+      await waitForIdle(page, 15_000);
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              (window as { __SHATTER_TEST__?: { lastSound: string | null } }).__SHATTER_TEST__
+                ?.lastSound ?? null,
+          ),
+        )
+        .not.toBeNull();
+    }
+  });
+
   test.describe('reduced motion', () => {
     test.use({ reducedMotion: 'reduce' });
-    test('no cursor ring, no entrance, no card tilt', async ({ page }) => {
+    test('no cursor kit, no entrance, no card tilt', async ({ page }) => {
       await page.goto(`${BASE}/effects`);
       await page.mouse.move(400, 500);
       await page.mouse.move(420, 520);
-      await expect(page.locator('.cursor-ring')).toBeHidden();
+      await page.waitForTimeout(800);
+      await expect(page.locator('[data-shatter-cursor]')).toHaveCount(0);
       const card = page.locator('.card').first();
       await card.hover({ position: { x: 300, y: 40 } });
       expect(await card.evaluate((el) => getComputedStyle(el).transform)).toBe('none');
