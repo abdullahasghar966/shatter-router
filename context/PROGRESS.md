@@ -389,6 +389,12 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Seams:** first frame with the cursor kit on Chromium 0.0991 % / WebKit 0.0021 %; torn page at rest 0.1003 % (worst block 4.0 %, was 10.2 % while a tear reused its press-time pre-capture) / 0.0021 %; docs landing with the site's new cursor 0.0076 % light, 0.0063 % dark (Chromium), 0.0024 / 0.0023 % (WebKit).
 - **Performance with interaction and sound on** (RTX 4050, installed Chrome 157, 1440×900, 160 pieces): 143.4 fps, no long tasks outside capture; 0 B beyond boxed numbers in the frame loop (headless Chromium). Captures with and without them, interleaved: 69 / 112 / 59 ms against 47 / 93 / 97 ms (no measurable cost; the machine drifts).
 
+### Site features (Milestone 20, in progress, 2026-11-22, ADR-061, ADR-062)
+
+- **Highlighted code and the capture** (`coverage/m20/code-capture-ab.mjs`, `/docs/getting-started` at 1440×900, headless Chromium, 6 interleaved rounds, median of 18 warm captures): first version (five token kinds, hidden tab panels copied) 228 ms against 108 ms plain; after ADR-062 hidden panels present 199 ms against removed 194 ms (plain 148 ms, the machine warmer); final (three token kinds, static sidebar) highlighted 88.8 ms, hidden panels removed 90.7 ms, plain 75.2 ms. `/docs/api` (code below the fold): 133.5 against 136.0 ms, no cost.
+- **First-frame seam, `/docs/getting-started` scrolled 560 px with the React Router tab:** sticky sidebar 0.5948 % (worst block 15.3 %, Chromium only: grayscale text in overlap layers, LEARNINGS); static sidebar Chromium 0.0495 %, WebKit 0.0337 % (raw 0.5785 %), worst block ≤ 0.3 %. Docs landing unchanged: 0.0066 / 0.0065 % Chromium, 0.0031 / 0.0030 % WebKit.
+- **Sizes:** capture chunk 13.86 of 16 kB (with ADR-062); no other library chunk changed.
+
 ### Production after M16 (`3382b96`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
 
 - **First pass:** `/` 97/100 (LCP 1.9 s, TBT 120 ms), `/effects` 96/100, `/effects/vortex` 96/100, `/playground` 90/100 (TBT 360 ms), `/docs/api` 93/100 (performance/accessibility; CLS ≤ 0.014). Repeats: `/docs/api` 99, 93, 93 (TBT 60–270 ms: noise); `/playground` 93, 95, 96, TBT 150–260 ms every time.

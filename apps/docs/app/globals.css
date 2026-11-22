@@ -442,10 +442,65 @@ pre code {
   margin: 0;
 }
 
+/* Highlighted code (ADR-061): three ink colours, all ≥ 4.5:1 on the raised
+   surface; keywords take the material's ink. */
+:root {
+  --code-keyword: var(--mat-ink);
+  --code-string: #4f6a2a;
+  --code-comment: var(--faint);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --code-string: #b5cf86;
+  }
+}
+
+:root[data-theme='dark'] {
+  --code-string: #b5cf86;
+}
+
+.tk-keyword {
+  color: var(--code-keyword);
+}
+
+.tk-string {
+  color: var(--code-string);
+}
+
+.tk-comment {
+  color: var(--code-comment);
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.code-block pre {
+  padding-top: 2.1rem;
+}
+
 .code-block .code-label {
   position: absolute;
   top: 0.55rem;
-  right: 0.9rem;
+  right: 5.2rem;
   font-family: var(--mono);
   font-size: 0.625rem;
   letter-spacing: 0.14em;
@@ -1132,9 +1187,11 @@ pre code {
   padding: clamp(2rem, 6vw, 4rem) var(--gutter) 6rem;
 }
 
+/* Not sticky: a stuck sticky element is composited, and Chromium on Windows
+   then lifts the content painted after it into layers whose text loses
+   ClearType, which no copy of the page can match (seam 0.57 % → 0.01 %,
+   PROGRESS M20). */
 .docs-nav {
-  position: sticky;
-  top: 1.5rem;
   align-self: start;
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -1476,10 +1533,6 @@ pre code {
 
   .docs {
     gap: 2rem;
-  }
-
-  .docs-nav {
-    position: static;
   }
 
   .docs-nav ul {

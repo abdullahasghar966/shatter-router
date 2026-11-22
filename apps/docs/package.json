@@ -15,6 +15,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "shatter-router": "workspace:*",
+    "shiki": "4.6.0",
     "tweakpane": "4.0.5"
   },
   "devDependencies": {
