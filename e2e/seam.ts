@@ -314,10 +314,37 @@ export async function describeOverlay(page: Page): Promise<string> {
     const gl = canvas?.getContext('webgl2') ?? null;
     const hook = (
       window as {
-        __SHATTER_TEST__?: { state(): string; lastFallback: string | null; paused: string | null };
+        __SHATTER_TEST__?: {
+          state(): string;
+          lastFallback: string | null;
+          paused: string | null;
+          setCrack(radius: number): void;
+        };
       }
     ).__SHATTER_TEST__;
+    // What the shader draws: redraw the paused frame and read the centre in
+    // the same task (the drawing buffer is not preserved after compositing).
+    let drawn: string | null = null;
+    if (gl && canvas && !gl.isContextLost() && hook?.paused) {
+      hook.setCrack(0);
+      const pixel = new Uint8Array(4);
+      gl.readPixels(canvas.width >> 1, canvas.height >> 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      drawn = [...pixel].join(',');
+    }
+    const top = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+    const hostStyle = host ? getComputedStyle(host) : null;
+    const canvasStyle = canvas ? getComputedStyle(canvas) : null;
     return JSON.stringify({
+      drawnCentre: drawn,
+      glError: gl ? gl.getError() : null,
+      top: top
+        ? `${top.tagName.toLowerCase()}${top.hasAttribute('data-shatter-overlay') ? '[overlay]' : ''}`
+        : null,
+      hostBackground: hostStyle?.backgroundColor ?? null,
+      hostOpacity: hostStyle?.opacity ?? null,
+      canvasVisibility: canvasStyle
+        ? `${canvasStyle.display} ${canvasStyle.visibility} ${canvasStyle.opacity}`
+        : null,
       host: host !== null,
       open: host ? host.matches(':popover-open') : null,
       display: host ? getComputedStyle(host).display : null,
