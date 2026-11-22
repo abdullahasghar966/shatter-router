@@ -137,7 +137,7 @@ type NumberKey = {
 /** The panel's slider ranges; values read from a URL are clamped to them. */
 export const LIMITS: Readonly<Record<NumberKey, { min: number; max: number; step: number }>> = {
   shards: { min: 0, max: 400, step: 1 },
-  duration: { min: 0, max: 4000, step: 50 },
+  duration: { min: 0, max: 6000, step: 50 },
   gravity: { min: 0, max: 8000, step: 100 },
   impulse: { min: 0, max: 3000, step: 50 },
   thickness: { min: 0, max: 24, step: 1 },

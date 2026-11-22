@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { ShatterLink } from 'shatter-router/next';
 import { EFFECTS, findEffect } from '../../../lib/effects';
 import { Code } from '../../code';
+import { EffectStage } from './stage';
 
 interface Props {
   params: Promise<{ effect: string }>;
@@ -26,13 +27,14 @@ export default async function EffectPage({ params }: Props): Promise<ReactNode> 
   const others = EFFECTS.filter((other) => other.name !== effect.name);
   return (
     <>
-      <header
-        className="effect-hero"
-        style={{ '--c1': effect.colors[0], '--c2': effect.colors[1] } as CSSProperties}
-      >
-        <p className="kicker">{effect.custom ? 'Custom effect' : 'Built-in effect'}</p>
-        <h1>{effect.title}</h1>
-      </header>
+      <EffectStage
+        name={effect.name}
+        title={effect.title}
+        kicker={effect.custom ? 'Custom effect' : `Built-in effect · ${effect.family}`}
+        durationMs={effect.durationMs}
+        pattern={effect.pattern}
+        colors={effect.colors}
+      />
       <div className="effect-body">
         <div className="prose">
           <p className="lede">{effect.summary}</p>

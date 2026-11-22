@@ -18,7 +18,7 @@ const EFFECTS = ['shatter', 'explode', 'implode', 'flip', 'assemble', 'ripple-ou
 
 const PAGES = [
   ['/', 'Break the page.'],
-  ['/effects', 'Six ways to break a page.'],
+  ['/effects', 'Seventeen ways to break a page.'],
   ['/effects/ripple-out', 'Ripple out'],
   ['/playground', 'Tune the glass.'],
   ['/docs', 'How a page breaks'],
