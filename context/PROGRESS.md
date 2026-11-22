@@ -375,6 +375,14 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
 
+### Interaction, cursor, sound (Milestone 17, 2026-11-22, ADR-060)
+
+- **Sizes (gzip):** `dist/interaction.js` 2.3 kB, `dist/sound.js` 1.83 kB (budgets 3 kB); core entry 2.32 kB (was 1.95; budget 6), runtime 9.82 of 10 kB, engine core 13.95 of 15 kB.
+- **Pre-capture with the cursor on** (vanilla, Chromium, `lastPrecaptured` after a click): `false` before the cursor became one of Shatter's own nodes, `true` after.
+- **Tear seed layout:** share of `impact` seeds within 60 px of a 3-point tear, 4 seeds: 0.39–0.52 with the path, 0.26–0.32 without.
+- **Seams:** first frame with the cursor kit on Chromium 0.0991 % / WebKit 0.0021 %; torn page at rest 0.1003 % (worst block 4.0 %, was 10.2 % while a tear reused its press-time pre-capture) / 0.0021 %; docs landing with the site's new cursor 0.0076 % light, 0.0063 % dark (Chromium), 0.0024 / 0.0023 % (WebKit).
+- **Performance with interaction and sound on** (RTX 4050, installed Chrome 157, 1440×900, 160 pieces): 143.4 fps, no long tasks outside capture; 0 B beyond boxed numbers in the frame loop (headless Chromium). Captures with and without them, interleaved: 69 / 112 / 59 ms against 47 / 93 / 97 ms (no measurable cost; the machine drifts).
+
 ### Production after M16 (`3382b96`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
 
 - **First pass:** `/` 97/100 (LCP 1.9 s, TBT 120 ms), `/effects` 96/100, `/effects/vortex` 96/100, `/playground` 90/100 (TBT 360 ms), `/docs/api` 93/100 (performance/accessibility; CLS ≤ 0.014). Repeats: `/docs/api` 99, 93, 93 (TBT 60–270 ms: noise); `/playground` 93, 95, 96, TBT 150–260 ms every time.
