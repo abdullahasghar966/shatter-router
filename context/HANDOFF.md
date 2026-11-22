@@ -1,7 +1,7 @@
 # Hand-off
 
-- **Last updated:** 2026-11-22 (session 5 end: M16 and M17 merged and tagged; M20 branch created)
-- **Session:** 5 (the next session is 6)
+- **Last updated:** 2026-11-22 (session 6 start: M20 in progress, ADR-061 written)
+- **Session:** 6
 - **Repo:** https://github.com/abdullahasghar966/shatter-router (public)
 - **Live docs site:** https://shatter-router.vercel.app (Vercel project `shatter-router`, ADR-045; pushes to `main` deploy production, branches get previews)
 
@@ -20,7 +20,7 @@
 
 ## Next steps (M20, plan section 5)
 
-1. **Write ADR-061 (M20 scope) first.** Region-dependent items wait for M18 (live mini stages that break on hover-hold, compare mode with two stages, the strip of breakable specimens, scroll-driven breaking): the engine always covers the whole viewport (ADR-042). A showcase needs real sites using the library: not before 1.0 (no invented entries, master prompt rule 2). Everything else is in scope:
+1. **ADR-061 (M20 scope) is written.** Region-dependent items wait for M18 (live mini stages that break on hover-hold, compare mode with two stages, the strip of breakable specimens, scroll-driven breaking): the engine always covers the whole viewport (ADR-042). A showcase needs real sites using the library: not before 1.0 (no invented entries, master prompt rule 2). Everything else is in scope:
    - **Library** (`apps/docs/app/effects/page.tsx`, data in `apps/docs/lib/effects.ts`): group the 16 motions by family (gravity, force, order, matter, assembly), filters by pattern and material (query string, so Back keeps them), each card still navigates with its own effect.
    - **Effect page** (`apps/docs/app/effects/[effect]/page.tsx`): replay button (break in place like the hero, `transition({ commit: () => undefined, effect })`), slow motion (×4 duration), pattern/material/easing selects, the code for the current settings, "open in Studio" (playground URL with the same query).
    - **Studio** (`apps/docs/app/playground/`): presets (a few named compositions), randomise, undo (history of configs), export tabs for vanilla / React / React Router / Next (extend `configCode`). Recording a GIF/WebM is out: the overlay canvas holds only the glass, not the page under it (ADR-061 should say so).
