@@ -218,6 +218,7 @@ describe('interaction kit (happy-dom)', () => {
         event.target instanceof Element && event.target.closest('#work') ? anchor : null,
       gesture: (gesture) => gestures.push(gesture),
       busy: () => busy,
+      watch: () => () => undefined,
     };
     const kit = createInteraction(host, { cursor: 'none' });
     cleanups.push(() => {
@@ -292,13 +293,28 @@ describe('interaction kit (happy-dom)', () => {
       shatterLink: () => null,
       gesture: () => undefined,
       busy: () => false,
+      watch: (listener) => {
+        watchers.push(listener);
+        return () => undefined;
+      },
     };
+    const watchers: ((running: boolean) => void)[] = [];
     const kit = createInteraction(host, { cursor: 'reticle' });
     const cursor = document.querySelector('[data-shatter-cursor]');
     expect(cursor?.getAttribute('data-shatter-cursor')).toBe('reticle');
     expect(cursor?.hasAttribute('data-shatter-ignore')).toBe(true);
     expect(cursor?.getAttribute('aria-hidden')).toBe('true');
     expect((cursor as HTMLElement | null)?.style.pointerEvents).toBe('none');
+    // It steps aside while a transition runs.
+    window.dispatchEvent(new Event('resize'));
+    document.dispatchEvent(
+      new PointerEvent('pointermove', { clientX: 5, clientY: 5, pointerType: 'mouse' }),
+    );
+    expect((cursor as HTMLElement | null)?.style.opacity).toBe('1');
+    for (const watcher of watchers) watcher(true);
+    expect((cursor as HTMLElement | null)?.style.opacity).toBe('0');
+    for (const watcher of watchers) watcher(false);
+    expect((cursor as HTMLElement | null)?.style.opacity).toBe('1');
     kit.destroy();
     expect(document.querySelector('[data-shatter-cursor]')).toBeNull();
   });

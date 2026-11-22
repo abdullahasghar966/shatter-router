@@ -237,6 +237,18 @@ export class ShatterFacade implements Shatter {
               this.pending = { gesture, at: performance.now() };
             },
             busy: () => this.state !== 'idle',
+            watch: (listener) => {
+              const offStart = this.on('start', () => {
+                listener(true);
+              });
+              const offEnd = this.on('end', () => {
+                listener(false);
+              });
+              return () => {
+                offStart();
+                offEnd();
+              };
+            },
           },
           settings,
         );

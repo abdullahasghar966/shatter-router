@@ -17,6 +17,8 @@ const outlet: HTMLElement = app;
 // picks the back/forward behaviour ('mirror' by default). `?pattern=<name>`
 // breaks the page with that fracture pattern (ADR-053); `?motion=<name>` makes
 // that motion the default effect (ADR-055); `?material=<name>` sets the material (ADR-057).
+// `?interaction` (or `?interaction=<cursor kit>`) turns on the cursor, hold to
+// charge and drag to tear; `?sound` turns on procedural sound (ADR-060).
 const params = new URLSearchParams(location.search);
 const number = (name: string): number | undefined => {
   const value = Number(params.get(name));
@@ -33,6 +35,8 @@ const backForward = BACK_FORWARD.find((mode) => mode === params.get('backForward
 const pattern = params.get('pattern');
 const motion = params.get('motion');
 const material = params.get('material');
+const CURSORS = ['ring', 'reticle', 'hammer', 'glass-cutter', 'none'] as const;
+const cursor = CURSORS.find((kit) => kit === params.get('interaction'));
 const shatter = createShatter({
   ...(pattern
     ? { effect: { motion: motion ?? 'shatter', pattern } }
@@ -41,6 +45,8 @@ const shatter = createShatter({
       : {}),
   ...(physics ? { physics } : {}),
   ...(material ? { material } : {}),
+  ...(params.has('interaction') ? { interaction: cursor ? { cursor } : true } : {}),
+  ...(params.has('sound') ? { sound: true } : {}),
   ...(backForward ? { backForward } : {}),
   debug: params.has('debug') ? { panel: params.has('panel') } : false,
   ...(seed === undefined ? {} : { seed }),

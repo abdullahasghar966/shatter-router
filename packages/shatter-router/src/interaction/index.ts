@@ -69,6 +69,7 @@ class InteractionKit implements Interaction {
   private shownY = -100;
   private armedSince = -1;
   private visible = false;
+  private running = false;
 
   constructor(
     private readonly host: InteractionHost,
@@ -133,6 +134,14 @@ class InteractionKit implements Interaction {
       // A long press on touch charges instead of opening the link menu.
       if (this.press?.pointerType === 'touch') event.preventDefault();
     });
+    // The glass covers the page in the top layer: the cursor steps aside
+    // while a transition runs (it is never part of the capture either).
+    this.cleanups.push(
+      host.watch((running) => {
+        this.running = running;
+        if (this.root) this.root.style.opacity = !running && this.visible ? '1' : '0';
+      }),
+    );
     const leave = (): void => {
       this.setVisible(false);
     };
@@ -231,7 +240,7 @@ class InteractionKit implements Interaction {
   private setVisible(visible: boolean): void {
     if (!this.root || visible === this.visible) return;
     this.visible = visible;
-    this.root.style.opacity = visible ? '1' : '0';
+    this.root.style.opacity = visible && !this.running ? '1' : '0';
   }
 
   /** Runs the frame loop until the cursor has caught up and nothing charges. */

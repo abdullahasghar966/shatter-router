@@ -47,6 +47,8 @@ export interface InteractionHost {
   gesture(gesture: Gesture): void;
   /** True while a transition is running. */
   busy(): boolean;
+  /** Calls `listener(true)` when a transition starts and `listener(false)` when it ends; returns an unsubscribe. */
+  watch(listener: (running: boolean) => void): () => void;
 }
 
 /** The running interaction, as the lazy chunk returns it. */
