@@ -57,7 +57,7 @@ export function Hero(): ReactNode {
       </div>
       <div>
         <Readouts />
-        <p className="hero-meta">one draw call · 60 fps · 1.8 kB until first use</p>
+        <p className="hero-meta">one draw call · 60 fps · 2.4 kB until first use</p>
       </div>
     </section>
   );

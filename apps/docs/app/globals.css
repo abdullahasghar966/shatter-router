@@ -1711,3 +1711,60 @@ pre code {
     --crack: transparent;
   }
 }
+
+/* Benchmark (ADR-061) */
+.bench {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 52rem;
+  padding: 0 var(--gutter) 6rem;
+}
+
+.bench-controls {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.bench-reduced,
+.bench-device,
+.bench-status,
+.bench-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.925rem;
+}
+
+.bench-device,
+.bench-status {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.bench-table th,
+.bench-table td {
+  padding: 0.6rem 1rem 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.bench-table thead th {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bench-table td {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}

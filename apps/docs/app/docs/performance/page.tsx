@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { ShatterLink } from 'shatter-router/next';
 import { LANDING, LIGHTHOUSE } from '../../../lib/measurements';
 
 export const metadata: Metadata = { title: 'Performance' };
@@ -7,16 +8,28 @@ export const metadata: Metadata = { title: 'Performance' };
 const SIZES: readonly (readonly [string, string, string])[] = [
   [
     'shatter-router (core)',
-    '1.8 kB',
-    'Everything until the first transition: options, events, link rules.',
+    '2.35 kB',
+    'Everything until the first transition: options, events, link rules, intent listeners.',
   ],
-  ['shatter-router/react', '2.57 kB', 'Core included.'],
-  ['shatter-router/react-router', '4.14 kB', 'Core and React adapter included.'],
-  ['shatter-router/next', '4.28 kB', 'Core and React adapter included.'],
-  ['runtime (lazy)', '7.55 kB', 'State machine, fallbacks, focus and announcements.'],
-  ['engine (lazy)', '19.76 kB', 'WebGL2 renderer, fracture, all five effects. Budget 22 KB.'],
-  ['capture (lazy)', '12.53 kB', 'DOM capture, modern-screenshot included.'],
-  ['debug (lazy, debug mode only)', '3.44 kB', 'The debug panel and seam check.'],
+  ['shatter-router/react', '3.11 kB', 'Core included.'],
+  ['shatter-router/react-router', '4.65 kB', 'Core and React adapter included.'],
+  ['shatter-router/next', '4.79 kB', 'Core and React adapter included.'],
+  ['runtime (lazy)', '9.93 kB', 'State machine, fallbacks, focus, navigation memory.'],
+  [
+    'engine core (lazy)',
+    '13.95 kB',
+    'WebGL2 renderer, mesh, shading and materials, stagger, part loading.',
+  ],
+  ['each motion (lazy)', '0.54–1.74 kB', 'Loaded on first use; the default one on idle.'],
+  ['pattern impact (lazy)', '8.5 kB', 'Voronoi fracture, d3-delaunay included.'],
+  [
+    'other patterns (lazy)',
+    '1.15–1.58 kB',
+    'radial + rings, triangles, hex, tiles + bricks + strips.',
+  ],
+  ['capture (lazy)', '13.86 kB', 'DOM capture, modern-screenshot included.'],
+  ['interaction, sound (lazy, opt-in)', '2.35, 1.9 kB', 'Only with interaction or sound on.'],
+  ['debug (lazy, debug mode only)', '3.45 kB', 'The debug panel and seam check.'],
   [
     'rapier + backend (lazy, physics only)',
     '0.26 + 1.44 kB',
@@ -44,8 +57,8 @@ export default function Performance(): ReactNode {
 
       <h2>Bundle size (min + gzip)</h2>
       <p>
-        You pay 1.8 kB up front. The rest loads on idle after the page has loaded, in its own
-        chunks, and size-limit enforces every budget in CI.
+        You pay 2.35 kB up front. The rest loads on idle after the page has loaded, in its own
+        chunks, and size-limit enforces every budget in CI. Measured 2026-11-22.
       </p>
       <table>
         <thead>
@@ -72,7 +85,13 @@ export default function Performance(): ReactNode {
       <p>
         1440×900, 160 shards, measured by the e2e suite in headed Chrome on the GPU. One draw call
         per frame for every effect, and no long task (over 50 ms) between the glass appearing and
-        disappearing.
+        disappearing. The table is the 60 Hz run of the first five effects; on the same
+        laptop&apos;s 144 Hz display all sixteen built-in motions and all seven materials run at
+        129–144 fps.
+      </p>
+      <p>
+        Try your own device on the <ShatterLink href="/benchmark">benchmark page</ShatterLink>: it
+        breaks the page a few times and shows what it measured next to this laptop.
       </p>
       <table>
         <thead>
@@ -110,7 +129,9 @@ export default function Performance(): ReactNode {
         uses and leaves your CSS custom properties out of the copy. What is left is up to the page:
         each element and especially each pseudo-element (<code>::before</code>, <code>::after</code>
         ) adds a little to every navigation. Prefer backgrounds and borders for decoration, and
-        avoid splitting text into one element per letter.
+        avoid splitting text into one element per letter. Content below the fold and content hidden
+        with <code>display: none</code> (closed menus, inactive tabs) is left out of the copy, so it
+        costs nothing.
       </p>
 
       <h2>No garbage in the render loop</h2>

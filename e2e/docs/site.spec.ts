@@ -21,6 +21,7 @@ const PAGES = [
   ['/effects', 'Seventeen ways to break a page.'],
   ['/effects/ripple-out', 'Ripple out'],
   ['/playground', 'Tune the glass.'],
+  ['/benchmark', 'Measure it here.'],
   ['/docs', 'How a page breaks'],
   ['/docs/getting-started', 'Getting started'],
   ['/docs/api', 'API reference'],

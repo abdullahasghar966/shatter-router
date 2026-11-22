@@ -17,6 +17,17 @@
    ]
   },
   {
+   "href": "/benchmark",
+   "title": "Benchmark",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Break this page a few times on your own device and see what it costs: how long the capture takes, how long the glass takes to cut, and how smoothly it falls. The numbers come from the library's own events. How they are measured on the reference machine is in Performance."
+    }
+   ]
+  },
+  {
    "href": "/docs",
    "title": "Overview",
    "sections": [
@@ -95,7 +106,7 @@
     {
      "anchor": "create-shatter",
      "heading": "createShatter(options)",
-     "text": "import createShatter from shatter-router const shatter effect shards auto Creates one instance for the page. It costs 1.8 kB until first use; the renderer and the capture load on idle. The adapters create it for you."
+     "text": "import createShatter from shatter-router const shatter effect shards auto Creates one instance for the page. It costs 2.35 kB until first use; the renderer and the capture load on idle. The adapters create it for you."
     },
     {
      "anchor": "instance",
@@ -296,12 +307,12 @@
     {
      "anchor": "",
      "heading": "Bundle size (min + gzip)",
-     "text": "You pay 1.8 kB up front. The rest loads on idle after the page has loaded, in its own chunks, and size-limit enforces every budget in CI. Entry Size Contains"
+     "text": "You pay 2.35 kB up front. The rest loads on idle after the page has loaded, in its own chunks, and size-limit enforces every budget in CI. Measured 2026-11-22. Entry Size Contains"
     },
     {
      "anchor": "",
      "heading": "Frame rate",
-     "text": "1440×900, 160 shards, measured by the e2e suite in headed Chrome on the GPU. One draw call per frame for every effect, and no long task (over 50 ms) between the glass appearing and disappearing. Effect Frame rate Worst frame Capture"
+     "text": "1440×900, 160 shards, measured by the e2e suite in headed Chrome on the GPU. One draw call per frame for every effect, and no long task (over 50 ms) between the glass appearing and disappearing. The table is the 60 Hz run of the first five effects; on the same laptop's 144 Hz display all sixteen built-in motions and all seven materials run at 129–144 fps. Try your own device on the benchmark page: it breaks the page a few times and shows what it measured next to this laptop. Effect Frame rate Worst frame Capture"
     },
     {
      "anchor": "",
@@ -311,7 +322,7 @@
     {
      "anchor": "",
      "heading": "What makes a capture slower",
-     "text": "A capture copies every element of the page with its computed style, and inlines the web fonts it draws. Shatter Router already inlines only the font files whose characters the page uses and leaves your CSS custom properties out of the copy. What is left is up to the page: each element and especially each pseudo-element (::before, ::after ) adds a little to every navigation. Prefer backgrounds and borders for decoration, and avoid splitting text into one element per letter."
+     "text": "A capture copies every element of the page with its computed style, and inlines the web fonts it draws. Shatter Router already inlines only the font files whose characters the page uses and leaves your CSS custom properties out of the copy. What is left is up to the page: each element and especially each pseudo-element (::before, ::after ) adds a little to every navigation. Prefer backgrounds and borders for decoration, and avoid splitting text into one element per letter. Content below the fold and content hidden with display: none (closed menus, inactive tabs) is left out of the copy, so it costs nothing."
     },
     {
      "anchor": "",

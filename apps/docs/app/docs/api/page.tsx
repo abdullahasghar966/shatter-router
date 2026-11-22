@@ -207,7 +207,7 @@ import { createShatter } from 'shatter-router';
 const shatter = createShatter({ effect: 'shatter', shards: 'auto' });
 `}</Code>
       <p>
-        Creates one instance for the page. It costs 1.8 kB until first use; the renderer and the
+        Creates one instance for the page. It costs 2.35 kB until first use; the renderer and the
         capture load on idle. The adapters create it for you.
       </p>
       <Table head={['Option', 'Default', 'What it does']} rows={OPTIONS} />

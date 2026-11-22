@@ -394,6 +394,9 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Highlighted code and the capture** (`coverage/m20/code-capture-ab.mjs`, `/docs/getting-started` at 1440×900, headless Chromium, 6 interleaved rounds, median of 18 warm captures): first version (five token kinds, hidden tab panels copied) 228 ms against 108 ms plain; after ADR-062 hidden panels present 199 ms against removed 194 ms (plain 148 ms, the machine warmer); final (three token kinds, static sidebar) highlighted 88.8 ms, hidden panels removed 90.7 ms, plain 75.2 ms. `/docs/api` (code below the fold): 133.5 against 136.0 ms, no cost.
 - **First-frame seam, `/docs/getting-started` scrolled 560 px with the React Router tab:** sticky sidebar 0.5948 % (worst block 15.3 %, Chromium only: grayscale text in overlap layers, LEARNINGS); static sidebar Chromium 0.0495 %, WebKit 0.0337 % (raw 0.5785 %), worst block ≤ 0.3 %. Docs landing unchanged: 0.0066 / 0.0065 % Chromium, 0.0031 / 0.0030 % WebKit.
 - **Sizes:** capture chunk 13.86 of 16 kB (with ADR-062); no other library chunk changed.
+- **Benchmark page reference** (`coverage/m20/bench-gpu.mjs`: `/benchmark`, installed Chrome 157 headed, RTX 4050 forced, 1440×900, 144 Hz display, `shatter`, 160 pieces, seed 7; 3 sessions × 5 runs after a warm-up): capture 76–109 ms (session medians 98.9 / 99.5 / 102.0), fracture 1.5–7.8 ms (medians 2.5 / 2.9 / 2.8), 142.7–144.1 fps (medians 144.0), longest frame 7.4–20.7 ms (medians 7.8–8.1). Captures rose through each session (the warm-up drift in LEARNINGS).
+- **Search index:** 31 pages, 81 sections, 34.6 kB JSON, loaded only when the dialog first opens.
+- **Docs size claims corrected** to the current `pnpm size`: core 2.35 kB (was shown as 1.8), react 3.11, react-router 4.65, next 4.79, runtime 9.93, engine core 13.95, capture 13.86, interaction 2.35, sound 1.9 kB.
 
 ### Production after M16 (`3382b96`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
 
