@@ -1,4 +1,5 @@
 import type { EffectComposition, ShatterEffect } from './effect';
+import type { InteractionOptions } from './interaction';
 import type { MaterialSource } from './material';
 import type { PhysicsPlugin } from './physics';
 import type { PhaseTimings, TransitionState } from './machine';
@@ -29,6 +30,20 @@ export interface ShatterOptions {
    * `setMaterial()`.
    */
   material?: MaterialSource;
+  /**
+   * Interaction (ADR-060): a cursor kit that arms over links, press and hold
+   * to hit harder, drag across a link to tear the page along the drag, haptic
+   * ticks on touch. `true` for the defaults. Loaded lazily; off under reduced
+   * motion. Default off.
+   */
+  interaction?: boolean | InteractionOptions;
+  /**
+   * Procedural sound (ADR-060): crack ticks, the break and falling pieces,
+   * voiced per motion and material. Loaded lazily, silent until the visitor
+   * has interacted with the page and under reduced motion. Toggle later with
+   * `setSound()`. Default off.
+   */
+  sound?: boolean | { readonly volume?: number };
   /**
    * Colour of the cut edges (`#rgb` or `#rrggbb`), overriding the material's
    * own tint (glass: `'#cfe8ff'`, mixed in at 12 %). Default: the material's.
@@ -110,6 +125,13 @@ export interface TransitionRequest {
   effect?: string | ShatterEffect | EffectComposition;
   /** Per-call material (ADR-057), over the effect's own and the `material` option. */
   material?: MaterialSource;
+  /**
+   * How hard the page is hit, 0..1 (ADR-060): scales the impulse by
+   * `0.5 + intensity`. Default 0.5 (unchanged), or a hold's charge.
+   */
+  intensity?: number;
+  /** A tear (ADR-060): 2–8 viewport points the page breaks along. Default: a drag's path, if any. */
+  path?: readonly Point[];
   /** Replace the current history entry instead of adding one (navigation memory, ADR-047). */
   replace?: boolean;
   /** Navigation direction. Default `'forward'`. */
@@ -172,6 +194,8 @@ export interface Shatter {
    * and a transition's `material` still take precedence.
    */
   setMaterial(material: MaterialSource | undefined): void;
+  /** Turns sound on or off (ADR-060); it still waits for a user gesture and respects reduced motion. */
+  setSound(enabled: boolean): void;
   /** The current state of the transition state machine. */
   readonly state: TransitionState;
   /** Removes listeners, frees GL resources and loses the context. Idempotent. */
@@ -211,6 +235,11 @@ export interface ShatterTestHook {
   lastEffect: string | null;
   /** Material of the most recent transition (ADR-057), or null. */
   lastMaterial: string | null;
+  /** Intensity of the most recent transition and whether it was a tear (ADR-060). */
+  lastIntensity: number | null;
+  lastTear: boolean;
+  /** Motion name of the last sound cue played, or null (ADR-060). */
+  lastSound: string | null;
   /** Motion of the most recent transition: 'procedural' or the physics plugin's name. */
   lastPhysics: string | null;
   /** Duration of the most recent capture of the incoming page in ms, or null. */

@@ -25,8 +25,8 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 13  | Navigation memory             | ☑      | `milestone/13-navigation-memory` | [#15](https://github.com/abdullahasghar966/shatter-router/pull/15) | `6040c4d` | `m13-navigation-memory` |
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
-| 16  | Motions and materials         | ◐      | `milestone/16-motions` (part 1, [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), `91b83d4`), `milestone/16-motions-2` (part 2, [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), `44a7544`), `milestone/16-materials` (part 3) |     |           |             |
-| 17  | Interaction, cursor, sound    | ☐      | `milestone/17-interaction`     |     |           |             |
+| 16  | Motions and materials         | ☑      | `milestone/16-motions`, `milestone/16-motions-2`, `milestone/16-materials` | [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), [#21](https://github.com/abdullahasghar966/shatter-router/pull/21) | `91b83d4`, `44a7544`, `3382b96` | `m16-motions` |
+| 17  | Interaction, cursor, sound    | ◐      | `milestone/17-interaction`     |     |           |             |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
 | 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
@@ -375,6 +375,14 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
 
+### Interaction, cursor, sound (Milestone 17, 2026-11-22, ADR-060)
+
+- **Sizes (gzip):** `dist/interaction.js` 2.3 kB, `dist/sound.js` 1.83 kB (budgets 3 kB); core entry 2.32 kB (was 1.95; budget 6), runtime 9.82 of 10 kB, engine core 13.95 of 15 kB.
+- **Pre-capture with the cursor on** (vanilla, Chromium, `lastPrecaptured` after a click): `false` before the cursor became one of Shatter's own nodes, `true` after.
+- **Tear seed layout:** share of `impact` seeds within 60 px of a 3-point tear, 4 seeds: 0.39–0.52 with the path, 0.26–0.32 without.
+- **Seams:** first frame with the cursor kit on Chromium 0.0991 % / WebKit 0.0021 %; torn page at rest 0.1003 % (worst block 4.0 %, was 10.2 % while a tear reused its press-time pre-capture) / 0.0021 %; docs landing with the site's new cursor 0.0076 % light, 0.0063 % dark (Chromium), 0.0024 / 0.0023 % (WebKit).
+- **Performance with interaction and sound on** (RTX 4050, installed Chrome 157, 1440×900, 160 pieces): 143.4 fps, no long tasks outside capture; 0 B beyond boxed numbers in the frame loop (headless Chromium). Captures with and without them, interleaved: 69 / 112 / 59 ms against 47 / 93 / 97 ms (no measurable cost; the machine drifts).
+
 ### Production after M16 (`3382b96`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
 
 - **First pass:** `/` 97/100 (LCP 1.9 s, TBT 120 ms), `/effects` 96/100, `/effects/vortex` 96/100, `/playground` 90/100 (TBT 360 ms), `/docs/api` 93/100 (performance/accessibility; CLS ≤ 0.014). Repeats: `/docs/api` 99, 93, 93 (TBT 60–270 ms: noise); `/playground` 93, 95, 96, TBT 150–260 ms every time.
@@ -463,3 +471,4 @@ Nothing from sections 8 and 13 is left. Re-run Lighthouse and the landing captur
 | 15 | 454 tests in 32 files (+ `patterns.test.ts` 49: each pattern tiles exactly — convex cells, area, sample-point coverage over 400 seeded layouts — determinism, timing; clipper) | + `e2e/vanilla/patterns.spec.ts` (16 per engine: every pattern plays and lands, first-frame seam at rest); docs playground pattern test. Local Chromium + WebKit 320 passed, 15 skipped (1 load-sensitive Next timing test passed 5/5 alone). PR #18 CI: Chromium, Firefox and WebKit green |
 | 16 (part 2) | 537 tests in 33 files (+ `motions.test.ts` 63: interface, layout, delays from order, gone by the end, wind/slide exits, hinges, reverse wrapper keeps pattern/stagger and reverses fragment time) | + `e2e/vanilla/motions.spec.ts` (60 per engine pair: motion at t = 0 for 16 effects, play + Back reverse last frame for 14); performance suite covers all 16. Full local run (Chromium + WebKit, 2 workers): 413 passed, 26 skipped, 1 failed: the load-sensitive Next `waitFor 'commit'` test (LEARNINGS), 5/5 passed alone |
 | 16 (part 3) | 564 tests in 35 files (+ `materials.test.ts` 12, `easing.test.ts` 11, last-visible completion 4 in `motions.test.ts`) | + materials in `motions.spec.ts` (t = 0 and Back's last frame per material), docs: switcher sets the transition material, playground motion/easing/material. Full local run (Chromium + WebKit, 2 workers): 442 passed, 26 skipped, 0 failed |
+| 17 | 578 tests in 37 files (+ `interaction.test.ts` 14: path geometry, torn fracture, impulse scaling, sound gating and Web Audio detection, the kit's charge, tear, busy and cursor rules, pre-capture with the cursor) | + `e2e/vanilla/interaction.spec.ts` (cursor follows and steps aside, never in the glass, hold charges, drag tears and navigates, torn page at rest, keyboard, reduced motion, sound), docs: library cursor kit, sound toggle; performance with interaction and sound. Full local run (Chromium + WebKit, 2 workers): 464 passed, 28 skipped, 0 failed |

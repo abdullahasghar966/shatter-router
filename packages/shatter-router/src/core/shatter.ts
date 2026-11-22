@@ -1,6 +1,7 @@
 import type { EffectComposition, ShatterEffect } from './effect';
 import type { MaterialSource } from './material';
-import { isBrowser } from './env';
+import { GESTURE_TTL_MS, type Gesture, type Interaction } from './interaction';
+import { isBrowser, prefersReducedMotion } from './env';
 import { classifyLinkClick, findAnchor, getLinkEffect } from './links';
 import type { TransitionState } from './machine';
 import type {
@@ -20,6 +21,10 @@ export interface RuntimeHost {
   readonly startKey: string;
   /** The material set with `setMaterial()`, else the `material` option (ADR-057). */
   material(): MaterialSource | undefined;
+  /** The gesture of the click that started this navigation, if still fresh; consumed (ADR-060). */
+  takeGesture(): Gesture | null;
+  /** Whether sound is on, and its volume (ADR-060). */
+  sound(): { readonly enabled: boolean; readonly volume: number };
   emit<K extends ShatterEventName>(event: K, payload: ShatterEventMap[K]): void;
 }
 
@@ -32,6 +37,8 @@ export interface ShatterRuntime {
   /** The pointer is about to activate a link: start capturing now. */
   /** `effect`: the link's own effect, whose chunks can be fetched now (ADR-048). */
   precapture(effect?: string): void;
+  /** The visitor interacted (or sound was turned on after they had): sound may start (ADR-060). */
+  soundGesture(): void;
   destroy(): void;
 }
 
@@ -56,15 +63,23 @@ export class ShatterFacade implements Shatter {
   private destroyed = false;
   /** Set with `setMaterial()`; undefined: the `material` option (ADR-057). */
   private material: MaterialSource | undefined = undefined;
+  /** The latest pointer gesture on a link and when it ended (ADR-060). */
+  private pending: { gesture: Gesture; at: number } | null = null;
+  private soundOn: boolean;
+  /** True once the visitor pressed a pointer or a key on the page (audio may start). */
+  private activated = false;
+  private interaction: Interaction | null = null;
   private readonly startKey = isBrowser() ? location.pathname + location.search : '';
 
   constructor(
     private readonly options: ShatterOptions,
     private readonly loader: RuntimeLoader,
   ) {
+    this.soundOn = options.sound !== undefined && options.sound !== false;
     if (!isBrowser()) return;
     const warmUp = (): void => {
       void this.load().then((runtime) => runtime?.warmUp());
+      this.startInteraction();
     };
     if (typeof window.requestIdleCallback === 'function') {
       const handle = window.requestIdleCallback(warmUp, { timeout: 2000 });
@@ -78,6 +93,7 @@ export class ShatterFacade implements Shatter {
       });
     }
     this.listenForIntent();
+    this.listenForActivation();
   }
 
   get state(): TransitionState {
@@ -105,6 +121,12 @@ export class ShatterFacade implements Shatter {
     this.material = material;
   }
 
+  setSound(enabled: boolean): void {
+    this.soundOn = enabled;
+    // Turned on by a click after earlier activity: the page has user activation.
+    if (enabled && this.activated) void this.load().then((runtime) => runtime?.soundGesture());
+  }
+
   async transition(request: TransitionRequest): Promise<void> {
     if (this.destroyed || !isBrowser()) {
       await request.commit();
@@ -127,6 +149,8 @@ export class ShatterFacade implements Shatter {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.interaction?.destroy();
+    this.interaction = null;
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.runtime?.destroy();
     this.handlers.clear();
@@ -141,6 +165,12 @@ export class ShatterFacade implements Shatter {
           effects: this.effects,
           startKey: this.startKey,
           material: () => this.material ?? this.options.material,
+          takeGesture: () => this.takeGesture(),
+          sound: () => ({
+            enabled: this.soundOn,
+            volume:
+              typeof this.options.sound === 'object' ? (this.options.sound.volume ?? 0.6) : 0.6,
+          }),
           emit: (event, payload) => {
             this.emit(event, payload);
           },
@@ -163,6 +193,84 @@ export class ShatterFacade implements Shatter {
         console.error('[shatter-router] event handler threw', error);
       }
     }
+  }
+
+  /** The gesture remembered for the transition that follows, if fresh; consumed. */
+  private takeGesture(): Gesture | null {
+    const pending = this.pending;
+    this.pending = null;
+    if (!pending || performance.now() - pending.at > GESTURE_TTL_MS) return null;
+    return pending.gesture;
+  }
+
+  /** The link a pointer event is on, when Shatter would play an effect for a click on it. */
+  private shatterLink(event: PointerEvent): HTMLAnchorElement | null {
+    const anchor = findAnchor(event);
+    if (!anchor) return null;
+    const decision = classifyLinkClick(
+      {
+        button: event.button,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        defaultPrevented: false,
+      },
+      anchor,
+    );
+    return decision.intercept ? anchor : null;
+  }
+
+  /** Loads the interaction chunk when the option asks for it (ADR-060), never under reduced motion. */
+  private startInteraction(): void {
+    const option = this.options.interaction;
+    if (!option || this.interaction || prefersReducedMotion()) return;
+    const settings = option === true ? {} : option;
+    void import('../interaction/index').then(
+      ({ createInteraction }) => {
+        if (this.destroyed || this.interaction) return;
+        this.interaction = createInteraction(
+          {
+            window,
+            shatterLink: (event) => this.shatterLink(event),
+            gesture: (gesture) => {
+              this.pending = { gesture, at: performance.now() };
+            },
+            busy: () => this.state !== 'idle',
+            watch: (listener) => {
+              const offStart = this.on('start', () => {
+                listener(true);
+              });
+              const offEnd = this.on('end', () => {
+                listener(false);
+              });
+              return () => {
+                offStart();
+                offEnd();
+              };
+            },
+          },
+          settings,
+        );
+      },
+      () => undefined,
+    );
+  }
+
+  /** The first pointer press or key press: from then on the page may make sound. */
+  private listenForActivation(): void {
+    const activate = (): void => {
+      this.activated = true;
+      document.removeEventListener('pointerdown', activate, true);
+      document.removeEventListener('keydown', activate, true);
+      if (this.soundOn) void this.load().then((runtime) => runtime?.soundGesture());
+    };
+    document.addEventListener('pointerdown', activate, true);
+    document.addEventListener('keydown', activate, true);
+    this.cleanups.push(() => {
+      document.removeEventListener('pointerdown', activate, true);
+      document.removeEventListener('keydown', activate, true);
+    });
   }
 
   /** Pre-capture triggers: pointerdown (default) or a hover dwell on a link Shatter will handle. */

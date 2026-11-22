@@ -184,6 +184,12 @@ test.describe('vanilla example: performance (section 8)', () => {
       effect: 'explode',
       query: `${QUERY}&material=${material}`,
     })),
+    // Interaction and sound on (ADR-060): neither may cost frames or long tasks.
+    {
+      label: 'shatter with interaction and sound',
+      effect: 'shatter',
+      query: `${QUERY}&interaction&sound`,
+    },
   ];
   for (const { label, effect, query } of frameCases) {
     test(`${label}: one draw call per frame, frame rate and long tasks`, async ({
@@ -280,6 +286,11 @@ test.describe('vanilla example: performance (section 8)', () => {
 
   const allocationCases = [
     ...EFFECTS.map((effect) => ({ label: effect, effect, query: QUERY })),
+    {
+      label: 'shatter with interaction and sound',
+      effect: 'shatter',
+      query: `${QUERY}&interaction&sound`,
+    },
     {
       label: 'shatter with Rapier (report only)',
       effect: 'shatter',

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { ShatterEventName, ShatterOptions } from 'shatter-router';
 import { ShatterProvider, useShatter } from 'shatter-router/next';
 import { rippleOut } from '../effects/ripple-out';
+import { soundChosen } from './lab-theme';
 
 declare global {
   interface Window {
@@ -27,6 +28,10 @@ function readOptions(): ShatterOptions {
   const seed = number('seed');
   const budget = number('budget');
   return {
+    // The library's cursor kit, hold to charge and drag to tear (ADR-060).
+    interaction: { cursor: 'ring' },
+    // Sound only if the visitor turned it on (the header's toggle).
+    sound: soundChosen(),
     debug: params.has('debug') ? { panel: params.has('panel') } : false,
     ...(seed === undefined ? {} : { seed }),
     ...(budget === undefined ? {} : { captureBudget: budget }),

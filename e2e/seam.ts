@@ -359,3 +359,14 @@ export async function describeOverlay(page: Page): Promise<string> {
     });
   });
 }
+
+/**
+ * Hides the interaction cursor (ADR-060). The glass shows the page without
+ * the decorative cursor, so a seam reference is taken without it too.
+ */
+export async function hideCursor(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const cursor = document.querySelector<HTMLElement>('[data-shatter-cursor]');
+    if (cursor) cursor.style.visibility = 'hidden';
+  });
+}

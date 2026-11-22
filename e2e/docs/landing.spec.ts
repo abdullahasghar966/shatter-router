@@ -9,6 +9,7 @@ import {
 } from '../hook';
 import {
   compareScreenshots,
+  hideCursor,
   pauseAt,
   resumeAndFinish,
   SEAM_MAX_BLOCK_PERCENT,
@@ -62,6 +63,7 @@ test.describe('docs site: landing page at 1440x900', () => {
       await page.waitForFunction(() => document.documentElement.hasAttribute('data-entered'));
       const hero = page.locator('.hero');
       await hero.hover({ position: SPOT });
+      await hideCursor(page);
       const live = await page.screenshot();
       await pauseAt(page, 'fractured');
       await hero.click({ position: SPOT });

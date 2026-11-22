@@ -1,12 +1,10 @@
 'use client';
 
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useShatter } from 'shatter-router/next';
 
 /** The longest first-load entrance (Reveal: a few words, 55 ms apart, 720 ms each). */
 const ENTRANCE_MS = 1600;
-/** How far the cursor ring trails the pointer per frame (0..1). */
-const FOLLOW = 0.22;
 /** Card tilt at the edges, in degrees. */
 const TILT = 5;
 
@@ -20,13 +18,12 @@ function reducedMotion(): boolean {
  *
  * - marks `<html data-entered>` once the first-load entrance is over, or at
  *   the first transition, so entrances never run under the glass;
- * - a cursor ring that trails the pointer and grows over links and buttons
- *   (the native cursor stays; off for touch and reduced motion);
+ * - (the cursor is the library's interaction kit since M17, ADR-060: it is
+ *   never frozen into a capture and does not spoil the pre-capture);
  * - cards that tilt toward the pointer under a sheen that follows it.
  */
 export function Lab(): ReactNode {
   const shatter = useShatter();
-  const ring = useRef<HTMLDivElement>(null);
 
   // Entrances only on the first load. Any press ends the entrance at once:
   // it runs on window in the capture phase, before Shatter's own press-time
@@ -49,53 +46,6 @@ export function Lab(): ReactNode {
       window.removeEventListener('keydown', enter, true);
     };
   }, [shatter]);
-
-  // Cursor ring.
-  useEffect(() => {
-    const element = ring.current;
-    if (!element || reducedMotion()) return undefined;
-    let x = -100;
-    let y = -100;
-    let targetX = -100;
-    let targetY = -100;
-    let frame = 0;
-    const step = (): void => {
-      x += (targetX - x) * FOLLOW;
-      y += (targetY - y) * FOLLOW;
-      element.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-      frame =
-        Math.abs(targetX - x) + Math.abs(targetY - y) > 0.3
-          ? window.requestAnimationFrame(step)
-          : 0;
-    };
-    const onMove = (event: PointerEvent): void => {
-      if (event.pointerType !== 'mouse') {
-        element.dataset.visible = 'false';
-        return;
-      }
-      targetX = event.clientX;
-      targetY = event.clientY;
-      if (element.dataset.visible !== 'true') {
-        // Appear where the pointer is, without sweeping in from the corner.
-        x = targetX;
-        y = targetY;
-        element.dataset.visible = 'true';
-      }
-      const over = (event.target as Element | null)?.closest('a, button, [role="button"]');
-      element.dataset.over = over ? 'true' : 'false';
-      if (!frame) frame = window.requestAnimationFrame(step);
-    };
-    const onLeave = (): void => {
-      element.dataset.visible = 'false';
-    };
-    document.addEventListener('pointermove', onMove, { passive: true });
-    document.documentElement.addEventListener('pointerleave', onLeave);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      document.removeEventListener('pointermove', onMove);
-      document.documentElement.removeEventListener('pointerleave', onLeave);
-    };
-  }, []);
 
   // Card tilt and sheen.
   useEffect(() => {
@@ -125,5 +75,5 @@ export function Lab(): ReactNode {
     };
   }, []);
 
-  return <div ref={ring} className="cursor-ring" aria-hidden="true" data-visible="false" />;
+  return null;
 }

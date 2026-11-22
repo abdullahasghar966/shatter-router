@@ -29,6 +29,7 @@ export function fakeShatter(): FakeShatter {
     }),
     on: () => () => undefined,
     setMaterial: () => undefined,
+    setSound: () => undefined,
     registerEffect: () => undefined,
     destroy: () => {
       fake.destroyCount += 1;

@@ -1,3 +1,4 @@
+import { cleanPath, distanceToPath, farthestCornerFromPath } from './path';
 /** Smallest and largest shard counts the engine accepts. */
 export const MIN_SHARDS = 12;
 export const MAX_SHARDS = 400;
@@ -42,6 +43,12 @@ export interface SeedOptions {
   readonly seed?: number;
   /** Falloff exponent `k`; larger packs more shards near the impact. */
   readonly falloff?: number;
+  /**
+   * A tear (ADR-060): 2–8 points the page breaks along. Seeds cluster around
+   * the whole path; distances (stagger order, the crack front) are measured
+   * to it. Already cleaned (`cleanPath`).
+   */
+  readonly path?: readonly Point[];
 }
 
 export interface FractureOptions extends SeedOptions {
@@ -67,8 +74,10 @@ export interface FractureGeometry {
   readonly width: number;
   readonly height: number;
   readonly origin: Point;
-  /** Distance from the impact point to the farthest viewport corner. */
+  /** Distance from the impact point (or the tear path) to the farthest viewport corner. */
   readonly maxRadius: number;
+  /** The tear path, flattened `[x0, y0, …]`, or null (ADR-060). */
+  readonly path: Float32Array | null;
   readonly thickness: number;
   readonly shards: readonly Shard[];
   /** Interleaved vertex data, `FLOATS_PER_VERTEX` floats per vertex, triangles. */
@@ -327,17 +336,29 @@ export function fracture(pattern: FracturePattern, options: FractureOptions): Fr
     y: Math.min(height, Math.max(0, origin.y)),
   };
   const thickness = Math.max(0, options.thickness ?? DEFAULT_THICKNESS);
-  const shards = pattern.cells({
+  const path = cleanPath(options.path, width, height);
+  const cells = pattern.cells({
     ...options,
+    ...(path ? { path } : {}),
     origin: clampedOrigin,
     count: clampShardCount(options.count),
   });
+  // A tear: every distance is measured to the path (ADR-060).
+  const shards = path
+    ? cells.map((shard) => ({
+        ...shard,
+        distance: distanceToPath(path, shard.centroid.x, shard.centroid.y),
+      }))
+    : cells;
   const mesh = buildMesh(shards, width, height, thickness);
   return {
     width,
     height,
     origin: clampedOrigin,
-    maxRadius: farthestCorner(clampedOrigin, width, height),
+    maxRadius: path
+      ? farthestCornerFromPath(path, width, height)
+      : farthestCorner(clampedOrigin, width, height),
+    path: path ? Float32Array.from(path.flatMap((point) => [point.x, point.y])) : null,
     thickness,
     shards,
     ...mesh,

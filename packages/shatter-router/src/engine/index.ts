@@ -1,4 +1,5 @@
 import { easeTime } from '../core/easing';
+import { MAX_PATH_POINTS } from './path';
 import { type EffectSource, effectName, isComposition } from '../core/compose';
 import {
   type EffectComposition,
@@ -83,6 +84,8 @@ export interface FractureRequest {
   readonly count: number;
   readonly thickness: number;
   readonly seed?: number;
+  /** A tear (ADR-060): the page breaks along these viewport points. */
+  readonly path?: readonly { readonly x: number; readonly y: number }[];
 }
 
 export interface MotionRequest {
@@ -158,6 +161,9 @@ export class Engine {
   private crackRadius = 0;
   private flash = 0;
   private time = 0;
+  /** The tear path of this transition as shader uniforms (ADR-060), filled at fracture. */
+  private readonly pathData = new Float32Array(MAX_PATH_POINTS * 2);
+  private pathCount = 0;
   /** The crack's per-frame state, reused (ADR-040). */
   private readonly crackFrame = { radius: 0, flash: 0, done: false };
   private drawCalls = 0;
@@ -395,7 +401,7 @@ export class Engine {
   fracture(request: FractureRequest): FractureStats {
     const snapshot = this.snapshot;
     if (!snapshot) throw new GLError('fracture() needs a covered page');
-    const { effect, origin, thickness, seed } = request;
+    const { effect, origin, thickness, seed, path } = request;
     const count = clampShardCount(request.count);
     const started = performance.now();
     const options: FractureOptions = {
@@ -405,6 +411,7 @@ export class Engine {
       count,
       thickness,
       ...(seed === undefined ? {} : { seed }),
+      ...(path ? { path } : {}),
     };
     const seedPoints = effect.seedPoints?.({
       width: snapshot.width,
@@ -418,6 +425,9 @@ export class Engine {
     if (!pattern) throw new GLError(`Pattern "${patternName}" is not loaded`);
     const geometry = fracture(pattern, seedPoints ? { ...options, seedPoints } : options);
     const fractureMs = performance.now() - started;
+    this.pathData.fill(0);
+    if (geometry.path) this.pathData.set(geometry.path);
+    this.pathCount = geometry.path ? geometry.path.length / 2 : 0;
 
     const { gl } = this.device;
     const { shardBuffer } = this.ensurePageResources();
@@ -742,6 +752,9 @@ export class Engine {
       gl.uniform1f(program.uniform('uDirection'), state?.direction === 'back' ? -1 : 1);
       gl.uniform1f(program.uniform('uCrackRadius'), this.crackRadius);
       gl.uniform1f(program.uniform('uFlash'), this.flash);
+      // A tear (ADR-060): the crack grows out from the path.
+      gl.uniform1f(program.uniform('uPathCount'), this.pathCount);
+      gl.uniform2fv(program.uniform('uPath'), this.pathData);
       gl.uniform1f(program.uniform('uWireframe'), this.wireframe ? 1 : 0);
       gl.bindVertexArray(vao);
       // At rest only the front faces of the outgoing page can be seen; in

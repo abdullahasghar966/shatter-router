@@ -230,6 +230,8 @@ uniform sampler2D uPage;
 uniform sampler2D uIncoming;   // the incoming page (effects with needsIncomingSnapshot)
 uniform float uCrackRadius;    // CSS px the crack front has travelled
 uniform float uFlash;          // 0..1 impact flash strength
+uniform vec2 uPath[8];         // a tear (ADR-060): the path the page breaks along, CSS px
+uniform float uPathCount;      // points in uPath; under 2, the crack grows from uOrigin
 uniform float uWireframe;      // 1 = debug: show every cell edge and the impact point
 uniform float uLight;          // lighting fade-in: exactly 0 at t = 0, 1 after 60 ms of motion
 uniform float uChromatic;      // 1: colour fringing along fast shards' motion
@@ -280,6 +282,20 @@ vec4 glassSample(sampler2D tex, vec2 uv) {
 
 ${fragmentChunk ? `${fragmentChunk}\n#define SHATTER_FRAGMENT_HOOK 1` : ''}
 
+/** Distance the crack front measures: to the tear path, or to the impact point. */
+float crackDistance(vec2 p) {
+  if (uPathCount < 1.5) return distance(p, uOrigin);
+  float best = 1e9;
+  for (int i = 1; i < 8; i++) {
+    if (float(i) >= uPathCount) break;
+    vec2 a = uPath[i - 1];
+    vec2 ab = uPath[i] - a;
+    float t = clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-6), 0.0, 1.0);
+    best = min(best, distance(p, a + t * ab));
+  }
+  return best;
+}
+
 vec4 pageColor() {
   // Thickness faces: darker glass edge.
   if (abs(vFace) < 0.5) {
@@ -287,7 +303,7 @@ vec4 pageColor() {
     return vec4(mix(side.rgb * uMatC.y, uTint * side.a, uMatC.w), side.a);
   }
 
-  float d = distance(vPos, uOrigin);
+  float d = crackDistance(vPos);
   float reached = uCrackRadius > 0.0 ? 1.0 - step(uCrackRadius, d) : 0.0;
 
   // Light bends at the break: sample slightly toward the shard's own centre.
