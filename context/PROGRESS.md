@@ -375,6 +375,11 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
 
+### Production after M16 (`3382b96`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
+
+- **First pass:** `/` 97/100 (LCP 1.9 s, TBT 120 ms), `/effects` 96/100, `/effects/vortex` 96/100, `/playground` 90/100 (TBT 360 ms), `/docs/api` 93/100 (performance/accessibility; CLS ≤ 0.014). Repeats: `/docs/api` 99, 93, 93 (TBT 60–270 ms: noise); `/playground` 93, 95, 96, TBT 150–260 ms every time.
+- **Playground cause (Lighthouse long-task audit, 3 runs):** Tweakpane's chunk (148 kB) runs a 154–174 ms task (evaluating it and building the panel); the other heavy task is Next.js's own router runtime. Fix (`fix/playground-panel-tasks`): yield after the module evaluates and build the panel group by group. Local production build, 4× CPU, 412×823, long tasks in 6 s: before 100–120 ms of blocking time in 3 runs (tasks 121–135 and 77–87 ms); after 68–86 ms in 9 runs (one task, 118–136 ms, the app's boot). One run measured a single 1,469 ms task, not seen in 9 further runs including 2 right after a cold server start.
+
 ### Materials and easing (Milestone 16 part 3, 2026-11-22, ADR-057, ADR-059)
 
 - **Sizes:** engine core 13.36 kB (was 11.78; budget 15): material table, resolver, material shader, easing; core entry 1.95 kB (budget 6); motion chunks 0.54–1.74 kB.
