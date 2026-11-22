@@ -19,7 +19,8 @@
 
 ## In progress right now
 
-- Nothing half-done. The `flip`/`assemble` long-task question is settled (ADR-056: they lie inside the incoming capture; no regression, measured by an interleaved A/B against `m15-patterns`).
+- PR #20 open; the push run's Chromium allocation failure is fixed by ADR-058 (falling effects remember their last-visible time). Uncommitted in the working tree: M16 part 3 materials (ADR-057) in progress, to be committed on a new branch from `main` after PR #20 merges (engine `materials.ts`, `core/material.ts`, shader `materialLight`, runtime `setMaterial`, side faces at rest not drawn, docs switcher, `test/materials.test.ts`, materials e2e).
+- Nothing else half-done. The `flip`/`assemble` long-task question is settled (ADR-056: they lie inside the incoming capture; no regression, measured by an interleaved A/B against `m15-patterns`).
 
 ## Next steps
 

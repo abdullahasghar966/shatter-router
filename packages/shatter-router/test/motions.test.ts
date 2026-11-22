@@ -290,3 +290,28 @@ describe('reverse wrapper (ADR-047, ADR-055)', () => {
     expect(call).toBeGreaterThan(fragment.indexOf('uTime = max(0.0, uDuration - now);'));
   });
 });
+
+describe('completion from the remembered last-visible time (ADR-058)', () => {
+  it.each([shatterEffect, explodeEffect, crumbleEffect, rainEffect])(
+    '$name completes never earlier than the per-piece check, and at most one step later',
+    (effect) => {
+      const ctx = context({
+        duration: 5000,
+        pattern: effect === rainEffect ? tilesPattern : undefined,
+      });
+      const data = effect.shardAttributes(ctx).data;
+      const remembered = { ...ctx, attributes: data };
+      // A copy is not remembered: the effect checks every piece each time.
+      const checked = { ...ctx, attributes: data.slice() };
+      const firstDone = (state: EffectState): number => {
+        for (let t = 0; t <= ctx.duration; t++) if (effect.isComplete(t, state)) return t;
+        return Number.POSITIVE_INFINITY;
+      };
+      const fast = firstDone(remembered);
+      const slow = firstDone(checked);
+      expect(slow).toBeLessThan(ctx.duration);
+      expect(fast).toBeGreaterThanOrEqual(slow);
+      expect(fast - slow).toBeLessThanOrEqual(1000 / 120 + 1);
+    },
+  );
+});

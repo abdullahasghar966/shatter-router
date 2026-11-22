@@ -5,6 +5,7 @@ import {
   type ShardAttributes,
   type ShatterEffect,
 } from '../../core/effect';
+import { finished, rememberLastVisible, type Visible } from './common';
 
 /** Seconds over which the drops start (each at its stagger order). */
 const SPREAD_S = 0.45;
@@ -24,6 +25,14 @@ function dropAt(speed: number, delay: number, gravity: number, t: number): numbe
   const local = Math.max(0, t - delay);
   return speed * local + 0.5 * gravity * WEIGHT * local * local;
 }
+
+/** Still on screen at `seconds`: the top of its streak above the bottom edge (ADR-058). */
+const visible: Visible = (data, shard, seconds, ctx) => {
+  const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
+  const y = shard.centroid.y + dropAt(data[o + 1] ?? 0, data[o + 3] ?? 0, ctx.gravity, seconds);
+  // The streak reaches up to (1 + MAX_STREAK) times the piece's half height.
+  return y - Math.sqrt(shard.area) * (1 + MAX_STREAK) < ctx.height;
+};
 
 /**
  * `rain` (gravity family, ADR-055): the page runs off like rain on a window.
@@ -55,6 +64,7 @@ export const rainEffect: ShatterEffect = {
       data[o + 4] = (random() - 0.5) * 14;
       data[o + 5] = 4 + 5 * random();
     });
+    rememberLastVisible(data, ctx, visible);
     return { data };
   },
 
@@ -77,20 +87,8 @@ void shardMotion(Shard shard, inout Pose pose) {
 }
 `,
 
+  // Done at the end of the phase, or early once every drop is below the viewport (ADR-058).
   isComplete(t: number, ctx: EffectState): boolean {
-    if (t >= ctx.duration) return true;
-    const seconds = t / 1000;
-    const data = ctx.attributes;
-    const { shards } = ctx;
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this runs every frame (ADR-040)
-    for (let i = 0; i < shards.length; i++) {
-      const shard = shards[i];
-      if (!shard) continue;
-      const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
-      const y = shard.centroid.y + dropAt(data[o + 1] ?? 0, data[o + 3] ?? 0, ctx.gravity, seconds);
-      // The streak reaches up to (1 + MAX_STREAK) times the piece's half height.
-      if (y - Math.sqrt(shard.area) * (1 + MAX_STREAK) < ctx.height) return false;
-    }
-    return true;
+    return finished(t, ctx, visible);
   },
 };

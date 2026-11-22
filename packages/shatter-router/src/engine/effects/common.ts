@@ -1,4 +1,4 @@
-import type { EffectContext, Random, ShardInfo } from '../../core/effect';
+import type { EffectContext, EffectState, Random, ShardInfo } from '../../core/effect';
 
 /** Unit direction from the impact point to the shard, random when they coincide. */
 export function radialDirection(
@@ -42,4 +42,61 @@ export function reach(shard: ShardInfo, dx: number, dy: number): number {
 export function sizeFactor(shard: ShardInfo, ctx: EffectContext): number {
   const meanArea = (ctx.width * ctx.height) / Math.max(1, ctx.shards.length);
   return Math.min(1.8, Math.max(0.6, Math.sqrt(meanArea / Math.max(1, shard.area))));
+}
+
+/** Is a piece still on screen `seconds` into the motion? (The effect's own closed form.) */
+export type Visible = (
+  data: Float32Array,
+  shard: ShardInfo,
+  seconds: number,
+  ctx: EffectContext,
+) => boolean;
+
+/** Per transition (by its attribute data): the time after which no piece is on screen, s. */
+const LAST_VISIBLE = new WeakMap<Float32Array, number>();
+
+/** Scan step, s: completion is decided at most one step late, never early. */
+export const VISIBLE_STEP = 1 / 120;
+
+/**
+ * Finds, while the per-shard data is built (outside the frame loop), the last
+ * moment any piece is still on screen, scanning each piece back from the end
+ * of the phase, and remembers it for `finished` (ADR-058). The frame loop then
+ * compares one number instead of re-running every piece's motion each frame.
+ */
+export function rememberLastVisible(
+  data: Float32Array,
+  ctx: EffectContext,
+  visible: Visible,
+): void {
+  const end = ctx.duration / 1000;
+  let last = 0;
+  for (const shard of ctx.shards) {
+    for (let t = end; t > last; t -= VISIBLE_STEP) {
+      if (visible(data, shard, t, ctx)) {
+        last = t;
+        break;
+      }
+    }
+  }
+  LAST_VISIBLE.set(data, Math.min(end, last + VISIBLE_STEP));
+}
+
+/**
+ * `isComplete` for effects whose pieces leave the screen: true at the end of
+ * the phase, or once the remembered last-visible time has passed. Data that
+ * this effect's `shardAttributes` did not build is checked piece by piece.
+ */
+export function finished(t: number, state: EffectState, visible: Visible): boolean {
+  if (t >= state.duration) return true;
+  const seconds = t / 1000;
+  const last = LAST_VISIBLE.get(state.attributes);
+  if (last !== undefined) return seconds >= last;
+  const { shards } = state;
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this may run every frame (ADR-040)
+  for (let i = 0; i < shards.length; i++) {
+    const shard = shards[i];
+    if (shard && visible(state.attributes, shard, seconds, state)) return false;
+  }
+  return true;
 }

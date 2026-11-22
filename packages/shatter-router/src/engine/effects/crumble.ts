@@ -5,12 +5,23 @@ import {
   type ShardAttributes,
   type ShatterEffect,
 } from '../../core/effect';
-import { sizeFactor, tumbleAxis } from './common';
+import { sizeFactor, tumbleAxis, finished, rememberLastVisible, type Visible } from './common';
 
 /** Seconds between the first piece (bottom) and the last (top) giving way. */
 const STAGGER_S = 0.5;
 /** Fraction of the motion phase after which pieces fade out. */
 const FADE_START = 0.72;
+
+/** Still on screen at `seconds`: above the bottom edge, after perspective (ADR-058). */
+const visible: Visible = (data, shard, seconds, ctx) => {
+  const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
+  const local = Math.max(0, seconds - (data[o + 3] ?? 0));
+  const y = shard.centroid.y + (data[o + 1] ?? 0) * local + 0.5 * ctx.gravity * local * local;
+  const z = Math.min((data[o + 2] ?? 0) * local, ctx.cameraZ * 0.9);
+  const scale = ctx.cameraZ / (ctx.cameraZ - z);
+  const extent = Math.sqrt(shard.area) * 1.5 * scale;
+  return ctx.height / 2 + (y - ctx.height / 2) * scale - extent < ctx.height;
+};
 
 /**
  * `crumble` (gravity family, ADR-055): the pane gives way from the bottom up,
@@ -49,6 +60,7 @@ export const crumbleEffect: ShatterEffect = {
       data[o + 6] = axis.z;
       data[o + 7] = (0.8 + 1.6 * random()) * sizeFactor(shard, ctx) * (random() < 0.5 ? -1 : 1);
     });
+    rememberLastVisible(data, ctx, visible);
     return { data };
   },
 
@@ -63,24 +75,8 @@ void shardMotion(Shard shard, inout Pose pose) {
 }
 `,
 
+  // Done at the end of the phase, or early once every piece is below the viewport (ADR-058).
   isComplete(t: number, ctx: EffectState): boolean {
-    if (t >= ctx.duration) return true;
-    // Done early once every piece is below the viewport.
-    const seconds = t / 1000;
-    const data = ctx.attributes;
-    const { shards } = ctx;
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of -- `for...of` allocates an iterator per call in unoptimised code; this runs every frame (ADR-040)
-    for (let i = 0; i < shards.length; i++) {
-      const shard = shards[i];
-      if (!shard) continue;
-      const o = shard.id * SHARD_ATTRIBUTE_FLOATS;
-      const local = Math.max(0, seconds - (data[o + 3] ?? 0));
-      const y = shard.centroid.y + (data[o + 1] ?? 0) * local + 0.5 * ctx.gravity * local * local;
-      const z = Math.min((data[o + 2] ?? 0) * local, ctx.cameraZ * 0.9);
-      const scale = ctx.cameraZ / (ctx.cameraZ - z);
-      const extent = Math.sqrt(shard.area) * 1.5 * scale;
-      if (ctx.height / 2 + (y - ctx.height / 2) * scale - extent < ctx.height) return false;
-    }
-    return true;
+    return finished(t, ctx, visible);
   },
 };
