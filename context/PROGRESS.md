@@ -27,9 +27,9 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
 | 16  | Motions and materials         | ☑      | `milestone/16-motions`, `milestone/16-motions-2`, `milestone/16-materials` | [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), [#21](https://github.com/abdullahasghar966/shatter-router/pull/21) | `91b83d4`, `44a7544`, `3382b96` | `m16-motions` |
 | 17  | Interaction, cursor, sound    | ☑      | `milestone/17-interaction`     | [#23](https://github.com/abdullahasghar966/shatter-router/pull/23) | `1e7c826` | `m17-interaction` |
-| 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
+| 18  | Region transitions            | ◐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
-| 20  | Site features                 | ◐      | `milestone/20-site-features`   |     |           |             |
+| 20  | Site features                 | ☑      | `milestone/20-site-features`   | [#24](https://github.com/abdullahasghar966/shatter-router/pull/24) | `08c8254` | `m20-site-features` |
 | 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
 ## Installed dependency versions
@@ -389,7 +389,9 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Seams:** first frame with the cursor kit on Chromium 0.0991 % / WebKit 0.0021 %; torn page at rest 0.1003 % (worst block 4.0 %, was 10.2 % while a tear reused its press-time pre-capture) / 0.0021 %; docs landing with the site's new cursor 0.0076 % light, 0.0063 % dark (Chromium), 0.0024 / 0.0023 % (WebKit).
 - **Performance with interaction and sound on** (RTX 4050, installed Chrome 157, 1440×900, 160 pieces): 143.4 fps, no long tasks outside capture; 0 B beyond boxed numbers in the frame loop (headless Chromium). Captures with and without them, interleaved: 69 / 112 / 59 ms against 47 / 93 / 97 ms (no measurable cost; the machine drifts).
 
-### Site features (Milestone 20, in progress, 2026-11-22, ADR-061, ADR-062)
+### Site features (Milestone 20, merged 2026-11-28 as PR #24, merge `08c8254`, tag `m20-site-features`, ADR-061, ADR-062)
+
+Known at merge: Lighthouse performance is 91–96 on four pages and 78–90 on `/playground` across two Chrome-closed runs (accessibility 100, CLS 0–0.005). The 95 target is not met on every page; the merge was the user's decision, since the gap is within run-to-run variance. Re-measure in M21's Lighthouse CI.
 
 - **Highlighted code and the capture** (`coverage/m20/code-capture-ab.mjs`, `/docs/getting-started` at 1440×900, headless Chromium, 6 interleaved rounds, median of 18 warm captures): first version (five token kinds, hidden tab panels copied) 228 ms against 108 ms plain; after ADR-062 hidden panels present 199 ms against removed 194 ms (plain 148 ms, the machine warmer); final (three token kinds, static sidebar) highlighted 88.8 ms, hidden panels removed 90.7 ms, plain 75.2 ms. `/docs/api` (code below the fold): 133.5 against 136.0 ms, no cost.
 - **First-frame seam, `/docs/getting-started` scrolled 560 px with the React Router tab:** sticky sidebar 0.5948 % (worst block 15.3 %, Chromium only: grayscale text in overlap layers, LEARNINGS); static sidebar Chromium 0.0495 %, WebKit 0.0337 % (raw 0.5785 %), worst block ≤ 0.3 %. Docs landing unchanged: 0.0066 / 0.0065 % Chromium, 0.0031 / 0.0030 % WebKit.
