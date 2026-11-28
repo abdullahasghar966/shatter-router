@@ -3,6 +3,8 @@ import type { DebugPanel } from '../debug/index';
 import type { SoundCue } from '../sound/index';
 import { DEFAULT_INTENSITY } from '../core/interaction';
 import type { Engine } from '../engine/index';
+import type { ScrollBreaks } from './scroll';
+import type { PageFrame } from '../engine/crop';
 import { announceTitle, focusNewPage } from '../core/a11y';
 import { crossfade } from '../core/crossfade';
 import { type EffectSource, effectName, isComposition } from '../core/compose';
@@ -16,12 +18,11 @@ import { type ScrollTarget, waitUntilReady } from '../core/ready';
 import { createScrollLock, type ScrollLock } from '../core/scroll-lock';
 import { ShatterFacade, type RuntimeHost, type ShatterRuntime } from '../core/shatter';
 import type { Snapshot } from '../core/snapshot';
-import { type Box, clipBox, type Region, snapRegion } from '../core/region';
-import type { PageFrame } from '../engine/crop';
 import type {
   FallbackReason,
   PausePoint,
   Point,
+  ScrollBreakOptions,
   Shatter,
   ShatterEventMap,
   ShatterEventName,
@@ -56,6 +57,9 @@ export type EngineLike = Pick<
   | 'animate'
   | 'setCrack'
   | 'setMotionTime'
+  | 'scrub'
+  | 'scrubLength'
+  | 'setOverlayShown'
   | 'draw'
   | 'release'
   | 'destroy'
@@ -153,7 +157,7 @@ interface Plan {
   readonly target?: Element;
 }
 
-interface Settings {
+export interface Settings {
   readonly effect: EffectSource;
   readonly duration: number | undefined;
   readonly shards: 'auto' | number;
@@ -259,6 +263,8 @@ class Runtime implements ShatterRuntime {
   private pending: Precapture | null = null;
   private precaptureExpiry = 0;
   private resumePaused: (() => void) | null = null;
+  /** Scroll-driven breaks (ADR-064), loaded on first use. */
+  private scroll: ScrollBreaks | null = null;
   private wireframe = false;
   private destroyed = false;
   private panel: DebugPanel | null = null;
@@ -422,6 +428,8 @@ class Runtime implements ShatterRuntime {
       await request.commit();
       return;
     }
+    // A navigation ends every scrub first: the page is whole again before it is captured.
+    this.scroll?.interrupt();
     if (this.busy) await this.busy;
     const ticket = ++this.ticket;
     const previous = this.current;
@@ -470,6 +478,8 @@ class Runtime implements ShatterRuntime {
       run.cancel.abort();
       run.skip.abort();
     }
+    this.scroll?.destroy();
+    this.scroll = null;
     this.dropPrecapture();
     this.disarmPrime();
     this.resumePaused?.();
@@ -534,20 +544,11 @@ class Runtime implements ShatterRuntime {
       const target = run.plan.target;
       let frame: PageFrame | undefined;
       if (target) {
-        const region = regionOf(target, snapshot);
-        if (!region) {
+        frame = (await import('./geometry')).frameOf(target, snapshot) ?? undefined;
+        if (!frame) {
           snapshot.dispose();
           throw new Fallback('region-empty');
         }
-        frame = {
-          viewport: {
-            width: snapshot.width,
-            height: snapshot.height,
-            deviceWidth: snapshot.deviceWidth,
-            deviceHeight: snapshot.deviceHeight,
-          },
-          region,
-        };
       }
       await engine.cover(snapshot, frame);
       this.throwIfCancelled(run);
@@ -556,7 +557,14 @@ class Runtime implements ShatterRuntime {
 
       // Fracture before the router runs so the geometry work overlaps the
       // time the new route needs to render.
-      const origin = run.plan.origin ?? defaultOrigin(frame, viewport);
+      const origin =
+        run.plan.origin ??
+        (frame
+          ? {
+              x: frame.region.x + frame.region.width / 2,
+              y: frame.region.y + frame.region.height / 2,
+            }
+          : { x: viewport.width / 2, y: viewport.height / 2 });
       const { count, tier } = engine.resolveShardCount(settings.shards, snapshot.duration);
       const seed = settings.seed;
       const stats = engine.fracture({
@@ -1076,7 +1084,34 @@ class Runtime implements ShatterRuntime {
   }
 
   /** Debug pause point; a cancel or skip also releases it. */
-  private pause(point: PausePoint, run: Run): Promise<void> {
+  /**
+   * A scroll-driven break (ADR-064): the element breaks as its sticky section
+   * scrolls. Resolves with a function that stops it. The scroll code loads on
+   * first use; under reduced motion nothing is set up.
+   */
+  async scrollBreak(target: Element, options: ScrollBreakOptions): Promise<() => void> {
+    if (this.destroyed) return () => undefined;
+    if (this.settings.reducedMotion !== 'ignore' && prefersReducedMotion()) return () => undefined;
+    const { createScrollBreaks } = await import('./scroll');
+    if (this.isDestroyed()) return () => undefined;
+    this.scroll ??= createScrollBreaks({
+      load: () => this.load(),
+      idle: () => this.idle(),
+      settings: this.settings,
+      registry: () => this.registry(),
+      material: () => this.host.material(),
+      pause: (point) =>
+        this.pause(point, { cancel: new AbortController(), skip: new AbortController() }),
+    });
+    return this.scroll.add(target, options);
+  }
+
+  /** No timed transition is running or about to take the engine. */
+  private idle(): boolean {
+    return !this.current && !this.busy && this.machine.state === 'idle';
+  }
+
+  private pause(point: PausePoint, run: Pick<Run, 'cancel' | 'skip'>): Promise<void> {
     const hook = this.hook;
     if (hook?.pauseAt !== point) return Promise.resolve();
     hook.pauseAt = null;
@@ -1205,40 +1240,4 @@ export function createShatterWith(options: ShatterOptions, deps: ShatterDeps): S
   return new ShatterFacade(options, () =>
     Promise.resolve({ createRuntime: (host: RuntimeHost) => createRuntime(host, deps) }),
   );
-}
-
-/**
- * The region an element covers in the capture (ADR-063): its box, cut down by
- * every ancestor that clips (`overflow` other than `visible`), snapped to the
- * capture's device pixels. Null when nothing of it is visible.
- */
-function regionOf(target: Element, snapshot: Snapshot): Region | null {
-  let box: Box | null = boxOf(target.getBoundingClientRect());
-  for (let el = target.parentElement; el && box; el = el.parentElement) {
-    if (el === document.documentElement) break;
-    const style = window.getComputedStyle(el);
-    if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
-      box = clipBox(box, boxOf(el.getBoundingClientRect()));
-    }
-  }
-  if (!box || snapshot.width <= 0) return null;
-  // The capture's own scale, so the crop lands on its pixels.
-  const scale = snapshot.deviceWidth / snapshot.width;
-  return snapRegion(box, { width: snapshot.width, height: snapshot.height }, scale);
-}
-
-function boxOf(rect: DOMRect): Box {
-  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-}
-
-/** A region's centre, or the viewport's (ADR-063: a region breaks from its middle). */
-function defaultOrigin(
-  frame: PageFrame | undefined,
-  viewport: { readonly width: number; readonly height: number },
-): Point {
-  if (!frame) return { x: viewport.width / 2, y: viewport.height / 2 };
-  return {
-    x: frame.region.x + frame.region.width / 2,
-    y: frame.region.y + frame.region.height / 2,
-  };
 }

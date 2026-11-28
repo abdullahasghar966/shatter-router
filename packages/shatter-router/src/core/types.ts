@@ -192,6 +192,13 @@ export interface Shatter {
    * before it committed. Errors thrown by `commit` are passed on.
    */
   transition(request: TransitionRequest): Promise<void>;
+  /**
+   * Breaks an element as its sticky section scrolls (ADR-064). The element
+   * must sit in a sticky box (`position: sticky`) inside a section taller than
+   * it. Resolves with a function that stops the break; rejects with a
+   * RangeError when the markup cannot scrub. Under reduced motion, nothing happens.
+   */
+  scrollBreak(target: Element, options?: ScrollBreakOptions): Promise<() => void>;
   /** Subscribes to a lifecycle event. Returns a function that unsubscribes. */
   on<K extends ShatterEventName>(event: K, handler: ShatterEventHandler<K>): () => void;
   /** Makes a custom effect, or a named composition of parts (ADR-048), available by name. */
@@ -215,7 +222,20 @@ export interface Shatter {
  * motion has ended and the overlay still shows its last frame (for effects that
  * end on the incoming page, that frame must equal the live page underneath).
  */
-export type PausePoint = 'covered' | 'fractured' | 'cracked' | 'animating' | 'settled';
+export type PausePoint = 'covered' | 'fractured' | 'cracked' | 'animating' | 'settled' | 'scrubbed';
+
+/** A scroll-driven break (ADR-064): the element breaks as its sticky section scrolls. */
+export interface ScrollBreakOptions {
+  /**
+   * The section that scrolls past the sticky box. Default: the sticky box's parent.
+   * The break runs while the section's sticky range is in view.
+   */
+  section?: Element;
+  /** The effect. Default: the `effect` option. */
+  effect?: string | ShatterEffect | EffectComposition;
+  /** The motion's length in ms. Default: the effect's. */
+  duration?: number;
+}
 
 /** Shape of `window.__SHATTER_TEST__`, available only when `debug` is on. */
 export interface ShatterTestHook {

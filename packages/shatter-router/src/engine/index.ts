@@ -709,6 +709,48 @@ export class Engine {
     this.draw();
   }
 
+  /**
+   * The whole break as one timeline in ms: the crack (when the effect has one),
+   * then the motion. A scroll-driven break (ADR-064) scrubs along it.
+   */
+  get scrubLength(): number {
+    const crack = this.effect?.crack
+      ? (this.effect.crackDuration ?? CRACK_DURATION_MS) + CRACK_HOLD_MS
+      : 0;
+    return crack + (this.state?.duration ?? 0);
+  }
+
+  /**
+   * Draws the prepared break at `ms` into its timeline (ADR-064): the crack
+   * while `ms` is inside it, then the motion. No animation frame: the caller
+   * (scroll position) drives it, one draw per call.
+   */
+  scrub(ms: number): void {
+    const geometry = this.geometry;
+    const state = this.state;
+    if (!geometry || !state) return;
+    const crackDuration = this.effect?.crackDuration ?? CRACK_DURATION_MS;
+    const crack = this.effect?.crack ? crackDuration + CRACK_HOLD_MS : 0;
+    const t = Math.min(Math.max(0, ms), crack + state.duration);
+    if (t < crack) {
+      const frame = crackAt(t, geometry.maxRadius, crackDuration, CRACK_HOLD_MS, this.crackFrame);
+      this.moving = false;
+      this.crackRadius = frame.radius;
+      this.flash = frame.flash;
+      this.draw();
+      return;
+    }
+    this.crackRadius = geometry.maxRadius + 2;
+    this.flash = 0;
+    this.setMotionTime(t - crack);
+  }
+
+  /** Shows or hides the overlay without releasing the break (ADR-064). */
+  setOverlayShown(shown: boolean): void {
+    if (shown) this.overlay.show();
+    else this.overlay.hide();
+  }
+
   /** Sets the crack state and redraws (also used by tests to freeze a moment). */
   setCrack(radius: number, flash: number): void {
     this.crackRadius = radius;
