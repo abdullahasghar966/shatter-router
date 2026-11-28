@@ -369,6 +369,8 @@ export class Engine {
 
     this.device.resize(viewport.deviceWidth, viewport.deviceHeight);
     this.overlay.setSize(viewport.width, viewport.height);
+    // Blocking again unless the caller lets input through (ADR-068).
+    this.overlayElement.style.pointerEvents = '';
     this.camera = createPixelCamera(
       viewport.width,
       viewport.height,

@@ -141,6 +141,12 @@ export interface TransitionRequest {
    * An element with no visible box falls back to a plain commit (`region-empty`).
    */
   target?: Element;
+  /**
+   * With `target`: the overlay lets pointer input through (ADR-068), so the page
+   * under a preview stays clickable. A click then reaches the page and ends the
+   * preview like any other navigation. Default `false`: the overlay blocks input.
+   */
+  passthrough?: boolean;
   /** Navigation direction. Default `'forward'`. */
   direction?: 'forward' | 'back';
   /**

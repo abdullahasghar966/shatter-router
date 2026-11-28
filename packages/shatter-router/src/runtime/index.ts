@@ -551,6 +551,8 @@ class Runtime implements ShatterRuntime {
         }
       }
       await engine.cover(snapshot, frame);
+      // A preview that lets input through (ADR-068): clicks reach the page.
+      if (request.passthrough && frame) engine.overlayElement.style.pointerEvents = 'none';
       this.throwIfCancelled(run);
       this.emit('covered', { captureMs: snapshot.duration, precaptured });
       await this.pause('covered', run);
