@@ -133,8 +133,12 @@ test.describe('Library: clicks during a preview (ADR-068)', () => {
     await waitForShatterReady(page);
     const { x, y } = await centreOf(page, '.card-art');
     await page.mouse.move(x, y);
-    // The hold is 600 ms: the preview is running now.
-    await page.waitForTimeout(900);
+    // The hold is 600 ms and the capture follows: wait until the preview's overlay
+    // is on screen, so the click lands on a running preview (on Firefox the capture
+    // can start between a click's press and release).
+    await expect
+      .poll(() => page.evaluate(() => document.querySelector(':popover-open') !== null))
+      .toBe(true);
     await page.mouse.click(x, y);
     await expect.poll(() => new URL(page.url()).pathname).toMatch(/^\/effects\/[a-z-]+$/);
   });
