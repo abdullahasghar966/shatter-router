@@ -7,7 +7,7 @@
 
 ## Where we are
 
-- **Current milestone:** 20 — Site features (`context/PLAN-PRODUCTION.md` section 5, scope in ADR-061).
+- **Current milestone:** 18 (planning, ADR-063) — Site features (`context/PLAN-PRODUCTION.md` section 5, scope in ADR-061).
 - **Current branch:** `milestone/20-site-features` (from `main` at `1e7c826`). Latest tag `m17-interaction`. Order after this: M18 (regions), then M21 (production, 1.0).
 
 ## Done in M20 (all on the branch, pushed)
