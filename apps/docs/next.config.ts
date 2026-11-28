@@ -37,9 +37,7 @@ const SECURITY_HEADERS = [
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  async headers() {
-    return [{ source: '/:path*', headers: SECURITY_HEADERS }];
-  },
+  headers: () => Promise.resolve([{ source: '/:path*', headers: SECURITY_HEADERS }]),
   experimental: {
     // The stylesheet is small: inline it so the first paint (and the
     // headline, the largest one) does not wait for a CSS request (Lighthouse:
