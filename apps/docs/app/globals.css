@@ -1786,3 +1786,74 @@ pre code {
   font-family: var(--mono);
   font-size: 0.8125rem;
 }
+
+/* The specimen strip (ADR-067): a pinned section, the featured specimen scroll-broken. */
+.specimen-section {
+  position: relative;
+  height: 200svh;
+}
+
+.specimen-pin {
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+  height: 100svh;
+  padding: 2rem var(--gutter);
+}
+
+.specimen-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.specimen {
+  min-width: 0;
+  min-height: 12rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+.specimen:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+}
+
+.specimen h3 {
+  margin: 0.5rem 0 0.35rem;
+  font-family: var(--display);
+  font-size: 1.4rem;
+}
+
+.specimen p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.specimen.featured {
+  cursor: default;
+  background: linear-gradient(135deg, var(--mat), var(--mat-edge));
+  color: var(--mat-ink);
+}
+
+.specimen.featured p {
+  color: var(--mat-ink);
+}
+
+@media (max-width: 760px) {
+  .specimen-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .specimen {
+    min-height: 0;
+  }
+}
