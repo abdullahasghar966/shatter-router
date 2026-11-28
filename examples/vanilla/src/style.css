@@ -268,3 +268,28 @@ h1 {
   min-height: 60vh;
   color: var(--muted, #5a554b);
 }
+
+/* Scroll-driven breaking (ADR-064): a tall section with a sticky box inside. */
+.scroll-break-section {
+  position: relative;
+  height: 200vh;
+}
+.scroll-break-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scroll-break-target {
+  width: min(30rem, 90%);
+  padding: 2rem;
+  border: 1px solid var(--line, #d6cfbf);
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ffb199, #ff5a36);
+}
+.scroll-break-target h2 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+}

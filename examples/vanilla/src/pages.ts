@@ -159,3 +159,24 @@ export const regionsPage: Page = {
     </section>
   `,
 };
+
+/** Scroll-driven breaking (ADR-064): the card breaks while its section scrolls past. */
+export const scrollPage: Page = {
+  title: 'Scroll',
+  render: () => `
+    <section class="hero compact">
+      <p class="eyebrow">Scroll</p>
+      <h1>Break as you scroll.</h1>
+      <p class="lede">Scroll down: the card breaks while its section scrolls past. Scroll back up and it is whole again.</p>
+    </section>
+    <section class="scroll-break-section" aria-label="Scroll-driven break">
+      <div class="scroll-break-pin">
+        <div class="scroll-break-target">
+          <h2>Scroll</h2>
+          <p>Breaks while this section scrolls.</p>
+        </div>
+      </div>
+    </section>
+    <p class="region-filler">Content after the section stays where it is.</p>
+  `,
+};

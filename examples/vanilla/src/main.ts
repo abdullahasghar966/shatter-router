@@ -1,7 +1,7 @@
 import { classifyLinkClick, createShatter, findAnchor, getLinkEffect } from 'shatter-router';
 import { rapier } from 'shatter-router/rapier';
 import { lab } from './lab';
-import { effectsPage, notFound, pages, regionsPage } from './pages';
+import { effectsPage, notFound, pages, regionsPage, scrollPage } from './pages';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app is missing from index.html');
@@ -84,6 +84,18 @@ interface HistoryState {
 }
 
 let renderedRoute = '';
+/** The scroll-driven break of the scroll page (ADR-064), stopped when the route changes. */
+let stopScrollBreak: (() => void) | null = null;
+
+function startScrollBreak(route: string): void {
+  const target = outlet.querySelector<HTMLElement>('.scroll-break-target');
+  if (!target) return;
+  void shatter.scrollBreak(target, { effect: 'shatter' }).then((stop) => {
+    // The route changed while it was being set up: it stops at once.
+    if (renderedRoute !== route) stop();
+    else stopScrollBreak = stop;
+  });
+}
 
 function render(url: URL): void {
   renderedRoute = url.pathname;
@@ -94,9 +106,14 @@ function render(url: URL): void {
         ? effectsPage
         : url.pathname === '/regions'
           ? regionsPage
-          : pages[url.pathname]) ?? notFound;
+          : url.pathname === '/scroll'
+            ? scrollPage
+            : pages[url.pathname]) ?? notFound;
+  stopScrollBreak?.();
+  stopScrollBreak = null;
   outlet.innerHTML = page.render();
   page.mount?.(outlet);
+  if (url.pathname === '/scroll') startScrollBreak(url.pathname);
   document.title = `${page.title} — Shatter Router vanilla example`;
   for (const link of document.querySelectorAll<HTMLAnchorElement>('.site-header nav a')) {
     const active = new URL(link.href).pathname === url.pathname;
