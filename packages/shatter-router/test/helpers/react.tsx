@@ -28,7 +28,7 @@ export function fakeShatter(): FakeShatter {
       committed.push(request);
     }),
     on: () => () => undefined,
-    scrollBreak: async () => () => undefined,
+    scrollBreak: () => Promise.resolve(() => undefined),
     setMaterial: () => undefined,
     setSound: () => undefined,
     registerEffect: () => undefined,

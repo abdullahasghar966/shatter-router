@@ -44,6 +44,14 @@ async function openRegions(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Scrolls a card into view. Done before any baseline is taken: a click would
+ * otherwise scroll the page after the baseline, and every box would move.
+ */
+async function revealCard(page: Page, index: number): Promise<void> {
+  await page.locator('.region-card').nth(index).scrollIntoViewIfNeeded();
+}
+
 /** Clicks a card by its centre, the way a visitor would. */
 async function clickCard(page: Page, index: number): Promise<void> {
   const card = page.locator('.region-card').nth(index);
@@ -60,6 +68,7 @@ test.describe('regions (ADR-063)', () => {
     page,
   }, testInfo: TestInfo) => {
     await openRegions(page);
+    await revealCard(page, 0);
     await hideCursor(page);
     const live = await page.screenshot();
     await pauseAt(page, 'fractured');
@@ -98,6 +107,7 @@ test.describe('regions (ADR-063)', () => {
 
   test('the live page around the region does not move', async ({ page }) => {
     await openRegions(page);
+    await revealCard(page, 0);
     // Every element outside the card keeps its box while the card breaks.
     const boxes = () =>
       page.evaluate(() =>
@@ -123,6 +133,7 @@ test.describe('regions (ADR-063)', () => {
 
   test('after the break the card is back and the page is as it was', async ({ page }, testInfo) => {
     await openRegions(page);
+    await revealCard(page, 1);
     await hideCursor(page);
     const live = await page.screenshot();
     await clearLifecycleEvents(page);
