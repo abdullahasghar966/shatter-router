@@ -126,3 +126,16 @@ test.describe('Home: specimen strip (ADR-067)', () => {
     await waitForIdle(page, 15_000);
   });
 });
+
+test.describe('Library: clicks during a preview (ADR-068)', () => {
+  test('a click on a card while its preview runs follows the card link', async ({ page }) => {
+    await page.goto(`${BASE}/effects?${QUERY}`);
+    await waitForShatterReady(page);
+    const { x, y } = await centreOf(page, '.card-art');
+    await page.mouse.move(x, y);
+    // The hold is 600 ms: the preview is running now.
+    await page.waitForTimeout(900);
+    await page.mouse.click(x, y);
+    await expect.poll(() => new URL(page.url()).pathname).toMatch(/^\/effects\/[a-z-]+$/);
+  });
+});

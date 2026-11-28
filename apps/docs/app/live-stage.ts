@@ -16,8 +16,14 @@ export function breakInPlace(
   shatter: Shatter,
   target: Element,
   effect: StageEffect,
+  passthrough = false,
 ): Promise<void> {
-  return shatter.transition({ target, effect, commit: () => undefined });
+  return shatter.transition({
+    target,
+    effect,
+    commit: () => undefined,
+    ...(passthrough ? { passthrough: true } : {}),
+  });
 }
 
 /**
@@ -61,7 +67,8 @@ export function useHoverHoldBreak(
       if (spent) return;
       timer = window.setTimeout(() => {
         spent = true;
-        void breakInPlace(shatter, el, effectRef.current);
+        // Clicks pass through the preview: a click on the card follows its link (ADR-068).
+        void breakInPlace(shatter, el, effectRef.current, true);
       }, holdMs);
     };
     const leave = (event: PointerEvent): void => {
