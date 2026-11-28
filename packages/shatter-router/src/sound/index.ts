@@ -85,7 +85,10 @@ export class SoundEngine {
 
   /** Resumes the audio context; call from a user gesture. */
   resume(): void {
-    if (this.context.state === 'suspended') void this.context.resume();
+    // A resume that fails (the page is leaving) is silent: sound never
+    // affects navigation, and an unhandled rejection is a console error in
+    // Firefox (its e2e test reloads right after the toggle).
+    if (this.context.state === 'suspended') this.context.resume().catch(() => undefined);
   }
 
   /** True once the browser lets the page make sound. */

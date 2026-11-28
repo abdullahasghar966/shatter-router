@@ -18,9 +18,10 @@ const EFFECTS = ['shatter', 'explode', 'implode', 'flip', 'assemble', 'ripple-ou
 
 const PAGES = [
   ['/', 'Break the page.'],
-  ['/effects', 'Six ways to break a page.'],
+  ['/effects', 'Seventeen ways to break a page.'],
   ['/effects/ripple-out', 'Ripple out'],
   ['/playground', 'Tune the glass.'],
+  ['/benchmark', 'Measure it here.'],
   ['/docs', 'How a page breaks'],
   ['/docs/getting-started', 'Getting started'],
   ['/docs/api', 'API reference'],
@@ -30,6 +31,7 @@ const PAGES = [
   ['/docs/csp', 'Content Security Policy'],
   ['/docs/troubleshooting', 'Troubleshooting'],
   ['/docs/browser-support', 'Browser support'],
+  ['/docs/changelog', 'Changelog'],
 ] as const;
 
 async function lastEffect(page: Page): Promise<string | null> {
@@ -132,6 +134,8 @@ test.describe('docs site', () => {
 
     if (browserName === 'chromium') {
       await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      // The copy follows the framework tab (Next.js unless chosen).
+      await page.getByRole('tab', { name: 'Vanilla' }).click();
       await page.getByRole('button', { name: 'Copy config' }).click();
       await expect(page.getByRole('status')).toHaveText('Copied.');
       const copied = await page.evaluate(() => navigator.clipboard.readText());

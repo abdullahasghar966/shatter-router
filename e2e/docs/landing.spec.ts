@@ -86,6 +86,51 @@ test.describe('docs site: landing page at 1440x900', () => {
     });
   }
 
+  // Highlighted code, copy buttons and framework tabs whose hidden panels are
+  // left out of the copy (ADR-061, ADR-062): the copy must still match.
+  test('the first frame matches a docs page with highlighted code and tabs', async ({
+    page,
+  }, testInfo) => {
+    test.skip(PERF, 'seam thresholds are calibrated for the headless engines');
+    await page.addInitScript(() => {
+      localStorage.setItem('docs-framework', 'react-router');
+    });
+    await page.goto(`${BASE}/docs/getting-started${QUERY}`);
+    await waitForShatterReady(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForFunction(() => document.documentElement.hasAttribute('data-entered'));
+    // Scroll the tabs and the React Router panel into view.
+    await page.evaluate(() => {
+      window.scrollTo(0, 560);
+    });
+    await expect(page.getByRole('tab', { name: 'React Router' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    const link = page.locator('.docs-nav a[aria-current="page"]');
+    await link.hover();
+    await hideCursor(page);
+    const live = await page.screenshot();
+    await pauseAt(page, 'fractured');
+    await link.click();
+    await waitForPause(page, 'fractured');
+    const overlay = await page.screenshot();
+    const dpr = await page.evaluate(() => window.devicePixelRatio);
+    const result = await compareScreenshots(
+      testInfo,
+      'docs-getting-started',
+      live,
+      overlay,
+      Math.max(0, Math.round(Math.min(dpr, 2)) - 1),
+    );
+    console.log(
+      `[seam] ${testInfo.project.name} docs getting started: ${result.percent.toFixed(4)} % differ (raw ${result.rawPercent.toFixed(4)} %, worst block ${result.worstBlockPercent.toFixed(1)} %)`,
+    );
+    expect(result.percent).toBeLessThanOrEqual(seamLimit(testInfo.project.name, dpr));
+    expect(result.worstBlockPercent).toBeLessThanOrEqual(SEAM_MAX_BLOCK_PERCENT);
+    await resumeAndFinish(page);
+  });
+
   test('capture time of the landing page', async ({ page }, testInfo) => {
     await page.goto(`${BASE}/${QUERY}`);
     await waitForShatterReady(page);

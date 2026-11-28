@@ -23,3 +23,16 @@ export const LIGHTHOUSE = {
   ] as (readonly [string, number, number])[],
   how: 'Lighthouse 12.6.0, mobile (simulated slow 4G and 4× CPU slowdown), on the live site (Vercel), installed Chrome, 2026-11-22. Largest contentful paint 1.4–2.6 s, total blocking time 20–170 ms, layout shift 0.',
 };
+
+/**
+ * The benchmark page run on the reference machine (`coverage/m20/bench-gpu.mjs`,
+ * PROGRESS M20).
+ */
+export const BENCHMARK_REFERENCE = {
+  captureMs: '76–109 ms (median 99–102 ms)',
+  fractureMs: '1.5–7.8 ms (median 2.5–2.9 ms)',
+  fps: '144 fps (the display’s refresh rate)',
+  worstFrameMs: '7.4–20.7 ms (median 7.8–8.1 ms)',
+  where:
+    'a Windows 11 laptop with an NVIDIA RTX 4050, installed Chrome 157, 1440×900 at 1×, a 144 Hz display; three sessions of five runs on this page, 2026-11-22',
+};

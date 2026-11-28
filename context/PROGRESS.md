@@ -26,10 +26,10 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 14  | Effect architecture           | ☑      | `milestone/14-effect-architecture` | [#16](https://github.com/abdullahasghar966/shatter-router/pull/16) | `ddbb660` | `m14-effect-architecture` |
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
 | 16  | Motions and materials         | ☑      | `milestone/16-motions`, `milestone/16-motions-2`, `milestone/16-materials` | [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), [#21](https://github.com/abdullahasghar966/shatter-router/pull/21) | `91b83d4`, `44a7544`, `3382b96` | `m16-motions` |
-| 17  | Interaction, cursor, sound    | ◐      | `milestone/17-interaction`     |     |           |             |
+| 17  | Interaction, cursor, sound    | ☑      | `milestone/17-interaction`     | [#23](https://github.com/abdullahasghar966/shatter-router/pull/23) | `1e7c826` | `m17-interaction` |
 | 18  | Region transitions            | ☐      | `milestone/18-regions`         |     |           |             |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
-| 20  | Site features                 | ☐      | `milestone/20-site-features`   |     |           |             |
+| 20  | Site features                 | ◐      | `milestone/20-site-features`   |     |           |             |
 | 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
 
 ## Installed dependency versions
@@ -375,6 +375,12 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **E2E (local):** seams unchanged (Chromium first-explode 0.0905 %, last-explode-reverse 0.0951 %, first-shatter 0.0936 %); allocations 0 B beyond boxed numbers for both (shatter was 640 B before reusing the crack frame); `explode` 159 of 160 pieces with the radial web (101 before the count aiming); one draw call per frame.
 - **Radial/rings fracture time with count aiming:** 2.43 / 1.84 ms at 400 pieces (budget 4 ms).
 
+### Production after M17 (`1e7c826`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
+
+- `/` 97/100 (LCP 1.7 s, TBT 20 ms), `/effects` 96/100 (LCP 2.5 s, TBT 50 ms), `/effects/vortex` 99/100, `/playground` 97/100 (TBT 140 ms), `/docs/api` 98/100; CLS ≤ 0.001 everywhere. Target (≥ 95 / 100) met on every page.
+- Playground after the PR #22 fix (`09a431b`), 3 runs: 96, 99, 98 (TBT 70–100 ms; before: 90–96, TBT 150–360 ms).
+- PR #22 (`fix/playground-panel-tasks`, merge `09a431b`): playground panel built in steps, lab test prefetch race, overlay diagnostics.
+
 ### Interaction, cursor, sound (Milestone 17, 2026-11-22, ADR-060)
 
 - **Sizes (gzip):** `dist/interaction.js` 2.3 kB, `dist/sound.js` 1.83 kB (budgets 3 kB); core entry 2.32 kB (was 1.95; budget 6), runtime 9.82 of 10 kB, engine core 13.95 of 15 kB.
@@ -382,6 +388,23 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Tear seed layout:** share of `impact` seeds within 60 px of a 3-point tear, 4 seeds: 0.39–0.52 with the path, 0.26–0.32 without.
 - **Seams:** first frame with the cursor kit on Chromium 0.0991 % / WebKit 0.0021 %; torn page at rest 0.1003 % (worst block 4.0 %, was 10.2 % while a tear reused its press-time pre-capture) / 0.0021 %; docs landing with the site's new cursor 0.0076 % light, 0.0063 % dark (Chromium), 0.0024 / 0.0023 % (WebKit).
 - **Performance with interaction and sound on** (RTX 4050, installed Chrome 157, 1440×900, 160 pieces): 143.4 fps, no long tasks outside capture; 0 B beyond boxed numbers in the frame loop (headless Chromium). Captures with and without them, interleaved: 69 / 112 / 59 ms against 47 / 93 / 97 ms (no measurable cost; the machine drifts).
+
+### Site features (Milestone 20, in progress, 2026-11-22, ADR-061, ADR-062)
+
+- **Highlighted code and the capture** (`coverage/m20/code-capture-ab.mjs`, `/docs/getting-started` at 1440×900, headless Chromium, 6 interleaved rounds, median of 18 warm captures): first version (five token kinds, hidden tab panels copied) 228 ms against 108 ms plain; after ADR-062 hidden panels present 199 ms against removed 194 ms (plain 148 ms, the machine warmer); final (three token kinds, static sidebar) highlighted 88.8 ms, hidden panels removed 90.7 ms, plain 75.2 ms. `/docs/api` (code below the fold): 133.5 against 136.0 ms, no cost.
+- **First-frame seam, `/docs/getting-started` scrolled 560 px with the React Router tab:** sticky sidebar 0.5948 % (worst block 15.3 %, Chromium only: grayscale text in overlap layers, LEARNINGS); static sidebar Chromium 0.0495 %, WebKit 0.0337 % (raw 0.5785 %), worst block ≤ 0.3 %. Docs landing unchanged: 0.0066 / 0.0065 % Chromium, 0.0031 / 0.0030 % WebKit.
+- **Sizes:** capture chunk 13.86 of 16 kB (with ADR-062); no other library chunk changed.
+- **Benchmark page reference** (`coverage/m20/bench-gpu.mjs`: `/benchmark`, installed Chrome 157 headed, RTX 4050 forced, 1440×900, 144 Hz display, `shatter`, 160 pieces, seed 7; 3 sessions × 5 runs after a warm-up): capture 76–109 ms (session medians 98.9 / 99.5 / 102.0), fracture 1.5–7.8 ms (medians 2.5 / 2.9 / 2.8), 142.7–144.1 fps (medians 144.0), longest frame 7.4–20.7 ms (medians 7.8–8.1). Captures rose through each session (the warm-up drift in LEARNINGS).
+- **Phone layout (412 px, `coverage/m20/mobile-check2.mjs`):** the page was 496 px wide on every page (the header's nav and controls, and a long inline code run, a code block, the benchmark table), so every page scrolled sideways; now 412 px everywhere. Cumulative layout shift follows the width: changelog 0.239 → 0.001, `/effects/shatter` 0.134 → 0.
+- **Lighthouse 12.6.0 mobile on this laptop, 2026-11-28 (not the reference, see below):** performance 72–81 and accessibility 94–100 on `/`, `/effects`, `/effects/shatter`, `/playground`, `/docs/getting-started`, `/docs/changelog`, `/benchmark`. CLS 0–0.017 after the phone fixes. The same tool on M17's build (`1e7c826`, built in a worktree) and on this branch scored alike on the home page (72–76 against 72–75, TBT 590–820 ms both), with the laptop's Lighthouse benchmark index at 880–930 (it was not recorded for M17). So the gap to the 95 target is this machine's state today, not M20: re-measure on a quiet machine before the PR merges, or on production after the deploy.
+- **Lighthouse 12.6.0 mobile, later the same day (benchmark index 1,175–1,501, a quieter laptop):** `/` 81 (CLS 0.124: the hero block moves when fonts and the header settle, not measured before this session; M19 recorded 0), `/effects/shatter` 86 (TBT 420 ms), `/playground` 88 (TBT 300 ms), `/docs/getting-started` 94 (TBT 190 ms), `/benchmark` 94 (TBT 200 ms); accessibility 100 everywhere. **Target (≥ 95 / 100) not met yet** on four of five pages: the M20 merge waits for this.
+- **Home-page layout shift (2026-11-28):** the hero's text column moved when the headline font swapped in on a phone under Lighthouse's throttling (CLS 0.10, measured with a PerformanceObserver: `coverage/m20/cls-home.mjs`). The headline font is now `display: 'optional'`: CLS 0 on every page after the change. Docs e2e 82 passed; landing seams 0.0137 % / 0.0133 % (Chromium), 0.0031 % (WebKit), unchanged.
+- **Lighthouse, same day, after the font change (benchmark index 897–929, Chrome busy with the user's own windows):** `/` 78, `/effects/shatter` 79, `/playground` 78, `/docs/getting-started` 79, `/benchmark` 76; TBT 630–800 ms everywhere; accessibility 100. The same pages scored 86–95 on a quieter run earlier (index 1,175–1,501). The score moves with the machine: target not yet confirmed on a quiet machine.
+- **Quiet-machine Lighthouse, 2026-11-28 (after the mono-font experiments; benchmark index 1,160–1,290):** `/` 82–96 across runs (CLS 0), `/effects/shatter` 88–96 (CLS 0–0.005), `/playground` 78–89 (TBT 170–710 ms), `/docs/getting-started` 82–93 (CLS 0 after the mono fix below), `/benchmark` 86–96; accessibility 100 everywhere. Single runs swing by 10–15 points, so the 95 target is not yet confirmed on all pages.
+- **Mono font `optional` was tried and reverted (2026-11-28):** it fixed the getting-started shift (inline code re-wrapped when the mono font swapped in on phones, CLS 0.22 → 0) but left the live landing page in the fallback face while the capture copied the late-loaded font: landing seam 1.36 % (Chromium) and 1.45 % (dark), worst block 28–30 %. Kept at `swap`. The headline font stays `optional` (landing seam 0.0137 %).
+- **Lighthouse 12.6.0 mobile, Chrome closed, 2026-11-28 (two full runs of five pages):** run 1: `/` 94, `/effects/shatter` 94, `/playground` 78, `/docs/getting-started` 94, `/benchmark` 94 (cpu index 1,116–1,381). Run 2: `/` 94, `/effects/shatter` 92, `/playground` 90, `/docs/getting-started` 91, `/benchmark` 96 (cpu index 1,217–1,738). Accessibility 100 on every page and every run; CLS 0–0.005. Target 95 on performance not yet met on every page: the home page, effects page and getting-started page sit at 91–95, the playground at 78–90.
+- **Search index:** 31 pages, 81 sections, 34.6 kB JSON, loaded only when the dialog first opens.
+- **Docs size claims corrected** to the current `pnpm size`: core 2.35 kB (was shown as 1.8), react 3.11, react-router 4.65, next 4.79, runtime 9.93, engine core 13.95, capture 13.86, interaction 2.35, sound 1.9 kB.
 
 ### Production after M16 (`3382b96`, 2026-11-22, Lighthouse 12.6.0 mobile, installed Chrome headless)
 

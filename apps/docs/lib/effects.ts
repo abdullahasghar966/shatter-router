@@ -1,6 +1,27 @@
+/** The motion families (plan 3.3, ADR-055), and the docs' own custom effect. */
+export type Family = 'gravity' | 'force' | 'order' | 'matter' | 'assembly' | 'custom';
+
+export const FAMILIES: readonly { id: Family; title: string; summary: string }[] = [
+  { id: 'gravity', title: 'Gravity', summary: 'The pane gives way and its pieces fall.' },
+  { id: 'force', title: 'Force', summary: 'Something pushes or pulls the pieces away.' },
+  { id: 'order', title: 'Order', summary: 'Pieces turn, tip or slide one after another.' },
+  { id: 'matter', title: 'Matter', summary: 'The page behaves like another substance.' },
+  { id: 'assembly', title: 'Assembly', summary: 'The new page flies together out of shards.' },
+  {
+    id: 'custom',
+    title: 'Written in the docs',
+    summary: 'A custom effect, made with the public effect interface.',
+  },
+];
+
 /** The effects shown in the gallery: the built-in ones (ADR-055 adds the motion families), and the custom one from the docs. */
 export interface EffectInfo {
   readonly name: string;
+  readonly family: Family;
+  /** The fracture pattern the effect uses unless told otherwise (ADR-053). */
+  readonly pattern: string;
+  /** The effect's own motion length (its `duration`), ms. */
+  readonly durationMs: number;
   readonly title: string;
   readonly summary: string;
   readonly motion: string;
@@ -13,6 +34,9 @@ export interface EffectInfo {
 export const EFFECTS: readonly EffectInfo[] = [
   {
     name: 'shatter',
+    family: 'gravity',
+    pattern: 'impact',
+    durationMs: 1100,
     title: 'Shatter',
     summary: 'The pane cracks from the click, then drops: heavy glass falling, not thrown.',
     motion:
@@ -23,6 +47,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'explode',
+    family: 'force',
+    pattern: 'radial',
+    durationMs: 1100,
     title: 'Explode',
     summary: 'A blast: a white flash, a shockwave, and the page flung at you.',
     motion:
@@ -33,6 +60,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'implode',
+    family: 'force',
+    pattern: 'impact',
+    durationMs: 1000,
     title: 'Implode',
     summary: 'The page is pulled into the click and vanishes into a point.',
     motion:
@@ -43,6 +73,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'flip',
+    family: 'order',
+    pattern: 'impact',
+    durationMs: 1000,
     title: 'Flip',
     summary: 'Every shard turns over in place: the old page on the front, the new on the back.',
     motion:
@@ -53,6 +86,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'assemble',
+    family: 'assembly',
+    pattern: 'impact',
+    durationMs: 1200,
     title: 'Assemble',
     summary: 'The old page scatters while the new one flies together out of shards.',
     motion:
@@ -63,6 +99,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'crumble',
+    family: 'gravity',
+    pattern: 'impact',
+    durationMs: 1250,
     title: 'Crumble',
     summary: 'The pane gives way from the bottom up, like a wall losing its footing.',
     motion:
@@ -73,6 +112,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'rain',
+    family: 'gravity',
+    pattern: 'tiles',
+    durationMs: 1200,
     title: 'Rain',
     summary: 'The page runs off like rain on a window.',
     motion:
@@ -83,6 +125,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'vortex',
+    family: 'force',
+    pattern: 'impact',
+    durationMs: 1200,
     title: 'Vortex',
     summary: 'A twister at the click flings the page outward and up.',
     motion:
@@ -93,6 +138,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'wind',
+    family: 'force',
+    pattern: 'impact',
+    durationMs: 1200,
     title: 'Wind',
     summary: 'A gust from the side of the click carries the page away.',
     motion:
@@ -103,6 +151,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'blinds',
+    family: 'order',
+    pattern: 'strips',
+    durationMs: 1000,
     title: 'Blinds',
     summary: 'Venetian blinds: slats turn edge-on, one after another.',
     motion:
@@ -113,6 +164,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'domino',
+    family: 'order',
+    pattern: 'impact',
+    durationMs: 1200,
     title: 'Domino',
     summary: 'A cascade from the click: each piece tips over and knocks the next.',
     motion:
@@ -123,6 +177,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'slide',
+    family: 'order',
+    pattern: 'tiles',
+    durationMs: 1000,
     title: 'Slide',
     summary: 'The page is dealt away: rows slide out in opposite directions.',
     motion:
@@ -133,6 +190,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'fold',
+    family: 'order',
+    pattern: 'impact',
+    durationMs: 1100,
     title: 'Fold',
     summary: 'Origami: every piece folds over toward the click.',
     motion:
@@ -143,6 +203,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'melt',
+    family: 'matter',
+    pattern: 'impact',
+    durationMs: 1300,
     title: 'Melt',
     summary: 'The page melts like wax under a heat source at the click.',
     motion:
@@ -153,6 +216,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'ripple',
+    family: 'matter',
+    pattern: 'rings',
+    durationMs: 1300,
     title: 'Ripple',
     summary: 'The page is water and the click a dropped stone.',
     motion:
@@ -163,6 +229,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'glitch',
+    family: 'matter',
+    pattern: 'bricks',
+    durationMs: 900,
     title: 'Glitch',
     summary: 'A corrupted signal: rows jump, colours split, the page drops out.',
     motion:
@@ -173,6 +242,9 @@ export const EFFECTS: readonly EffectInfo[] = [
   },
   {
     name: 'ripple-out',
+    family: 'custom',
+    pattern: 'impact',
+    durationMs: 1100,
     title: 'Ripple out',
     summary: 'A custom effect: a ring spreads from the click and lifts each shard away.',
     motion:

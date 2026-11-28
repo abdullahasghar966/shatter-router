@@ -37,7 +37,7 @@ Measured, not promised. Laptop with an NVIDIA RTX 4050 Laptop GPU, Windows 11, C
 
 |               |                                                                     |
 | ------------- | ------------------------------------------------------------------- |
-| Up front      | **1.8 kB** min+gzip (core); 2.6–4.3 kB with an adapter              |
+| Up front      | **2.35 kB** min+gzip (core); 3.1–4.8 kB with an adapter             |
 | Lazy, on idle | runtime 7.8 kB, renderer + all effects 19.8 kB, capture 12.5 kB     |
 | Frame rate    | **60 fps** for every effect, worst frame ≤ 17.1 ms                  |
 | Per frame     | **1 draw call**, **0 bytes** allocated in the render loop           |

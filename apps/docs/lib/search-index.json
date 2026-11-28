@@ -1,0 +1,595 @@
+{
+ "pages": [
+  {
+   "href": "/",
+   "title": "Shatter Router — break the page",
+   "sections": [
+    {
+     "anchor": "why",
+     "heading": "Every route change, through glass.",
+     "text": ""
+    },
+    {
+     "anchor": "start",
+     "heading": "Three lines in a Next.js app.",
+     "text": "Wrap the layout, swap Link for ShatterLink, and every navigation breaks the page. Every link on this site is one. Get started Open the playground pnpm add shatter-router app layout tsx import ShatterProvider ShatterLink from shatter-router next href work Work children"
+    }
+   ]
+  },
+  {
+   "href": "/benchmark",
+   "title": "Benchmark",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Break this page a few times on your own device and see what it costs: how long the capture takes, how long the glass takes to cut, and how smoothly it falls. The numbers come from the library's own events. How they are measured on the reference machine is in Performance."
+    }
+   ]
+  },
+  {
+   "href": "/docs",
+   "title": "Overview",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Shatter Router puts a picture of the current page under glass, lets your router render the next page behind it, and then breaks the glass."
+    },
+    {
+     "anchor": "",
+     "heading": "The pipeline",
+     "text": "Capture. On click (or already on press, with precapture) the visible viewport is rendered into a canvas through an SVG foreignObject. Cover. A full-viewport WebGL2 canvas in the browser's top layer shows that picture through a pixel-exact camera. The first frame is identical to the live page, and seam tests check that on Chromium, Firefox and WebKit. Fracture. The picture is cut into Voronoi cells, denser around the click, extruded into glass with a thickness. This happens while your router works. Commit. Your commit() runs: the router renders the new route under the glass. Shatter waits until it has rendered, its fonts and images have loaded, and it is scrolled into place. Animate. Cracks run out from the click, then the effect moves every shard in a vertex shader: one draw call per frame. Reveal. The canvas goes away, focus moves to the new page's heading and its title is announced. If any step can't run (no WebGL2, reduced motion, a capture over budget, an error), the page changes anyway, with a short crossfade or instantly. Navigation always completes."
+    },
+    {
+     "anchor": "",
+     "heading": "Where to go next",
+     "text": "Getting started: vanilla, React, React Router or Next.js. API reference: every option, event and component. Playground: try the options and copy the config."
+    }
+   ]
+  },
+  {
+   "href": "/docs/accessibility",
+   "title": "Accessibility",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Breaking glass is decoration. Navigation stays a navigation: focus, announcements and reduced motion are handled for you."
+    },
+    {
+     "anchor": "",
+     "heading": "Reduced motion",
+     "text": "With prefers-reduced-motion: reduce the effect does not play. The default, reducedMotion: 'crossfade', swaps the page with a View Transition crossfade of at most 200 ms where the browser supports it, and instantly elsewhere. 'instant' always swaps instantly. 'ignore' plays the full effect anyway. It exists for demos and is discouraged."
+    },
+    {
+     "anchor": "",
+     "heading": "Interaction and sound",
+     "text": "The interaction option adds a decorative cursor (the native cursor stays, the kit is hidden from assistive technology), press-and-hold to hit harder and drag to tear. None of it is needed to navigate: the keyboard follows links at the default strength, and under reduced motion the kit does not load at all. sound is off until you turn it on, stays silent until the visitor first clicks or presses a key, and never plays under reduced motion."
+    },
+    {
+     "anchor": "",
+     "heading": "Focus",
+     "text": "After the reveal, focus moves to the first of: an element with data-shatter-focus, the first h1 inside main, main itself. An element that is not focusable gets tabindex=\"-1\" until it loses focus again, so keyboard and screen-reader users start reading the new page from the top. data-shatter-focus Your order"
+    },
+    {
+     "anchor": "",
+     "heading": "Announcements",
+     "text": "The new document.title is announced through a visually hidden aria-live=\"polite\" region, as a full page load would. Give every route a distinct title."
+    },
+    {
+     "anchor": "",
+     "heading": "Input during the effect",
+     "text": "The glass catches pointer input while it is up, so nothing underneath is clicked by accident. Escape, a click on the glass, or hiding the tab skips to the end at once."
+    },
+    {
+     "anchor": "",
+     "heading": "Links keep their meaning",
+     "text": "Modifier clicks (open in a new tab), middle clicks, target, download, external links and same-page anchors behave natively. Keyboard activation works like a click and breaks the glass from the link's centre."
+    },
+    {
+     "anchor": "",
+     "heading": "This site",
+     "text": "Every page here is checked with Lighthouse on mobile, and the scores are on the performance page. The hero on the home page breaks on any click, and its Break it button does the same for keyboard users."
+    }
+   ]
+  },
+  {
+   "href": "/docs/api",
+   "title": "API reference",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Everything is typed; this page is the short version."
+    },
+    {
+     "anchor": "create-shatter",
+     "heading": "createShatter(options)",
+     "text": "import createShatter from shatter-router const shatter effect shards auto Creates one instance for the page. It costs 2.35 kB until first use; the renderer and the capture load on idle. The adapters create it for you."
+    },
+    {
+     "anchor": "instance",
+     "heading": "The instance",
+     "text": "await shatter transition commit router push work show the new route may return promise origin impact point viewport default centre effect flip per-call material ice intensity how hard hit set path tear along these points direction forward back replace false true replaces history entry scroll top none const off end fallback console log done registerEffect myEffect setMaterial obsidian following transitions undefined option setSound turn sound still waits for gesture state idle capturing covering committing waiting animating revealing destroy frees WebGL context idempotent A new navigation during a transition wins: before the commit the old one is dropped, after it the old effect fast-forwards within a frame. Escape or a click on the glass skips to the end."
+    },
+    {
+     "anchor": "",
+     "heading": "Events",
+     "text": ""
+    },
+    {
+     "anchor": "compositions",
+     "heading": "Compositions",
+     "text": "An effect can be put together from parts. Each part loads on first use, so a page only downloads the parts it plays. Pass a composition anywhere an effect goes, or register it under a name. shatter transition commit effect motion explode stagger linear registerEffect name curtain flip how the pieces move built-in one you registered pattern hex page breaks see Patterns material paper what are made Materials type angle order start timing duration length then data-shatter-effect"
+    },
+    {
+     "anchor": "materials",
+     "heading": "Materials",
+     "text": "A material is a set of shading values, so any material goes with any motion and pattern. All of its light is exactly zero while a piece is at rest, so the first and last frames are the page whatever it is made of. Precedence: a transition’s material, then the effect’s own, then setMaterial() or the option. Your own any these fields the rest come from glass built-in material whose name you reuse tweak createShatter amber tint ffb000 glint shininess frost Fields tintStrength sideShade rim rimWidth chromatic reflect iridescence brushed diffuse Back plays the reverse of a composition too: flip compositions turn back, and every other one runs backwards in time."
+    },
+    {
+     "anchor": "react",
+     "heading": "React, React Router, Next.js",
+     "text": "The three adapters have the same shape. ShatterProvider options instance existing one for the app ShatterLink href work effect flip Work const navigate useShatterNavigate origin replace shatter useShatter null before mount shatter-router/react: the provider takes navigate(href, info) for any router. shatter-router/react-router: also ShatterNavLink and createShatterBrowserRouter; ShatterLink takes to. shatter-router/next: ShatterLink wraps next/link (string hrefs); the provider takes waitFor: 'settled' | 'commit'."
+    },
+    {
+     "anchor": "physics",
+     "heading": "Physics",
+     "text": "import rapier from shatter-router peer dimforge rapier3d-compat createShatter physics floor true duration Rapier loads only when this mode is used. If it can't load (offline, a strict CSP), the procedural motion plays instead."
+    },
+    {
+     "anchor": "html",
+     "heading": "HTML attributes",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "href": "/docs/browser-support",
+   "title": "Browser support",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Any browser with WebGL2 gets the effect. Every other browser still navigates."
+    },
+    {
+     "anchor": "",
+     "heading": "Tested on every pull request",
+     "text": "The end-to-end suite, seam tests included, runs on three engines through Playwright 1.65: Chromium (Chrome 159), Firefox 159 and WebKit, on Linux in CI and on Windows locally."
+    },
+    {
+     "anchor": "",
+     "heading": "What each feature does, and what happens without it",
+     "text": "Feature Used for Without it"
+    },
+    {
+     "anchor": "",
+     "heading": "Known differences",
+     "text": "Text antialiasing. The first frame matches the live page to within 0.5 % of pixels on every engine, and the differences are on glyph edges. On Windows, Chromium draws small text with ClearType on the page but in grayscale in the picture. Linux Chromium at 2× zoom. Some paragraph lines with fractional line heights land half a CSS pixel apart in the picture (measured 0.52 % of pixels, allowed up to 0.6 %). Pinch zoom. While the page is pinch-zoomed the effect is skipped (reason pinch-zoom), because the glass can't line up with a zoomed visual viewport. Hidden tabs swap instantly. Cross-document navigation (multi-page apps) is out of scope: the glass can't survive a page unload."
+    }
+   ]
+  },
+  {
+   "href": "/docs/changelog",
+   "title": "Changelog",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "What changed in each release of shatter-router, newest first, and what is merged for the next one."
+    },
+    {
+     "anchor": "unreleased",
+     "heading": "Unreleased",
+     "text": ""
+    }
+   ]
+  },
+  {
+   "href": "/docs/csp",
+   "title": "Content Security Policy",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Two directives matter. Without them nothing breaks: the effect falls back to a plain navigation, or to the procedural motion."
+    },
+    {
+     "anchor": "",
+     "heading": "For the capture",
+     "text": "The page is rendered into an image from a data: URL (an SVG with the page inside) and drawn into a canvas, so images must allow data: and blob:: Content-Security-Policy img-src self data blob Without them the capture fails: the fallback event fires with capture-failed, and the page changes with a crossfade. The browser also logs a CSP violation. The e2e suite checks exactly this on a page with img-src 'self'."
+    },
+    {
+     "anchor": "",
+     "heading": "For Rapier physics",
+     "text": "Rapier is WebAssembly. With physics: rapier() scripts need 'wasm-unsafe-eval': Content-Security-Policy script-src self wasm-unsafe-eval Without it Rapier can't start, and the shards fall with the procedural motion instead, which needs nothing extra. This is tested too."
+    },
+    {
+     "anchor": "",
+     "heading": "What you don't need",
+     "text": "No worker-src: everything runs on the main thread (fracturing 160 shards takes under a millisecond). No 'unsafe-eval' and no inline scripts. The shaders are compiled by WebGL, not by JavaScript."
+    },
+    {
+     "anchor": "",
+     "heading": "One more thing: fetching the page's assets",
+     "text": "To put images, background images and web fonts inside the picture, the capture fetches them (usually straight from the browser's cache) and inlines them. Those requests are governed by connect-src. A policy that already lets your page load its images and fonts from 'self' or your CDN usually allows this, as long as connect-src lists the same origins. Cross-origin images without CORS are never fetched: they become transparent in the picture."
+    }
+   ]
+  },
+  {
+   "href": "/docs/custom-effects",
+   "title": "Writing a custom effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "The engine cuts the page into shards, and an effect only decides how each shard moves. It does that in two parts: a little per-shard data computed once in JavaScript, and a GLSL function that runs for every vertex, every frame. This page builds ripple-out, the sixth card in the gallery. Try it now ."
+    },
+    {
+     "anchor": "",
+     "heading": "The interface",
+     "text": "interface ShatterEffect name string used effect and data-shatter-effect needsIncomingSnapshot boolean true show the new page shards flip assemble crack play before motion layers also draw incoming duration number preferred length stagger Stagger order start default radial pattern how breaks impact seedPoints ctx Float32Array custom Voronoi seeds for shardAttributes data floats per shard vertexChunk GLSL void shardMotion Shard inout Pose pose fragmentChunk shardFragment vec4 color isComplete state"
+    },
+    {
+     "anchor": "",
+     "heading": "1. Per-shard data",
+     "text": "shardAttributes(ctx) gets every shard at rest (its centroid, area, distance from the click), the impact point, the viewport and a seeded random function. It returns SHARD_ATTRIBUTE_FLOATS (8) floats per shard. They arrive in GLSL as two vec4: shard.a and shard.b. ctx.order[i] (in GLSL, shard.order) says when the shard starts relative to the others: 0 first, 1 last, by the effect's stagger. Base your delays on it and your effect works with every stagger, including compositions like { motion: 'ripple-out', stagger: 'spiral' }. For ripple-out that is a direction away from the click, a delay that grows with distance (the ring), a lifetime, a tilt, a drift and a lift."
+    },
+    {
+     "anchor": "",
+     "heading": "2. The motion, in GLSL",
+     "text": "shardMotion receives the shard and a pose that starts at rest: translate (CSS px, +z toward you), rotate (a 3×3 matrix about the shard's centre), scale and alpha. Read the time from uTime (seconds). Helpers: axisAngle(axis, angle) and settle(t, T), a critically damped spring that is exactly 1 from T on. The one rule: at uTime = 0 every shard must be exactly at rest. The first frame of the effect is then the page itself, with no visible seam. Effects that end on the new page (needsIncomingSnapshot) must also end exactly at rest."
+    },
+    {
+     "anchor": "",
+     "heading": "3. Knowing when it is done",
+     "text": "isComplete(t, state) runs every frame with the time in ms and the data you returned. Return true once every shard has left, faded or settled; the glass is removed in that frame. Keep it allocation-free: no for...of, no array destructuring, no new objects."
+    },
+    {
+     "anchor": "",
+     "heading": "The whole effect",
+     "text": ""
+    },
+    {
+     "anchor": "",
+     "heading": "Use it",
+     "text": "shatter registerEffect rippleOut then effect ripple-out anywhere ShatterLink href work Work pass the object Lighting, chromatic aberration, the crack and the glass edges come from the engine, and all of it is exactly zero at rest. Your effect only moves the shards."
+    }
+   ]
+  },
+  {
+   "href": "/docs/getting-started",
+   "title": "Getting started",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "One package, four entry points. Pick the one that matches your router. pnpm add shatter-router npm install yarn Add scrollbar-gutter: stable to your root element so the page keeps its width while the glass is up: html scrollbar-gutter stable"
+    },
+    {
+     "anchor": "setup",
+     "heading": "Set up your framework",
+     "text": "Pick yours; the choice is remembered across the site."
+    },
+    {
+     "anchor": "nextjs",
+     "heading": "Next.js (App Router)",
+     "text": "Wrap your root layout in ShatterProvider and use ShatterLink wherever you used next/link. Back and forward shatter too. app layout tsx import ShatterProvider from shatter-router next export default function RootLayout children return html lang body options effect shatter anywhere ShatterLink href work Work about flip About By default the effect waits until the new route has settled, including loading.tsx boundaries. Mark content that is still loading with data-shatter-pending, or pass waitFor=\"commit\" to animate as soon as the route has rendered."
+    },
+    {
+     "anchor": "react-router",
+     "heading": "React Router (v7, data mode)",
+     "text": "Create the router with createShatterBrowserRouter (it installs the back/forward gate before the router starts listening), and render ShatterProvider inside it, in your root route. import RouterProvider Outlet from react-router createShatterBrowserRouter ShatterProvider ShatterLink shatter-router function Root return options effect shatter nav Home work explode Work const router path Component children your routes createRoot document getElementById root render ShatterNavLink wraps NavLink, and useShatterNavigate() navigates in code. Declarative mode ( <BrowserRouter> with ShatterProvider inside it) works too, back and forward included. Only a data router made with the plain createBrowserRouter plays back/forward without an effect in Chromium, because it starts listening before Shatter can."
+    },
+    {
+     "anchor": "react",
+     "heading": "React with any router",
+     "text": "shatter-router/react takes a navigate function, so it works with any router that can push a URL. import ShatterProvider ShatterLink from shatter-router react navigate href replace state may return promise that resolves once the route rendered myRouter push options effect implode work Work"
+    },
+    {
+     "anchor": "vanilla",
+     "heading": "Vanilla",
+     "text": "The core gives you transition(), which wraps your own page swap, and the link rules every adapter uses (modifier keys, middle clicks, target , download, external links, data-shatter=\"off\" and same-page hash links keep their native behaviour). import classifyLinkClick createShatter findAnchor getLinkEffect from shatter-router const shatter effect document addEventListener click event anchor return decision intercept preventDefault void transition origin clientX clientY data-shatter-effect flip commit history pushState null url render your page swap Back forward the DOM still shows old popstate window direction back new URL location href Next: the API reference lists every option, or try them in the playground."
+    }
+   ]
+  },
+  {
+   "href": "/docs/performance",
+   "title": "Performance",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Every number on this page was measured, on a mid-range laptop (NVIDIA RTX 4050 Laptop GPU, Windows 11, Chrome) unless it says otherwise."
+    },
+    {
+     "anchor": "",
+     "heading": "Bundle size (min + gzip)",
+     "text": "You pay 2.35 kB up front. The rest loads on idle after the page has loaded, in its own chunks, and size-limit enforces every budget in CI. Measured 2026-11-22. Entry Size Contains"
+    },
+    {
+     "anchor": "",
+     "heading": "Frame rate",
+     "text": "1440×900, 160 shards, measured by the e2e suite in headed Chrome on the GPU. One draw call per frame for every effect, and no long task (over 50 ms) between the glass appearing and disappearing. The table is the 60 Hz run of the first five effects; on the same laptop's 144 Hz display all sixteen built-in motions and all seven materials run at 129–144 fps. Try your own device on the benchmark page: it breaks the page a few times and shows what it measured next to this laptop. Effect Frame rate Worst frame Capture"
+    },
+    {
+     "anchor": "",
+     "heading": "Capture on this site",
+     "text": "The landing page of this site at 1440×900: capture ( ). The budget is 120 ms; above captureBudget (250 ms) the effect is skipped rather than making you wait."
+    },
+    {
+     "anchor": "",
+     "heading": "What makes a capture slower",
+     "text": "A capture copies every element of the page with its computed style, and inlines the web fonts it draws. Shatter Router already inlines only the font files whose characters the page uses and leaves your CSS custom properties out of the copy. What is left is up to the page: each element and especially each pseudo-element (::before, ::after ) adds a little to every navigation. Prefer backgrounds and borders for decoration, and avoid splitting text into one element per letter. Content below the fold and content hidden with display: none (closed menus, inactive tabs) is left out of the copy, so it costs nothing."
+    },
+    {
+     "anchor": "",
+     "heading": "No garbage in the render loop",
+     "text": "The e2e suite counts every allocation made while the shards move, with the Chrome DevTools Protocol's allocation tracker. The result is 0 bytes per frame for every effect. The same test found two per-frame allocations during development (an array destructuring and a for...of), which are fixed. One exception: in Rapier mode, Rapier's own bindings allocate a few kilobytes per frame."
+    },
+    {
+     "anchor": "",
+     "heading": "Everything else",
+     "text": "Fracture: 0.6 ms for 160 shards at 1440×900, on the main thread (no worker needed). One WebGL context for the life of the page, created on first use. GPU textures and the captured image are freed when the transition ends. 100 transitions in a row grow the JS heap by about 0.1 MB (noise) and leave 0 textures alive. The shader source is minified at build time: comments and indentation never ship."
+    },
+    {
+     "anchor": "",
+     "heading": "This site on Lighthouse (mobile)",
+     "text": "Page Performance Accessibility"
+    }
+   ]
+  },
+  {
+   "href": "/docs/troubleshooting",
+   "title": "Troubleshooting",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "First, turn on debug mode. The panel shows each phase's timing, why a transition fell back, and a seam check that diffs the glass against the live page. createShatter debug true panel false for logs only"
+    },
+    {
+     "anchor": "",
+     "heading": "The page changes, but nothing breaks",
+     "text": "The effect fell back. Listen for the reason, or read it in the debug panel: shatter fallback reason console log reduced-motion: the system asks for less motion. That is intended. capture-budget: capturing took longer than captureBudget (250 ms). Very large DOMs, many images or huge fonts slow the capture down. Ignore heavy parts with data-shatter-ignore, or raise the budget. capture-failed: usually a strict Content Security Policy (see CSP). unsupported / context-lost: no WebGL2, or the GPU dropped the context. It recovers by itself when the context comes back. pinch-zoom, hidden, disabled: a pinch-zoomed page, a background tab, or backForward: 'none'."
+    },
+    {
+     "anchor": "",
+     "heading": "Images are blank in the glass",
+     "text": "A cross-origin image without CORS would taint the canvas, so it is left transparent in the picture. Serve it with CORS and add crossorigin: img src https cdn example com photo jpg crossorigin anonymous alt Images more than 128 px outside the viewport are skipped on purpose."
+    },
+    {
+     "anchor": "",
+     "heading": "Iframes, video and canvas",
+     "text": "Iframes (same-origin included) are drawn as a solid box in their background colour: a page can't read a cross-origin frame's pixels. Video shows its current frame when it is same-origin, else its poster, else its background. Canvas is copied unless it is tainted. Anything else you don't want in the picture (a map, an ad): data-shatter-ignore draws it as its background colour."
+    },
+    {
+     "anchor": "",
+     "heading": "The page jumps when the glass appears",
+     "text": "The scrollbar appears or disappears between pages: add html { scrollbar-gutter: stable; } . A smooth-scroll library keeps moving the page: pass its stop and start as scrollLock. Text looks one pixel off: run the seam check in the debug panel. On Windows, Chromium draws small text with ClearType on the page and in grayscale in the picture, so glyph edges differ slightly."
+    },
+    {
+     "anchor": "",
+     "heading": "The effect starts before the new page has loaded",
+     "text": "Shatter waits until the route has rendered, its web fonts and images have loaded, and it is scrolled into place, for at most readyTimeout (1500 ms). In Next.js, mark content that is still streaming with data-shatter-pending. Loading boundaries ( loading.tsx) are waited for by default."
+    },
+    {
+     "anchor": "",
+     "heading": "Back and forward don't shatter (React Router)",
+     "text": "Create the router with createShatterBrowserRouter. A plain createBrowserRouter starts listening to history before Shatter can, and Chromium then lets it render first."
+    }
+   ]
+  },
+  {
+   "href": "/effects",
+   "title": "Effects",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Sixteen motions built in, in five families, and one written in the docs. Pick a pattern and a material to break them with; each card opens its page using its effect, so click where you want the glass to break."
+    }
+   ]
+  },
+  {
+   "href": "/effects/assemble",
+   "title": "Assemble effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "assemble assembly The old page scatters while the new one flies together out of shards. Two layers in one draw call: the outgoing page shatters and falls while shards of the incoming page fly in from off-screen, untwisting, and spring into place with a critically damped spring that never overshoots. Every incoming shard has settled at rest: the last frame is exactly the new page."
+    }
+   ]
+  },
+  {
+   "href": "/effects/blinds",
+   "title": "Blinds effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "blinds order Venetian blinds: slats turn edge-on, one after another. The page is cut into vertical strips that turn about their own axis from left to right, closing edge-on and fading so the new page shows between the slats. On other patterns every piece turns like a louvre. Every slat has closed and faded."
+    }
+   ]
+  },
+  {
+   "href": "/effects/crumble",
+   "title": "Crumble effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "crumble gravity The pane gives way from the bottom up, like a wall losing its footing. A short crack, then the lowest row drops first and every row above follows, almost straight down: no throw, a little sideways scatter and a lazy tumble. With physics: rapier() the rubble collides on the way down. Every piece has fallen below the viewport."
+    }
+   ]
+  },
+  {
+   "href": "/effects/domino",
+   "title": "Domino effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "domino order A cascade from the click: each piece tips over and knocks the next. Each piece tips about its bottom edge, its top swinging out toward you, faster and faster, one after another; once flat it drops away and fades. Every piece has tipped, dropped and faded."
+    }
+   ]
+  },
+  {
+   "href": "/effects/explode",
+   "title": "Explode effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "explode force A blast: a white flash, a shockwave, and the page flung at you. No crack: the page breaks into a spider web at once. A white flash lights the impact, a shockwave lifts the page toward you as it passes and the view shakes; then the pieces fly hard at you and outward, stretched along their velocity, slowed by drag, and only then fall. Every shard has left the viewport."
+    }
+   ]
+  },
+  {
+   "href": "/effects/flip",
+   "title": "Flip effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "flip order Every shard turns over in place: the old page on the front, the new on the back. Shards stay in place and turn over by 180° about a random axis, the nearest first, lifting toward you halfway through. The back faces show the incoming page, mirrored so that they tile it exactly. Every shard has turned over: the last frame is exactly the new page."
+    }
+   ]
+  },
+  {
+   "href": "/effects/fold",
+   "title": "Fold effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "fold order Origami: every piece folds over toward the click. The creases appear first; then each piece lifts and folds 180° about its edge that faces the click, the nearest first, the later ones landing on top, fading as they land so the new page shows through. Every piece has folded over and faded."
+    }
+   ]
+  },
+  {
+   "href": "/effects/glitch",
+   "title": "Glitch effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "glitch matter A corrupted signal: rows jump, colours split, the page drops out. Nothing falls: rows of the page jump sideways in hard steps, 24 times a second, further and further, while the picture splits into red and blue and scanlines show; row by row the page drops out. Every row has dropped out."
+    }
+   ]
+  },
+  {
+   "href": "/effects/implode",
+   "title": "Implode effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "implode force The page is pulled into the click and vanishes into a point. Shards spiral into the impact point like water down a drain, the nearest first, shrinking to nothing as they arrive, with a brief lensing pull on the glass near the point. Every shard has reached the point (scale 0)."
+    }
+   ]
+  },
+  {
+   "href": "/effects/melt",
+   "title": "Melt effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "melt matter The page melts like wax under a heat source at the click. Each piece sags with its top held, stretching into a drip that runs, thins and fades; neighbouring columns drip at different speeds, so the page runs off in uneven curtains. Every drip has run off and faded."
+    }
+   ]
+  },
+  {
+   "href": "/effects/rain",
+   "title": "Rain effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "rain gravity The page runs off like rain on a window. No crack and no tumble: square tiles drop straight down at random moments, speeding up and streaking along their fall with a faint sway. Pair it with the strips pattern and whole columns pour away. Every drop has left the bottom of the viewport."
+    }
+   ]
+  },
+  {
+   "href": "/effects/ripple",
+   "title": "Ripple effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "ripple matter The page is water and the click a dropped stone. The page breaks into concentric rings; as the wave reaches a ring it bobs toward and away from you on a growing swell, tilting with the slope of the wave so the glint runs along the crests, then drifts outward and fades. Every ring has faded on the swell."
+    }
+   ]
+  },
+  {
+   "href": "/effects/ripple-out",
+   "title": "Ripple out effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "ripple-out custom A custom effect: a ring spreads from the click and lifts each shard away. Written against the public effect interface in about 80 lines, comments included (see “Writing a custom effect”). When the ring reaches a shard, the shard rises on an arc, tilts away from the impact point, drifts outward and fades. Every shard has faded out over the new page."
+    }
+   ]
+  },
+  {
+   "href": "/effects/shatter",
+   "title": "Shatter effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "shatter gravity The pane cracks from the click, then drops: heavy glass falling, not thrown. A long crack races out from the impact point and holds for a moment. Then the pane drops: the pieces nearest the impact fall first, with little outward speed, turning slowly so their glass edges catch the light, and fade. With physics: rapier() the pieces collide on the way down. Every shard has fallen away or faded, revealing the new page underneath."
+    }
+   ]
+  },
+  {
+   "href": "/effects/slide",
+   "title": "Slide effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "slide order The page is dealt away: rows slide out in opposite directions. Flat tiles slide straight out of the viewport, alternate rows in opposite directions, each pulling back a touch before it goes. Earlier pieces ride slightly above the rest and pass over them. Every tile has slid past the edge."
+    }
+   ]
+  },
+  {
+   "href": "/effects/vortex",
+   "title": "Vortex effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "vortex force A twister at the click flings the page outward and up. The opposite of implode: each piece is caught by the swirl, whirls around the impact point (the inner ones faster, as in a real vortex), spirals outward and up toward you and fades as it is thrown clear. Every piece has been flung away and faded."
+    }
+   ]
+  },
+  {
+   "href": "/effects/wind",
+   "title": "Wind effect",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "wind force A gust from the side of the click carries the page away. No crack: the gust sweeps across from the click, lifting each piece, speeding it sideways, buffeting it with turbulence and fluttering it like paper. Every push is solved so the piece clears the edge. Every piece has blown past the edge."
+    }
+   ]
+  },
+  {
+   "href": "/playground",
+   "title": "Studio",
+   "sections": [
+    {
+     "anchor": "",
+     "heading": "",
+     "text": "Start from a preset or change any option in the panel, then click the stage: it breaks with your settings and swaps the scene. The code below always matches, for your framework."
+    }
+   ]
+  }
+ ]
+}

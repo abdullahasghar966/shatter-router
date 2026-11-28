@@ -129,7 +129,10 @@ test.describe('vanilla example: interaction', () => {
     await waitForCursor(page);
     await page.getByRole('link', { name: 'Work', exact: true }).click();
     await waitForIdle(page);
-    expect((await interactionHook(page)).lastIntensity).toBe(0.5);
+    // A click is 0.5. Playwright's click can hold the press past the 120 ms
+    // charge delay on a loaded runner (0.5156 = held ~131 ms, LEARNINGS), so
+    // allow the charge a click can add; the holding check below is the real one.
+    expect((await interactionHook(page)).lastIntensity).toBeCloseTo(0.5, 1);
 
     await page.goto(`${BASE}/${QUERY}`);
     await waitForShatterReady(page);

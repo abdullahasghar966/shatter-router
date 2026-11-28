@@ -93,6 +93,8 @@ const BOX_PROPERTIES = [
 /** Elements whose content cannot (or must not) be copied: replaced by a substitute box. */
 const SUBSTITUTED_TAGS = new Set(['IFRAME', 'VIDEO', 'OBJECT', 'EMBED']);
 
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+
 /** Longest side of a video frame grabbed for the copy, in device pixels. */
 const MAX_FRAME_SIDE = 2048;
 
@@ -329,6 +331,10 @@ export class CloneSession {
         this.substituted.add(node);
         return false;
       }
+      if (this.notRendered(node)) {
+        this.dropped.add(node);
+        return false;
+      }
       if (this.belowTheFold(node)) {
         this.dropped.add(node);
         if (node.parentElement) this.pinned.add(node.parentElement);
@@ -338,6 +344,22 @@ export class CloneSession {
     this.stack.push(node);
     return true;
   };
+
+  /**
+   * True for an HTML element with `display: none` (ADR-062): it draws
+   * nothing and takes no space, so leaving it out changes no pixel, while
+   * copying it costs the capture its styles (hidden tab panels, menus,
+   * closed dialogs). Kept when it holds an SVG: a hidden sprite sheet is
+   * still drawn wherever a `<use>` points into it.
+   */
+  private notRendered(node: Element): boolean {
+    if (node.namespaceURI !== HTML_NAMESPACE || node === this.doc.body) return false;
+    // A select shows its selected option even when that option is hidden
+    // (a "Choose…" placeholder): options stay.
+    if (node.closest('select')) return false;
+    if (this.win.getComputedStyle(node).display !== 'none') return false;
+    return node.querySelector('svg') === null;
+  }
 
   /**
    * True for an element the picture cannot show and whose absence cannot move

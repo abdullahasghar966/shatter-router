@@ -173,6 +173,10 @@ test.describe('docs site: Material lab', () => {
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    // The click is the first gesture: the priming capture (ADR-043) fetches
+    // the fonts to inline them, and WebKit reports fetches a reload cuts
+    // short as page errors.
+    await page.waitForLoadState('networkidle');
     await page.reload();
     await waitForShatterReady(page);
     await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveAttribute(

@@ -307,8 +307,8 @@ test.describe('vanilla example: performance (section 8)', () => {
         'allocation tracking uses the Chrome DevTools Protocol',
       );
       test.setTimeout(240_000);
-      // 3 s of motion: even software GL in CI draws a good number of frames.
-      await page.goto(`${BASE}/effects${query}&duration=3000`);
+      // 6 s of motion: a loaded CI runner drew only 3-4 frames in 3 s (ffe65ff).
+      await page.goto(`${BASE}/effects${query}&duration=6000`);
       await waitForShatterReady(page);
       // Warm code: a cold first run allocates while V8 compiles (LEARNINGS).
       await warmUp(page, effect);

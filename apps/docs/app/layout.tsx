@@ -17,11 +17,16 @@ import './globals.css';
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-display',
-  display: 'swap',
+  // `optional`: a late swap moved the hero's text column on phones (layout
+  // shift 0.10 under Lighthouse's throttling). On a slow first visit the
+  // fallback face stays for that visit; the next one has the font cached.
+  display: 'optional',
 });
 const mono = Martian_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
+  // Kept at `swap`: `optional` left the live page in the fallback while the
+  // capture copied the late font, a 1.4 % landing seam (PROGRESS M20).
   display: 'swap',
   preload: false,
 });
@@ -30,7 +35,7 @@ const mono = Martian_Mono({
  * Applies the remembered theme and material before the first paint, so the
  * page never flashes the default (ADR-050). Kept tiny and dependency-free.
  */
-const THEME_SCRIPT = `(function(){try{var r=document.documentElement,t=localStorage.getItem('lab-theme'),m=localStorage.getItem('lab-material');if(t==='light'||t==='dark')r.setAttribute('data-theme',t);if(m==='glass'||m==='ice'||m==='obsidian'||m==='paper')r.setAttribute('data-material',m);}catch(e){}})();`;
+const THEME_SCRIPT = `(function(){try{var r=document.documentElement,t=localStorage.getItem('lab-theme'),m=localStorage.getItem('lab-material'),f=localStorage.getItem('docs-framework');if(t==='light'||t==='dark')r.setAttribute('data-theme',t);if(m==='glass'||m==='ice'||m==='obsidian'||m==='paper')r.setAttribute('data-material',m);if(f==='next'||f==='react-router'||f==='react'||f==='vanilla')r.setAttribute('data-framework',f);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: { default: 'Shatter Router — break the page', template: '%s — Shatter Router' },

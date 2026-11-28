@@ -19,7 +19,7 @@ const FEATURES = [
   ],
   [
     'Free until used',
-    'The core is 1.8 kB. The renderer, the capture and the physics load on idle, in their own chunks.',
+    'The core is 2.35 kB. The renderer, the capture and the physics load on idle, in their own chunks.',
   ],
   [
     'Any router',

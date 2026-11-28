@@ -10,7 +10,7 @@
     "build": "pnpm --filter shatter-router build",
     "build:examples": "pnpm --filter \"./examples/*\" --filter \"./apps/*\" build",
     "typecheck": "pnpm -r typecheck && tsc --noEmit -p tsconfig.json",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "eslint . --max-warnings 0 && node scripts/search-index.mjs --check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm --filter shatter-router test",

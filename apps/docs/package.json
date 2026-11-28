@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 5176",
-    "build": "next build",
+    "build": "node ../../scripts/search-index.mjs && next build",
     "start": "next start -p 4176",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
@@ -15,6 +15,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "shatter-router": "workspace:*",
+    "shiki": "4.6.0",
     "tweakpane": "4.0.5"
   },
   "devDependencies": {

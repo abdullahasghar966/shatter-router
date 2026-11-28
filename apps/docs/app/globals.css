@@ -338,6 +338,124 @@ q {
   cursor: pointer;
 }
 
+/* Search (ADR-061): a header button and a modal dialog over a prebuilt index. */
+.search-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 2rem;
+  padding: 0 0.45rem 0 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.search-button:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.search-button svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.search-button kbd {
+  padding: 0 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.search-dialog {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: min(34rem, calc(100vh - 6rem));
+  margin: 4.5rem auto auto;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  box-shadow: var(--shadow);
+  /* It sits in the header, whose labels are mono: read in the text face. */
+  font-family: var(--display);
+  font-size: 1rem;
+  letter-spacing: normal;
+}
+
+.search-dialog::backdrop {
+  background: rgb(10 10 8 / 0.45);
+}
+
+.search-box {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: inherit;
+}
+
+.search-input {
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--display);
+  font-size: 1.15rem;
+}
+
+.search-input:focus-visible {
+  outline: none;
+}
+
+.search-results {
+  margin: 0;
+  padding: 0.4rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.search-result {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.search-result[aria-selected='true'] {
+  background: var(--bg-sunk);
+}
+
+.search-result-title {
+  font-weight: 600;
+}
+
+.search-result-title span {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.search-result-text {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.search-status {
+  margin: 0;
+  padding: 0.55rem 1.1rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
 .theme-toggle svg {
   width: 1rem;
   height: 1rem;
@@ -413,7 +531,9 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--bg-raised);
-  white-space: nowrap;
+  /* Wraps on a phone: a long unbroken run of code widened the whole page
+     (412 px wide, 496 px of scroll, PROGRESS M20). */
+  overflow-wrap: anywhere;
 }
 
 pre {
@@ -436,16 +556,73 @@ pre code {
 .code-block {
   position: relative;
   margin: 1.5rem 0;
+  /* A grid or flex item must be allowed to shrink: its pre scrolls. */
+  min-width: 0;
 }
 
 .code-block pre {
   margin: 0;
 }
 
+/* Highlighted code (ADR-061): three ink colours, all ≥ 4.5:1 on the raised
+   surface; keywords take the material's ink. */
+:root {
+  --code-keyword: var(--mat-ink);
+  --code-string: #4f6a2a;
+  --code-comment: var(--faint);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --code-string: #b5cf86;
+  }
+}
+
+:root[data-theme='dark'] {
+  --code-string: #b5cf86;
+}
+
+.tk-keyword {
+  color: var(--code-keyword);
+}
+
+.tk-string {
+  color: var(--code-string);
+}
+
+.tk-comment {
+  color: var(--code-comment);
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.code-block pre {
+  padding-top: 2.1rem;
+}
+
 .code-block .code-label {
   position: absolute;
   top: 0.55rem;
-  right: 0.9rem;
+  right: 5.2rem;
   font-family: var(--mono);
   font-size: 0.625rem;
   letter-spacing: 0.14em;
@@ -823,8 +1000,122 @@ pre code {
   opacity: 0.7;
 }
 
-.card h2 {
+.card h2,
+.card h3 {
+  margin: 0;
   font-size: 1.75rem;
+}
+
+.card .card-meta {
+  margin-top: auto;
+  padding-top: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+/* Library controls (ADR-061): family chips, then what the cards break with. */
+.library-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem 2rem;
+  padding: 0 var(--gutter) 2rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.chip:hover {
+  border-color: var(--fg);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+.break-with {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.break-with label,
+.field {
+  display: grid;
+  gap: 0.3rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.break-with select,
+.field select {
+  min-width: 11rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.library-count {
+  margin: 0 0 0.5rem auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.family-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.5rem;
+  padding: 0 var(--gutter) 1.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1.75rem;
+}
+
+.family-head h2 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.family-head p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.family .gallery {
+  padding-bottom: 3.5rem;
 }
 
 .card p {
@@ -869,6 +1160,50 @@ pre code {
 .effect-hero h1 {
   font-size: clamp(3.25rem, 11vw, 9rem);
   letter-spacing: -0.055em;
+}
+
+.effect-hero {
+  cursor: crosshair;
+}
+
+.effect-hero .effect-hint {
+  margin: 0.75rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The effect page's replay bench (ADR-061). */
+.stage-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  padding: 2rem var(--gutter) 0;
+}
+
+.stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.button[aria-pressed='true'] {
+  background-color: var(--signal);
+  border-color: var(--signal);
+  color: #fff;
+}
+
+.stage-readout {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stage-controls .code-block {
+  margin: 0;
+  max-width: 60rem;
 }
 
 .prose {
@@ -975,9 +1310,11 @@ pre code {
   padding: clamp(2rem, 6vw, 4rem) var(--gutter) 6rem;
 }
 
+/* Not sticky: a stuck sticky element is composited, and Chromium on Windows
+   then lifts the content painted after it into layers whose text loses
+   ClearType, which no copy of the page can match (seam 0.57 % → 0.01 %,
+   PROGRESS M20). */
 .docs-nav {
-  position: sticky;
-  top: 1.5rem;
   align-self: start;
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -1026,6 +1363,33 @@ pre code {
   color: var(--fg);
 }
 
+/* Changelog (ADR-061) */
+.changes h2 {
+  margin-top: 3rem;
+}
+
+.changes > ul {
+  padding: 0;
+  list-style: none;
+}
+
+.changes > ul > li {
+  padding: 0.25rem 0 0.25rem 1rem;
+  border-left: 2px solid var(--line);
+}
+
+.change-bump {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--signal-ink);
+}
+
+.change-bump + p {
+  margin-top: 0.25rem;
+}
+
 .callout {
   margin: 1.5rem 0;
   padding: 1rem 1.25rem;
@@ -1040,7 +1404,86 @@ pre code {
   margin: 0;
 }
 
-/* Playground */
+/* Framework tabs (ADR-061): <html data-framework> picks the panel before
+   first paint; Next.js when nothing was chosen. */
+.fw-tabs {
+  margin: 1.5rem 0;
+}
+
+.fw-tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.fw-tab {
+  margin-bottom: -1px;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.fw-tab:hover {
+  color: var(--fg);
+}
+
+.fw-panel {
+  display: none;
+}
+
+.fw-panel > .code-block:first-child,
+.fw-panel > pre:first-child {
+  margin-top: 0.75rem;
+}
+
+:root:not([data-framework]) .fw-tab[data-fw='next'],
+:root[data-framework='next'] .fw-tab[data-fw='next'],
+:root[data-framework='react-router'] .fw-tab[data-fw='react-router'],
+:root[data-framework='react'] .fw-tab[data-fw='react'],
+:root[data-framework='vanilla'] .fw-tab[data-fw='vanilla'] {
+  border-color: var(--line);
+  border-bottom-color: var(--bg);
+  color: var(--fg);
+  background: var(--bg-raised);
+}
+
+:root:not([data-framework]) .fw-panel[data-fw='next'],
+:root[data-framework='next'] .fw-panel[data-fw='next'],
+:root[data-framework='react-router'] .fw-panel[data-fw='react-router'],
+:root[data-framework='react'] .fw-panel[data-fw='react'],
+:root[data-framework='vanilla'] .fw-panel[data-fw='vanilla'] {
+  display: block;
+}
+
+/* Playground ("Studio", ADR-061) */
+
+.studio-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 var(--gutter) 1.25rem;
+}
+
+.studio-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
 
 .playground {
   display: grid;
@@ -1205,8 +1648,19 @@ pre code {
 @media (max-width: 40rem) {
   .site-header {
     display: grid;
-    grid-template-columns: 1fr auto;
+    /* minmax(0, …): a track may shrink below its content, or the nav's
+       content (its own scroller) widens the whole page (412 px phone: 496). */
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.6rem 1rem;
+  }
+
+  .site-header > * {
+    min-width: 0;
+  }
+
+  /* The search button keeps its icon and shortcut on a phone. */
+  .search-button span {
+    display: none;
   }
 
   .site-header nav {
@@ -1242,10 +1696,6 @@ pre code {
     gap: 2rem;
   }
 
-  .docs-nav {
-    position: static;
-  }
-
   .docs-nav ul {
     display: flex;
     flex-wrap: wrap;
@@ -1276,4 +1726,63 @@ pre code {
   .button:active {
     --crack: transparent;
   }
+}
+
+/* Benchmark (ADR-061) */
+.bench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  max-width: 52rem;
+  padding: 0 var(--gutter) 6rem;
+}
+
+.bench-controls {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.bench-reduced,
+.bench-device,
+.bench-status,
+.bench-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.925rem;
+}
+
+.bench-device,
+.bench-status {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.bench-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.bench-table th,
+.bench-table td {
+  overflow-wrap: anywhere;
+  padding: 0.6rem 1rem 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.bench-table thead th {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bench-table td {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
 }

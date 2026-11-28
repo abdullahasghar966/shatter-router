@@ -10,7 +10,10 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 import { createShatter, type Shatter, type ShatterOptions } from 'shatter-router';
+import type { Pane } from 'tweakpane';
 import { rippleOut } from '../../effects/ripple-out';
+import type { Framework } from '../../lib/frameworks';
+import { currentFramework, FrameworkTabs } from '../framework-tabs';
 import {
   configCode,
   configFromSearch,
@@ -23,8 +26,22 @@ import {
   type PlaygroundConfig,
   effectOf,
   PATTERNS,
+  presetConfig,
+  PRESETS,
+  randomConfig,
   STAGGERS,
 } from './config';
+
+/** How many earlier settings Undo can go back through. */
+const UNDO_LIMIT = 50;
+
+/** Ctrl/Cmd+Z belongs to a text field while one has focus. */
+function typing(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  );
+}
 
 /** Sliders fire on every step; browsers limit replaceState calls (Safari throws). */
 const URL_WRITE_DELAY_MS = 250;
@@ -117,6 +134,40 @@ export function Playground(): ReactNode {
   const [copied, setCopied] = useState('');
   const paneHost = useRef<HTMLDivElement>(null);
   const instance = useRef<{ shatter: Shatter; config: PlaygroundConfig } | null>(null);
+  // The panel and the object it edits, once built.
+  const panel = useRef<{ pane: Pane; params: PlaygroundConfig } | null>(null);
+  // Undo (ADR-061): the settings before each finished change, newest last.
+  const history = useRef<PlaygroundConfig[]>([]);
+  const committed = useRef<PlaygroundConfig>(DEFAULTS);
+  const applying = useRef(false);
+  const [undoCount, setUndoCount] = useState(0);
+
+  /** Remembers the settings a change is about to leave. */
+  const remember = (): void => {
+    history.current.push({ ...committed.current });
+    if (history.current.length > UNDO_LIMIT) history.current.shift();
+    setUndoCount(history.current.length);
+  };
+
+  /** Puts settings into the panel (a preset, a random draw, a reset, an undo). */
+  const apply = (next: PlaygroundConfig, record: boolean): void => {
+    const built = panel.current;
+    if (!built) return;
+    if (record) remember();
+    applying.current = true;
+    Object.assign(built.params, next);
+    built.pane.refresh();
+    applying.current = false;
+    committed.current = { ...built.params };
+    setConfig({ ...built.params });
+    writeUrl(built.params);
+  };
+
+  const undo = (): void => {
+    const previous = history.current.pop();
+    setUndoCount(history.current.length);
+    if (previous) apply(previous, false);
+  };
 
   // Tweakpane, loaded on demand so it is not part of the page's first load.
   useEffect(() => {
@@ -134,8 +185,11 @@ export function Playground(): ReactNode {
       if (gone() || !container) return;
       const params = configFromSearch(window.location.search);
       setConfig({ ...params });
+      committed.current = { ...params };
       const pane = new Pane({ container, title: 'Options' });
+      panel.current = { pane, params };
       dispose = () => {
+        panel.current = null;
         pane.dispose();
       };
       pane.addBinding(params, 'effect', {
@@ -177,11 +231,16 @@ export function Playground(): ReactNode {
       more.addBinding(params, 'seed', { ...LIMITS.seed, label: 'seed (0 = random)' });
       more.addBinding(params, 'debug');
       pane.addButton({ title: 'Reset' }).on('click', () => {
-        Object.assign(params, DEFAULTS);
-        pane.refresh();
+        apply({ ...DEFAULTS, debug: params.debug }, true);
       });
       pane.on('change', (event) => {
         setConfig({ ...params });
+        // A finished change by hand can be undone; one applied in code
+        // (preset, random, reset, undo) was recorded by `apply`.
+        if (event.last && !applying.current) {
+          remember();
+          committed.current = { ...params };
+        }
         window.clearTimeout(pending);
         // The end of a drag (or a select, a toggle) is written at once.
         if (event.last) writeUrl(params);
@@ -207,6 +266,23 @@ export function Playground(): ReactNode {
     },
     [],
   );
+
+  // Ctrl/Cmd+Z undoes the last change, except while typing in a field.
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
+      if (event.key.toLowerCase() !== 'z' || typing(event.target)) return;
+      if (history.current.length === 0) return;
+      event.preventDefault();
+      undoRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
 
   const shatterFor = async (current: PlaygroundConfig): Promise<Shatter> => {
     if (instance.current?.config === current) return instance.current.shatter;
@@ -237,9 +313,8 @@ export function Playground(): ReactNode {
     );
   };
 
-  const code = configCode(config);
   const onCopy = (): void => {
-    navigator.clipboard.writeText(code).then(
+    navigator.clipboard.writeText(configCode(config, currentFramework())).then(
       () => {
         setCopied('Copied.');
       },
@@ -252,6 +327,43 @@ export function Playground(): ReactNode {
   const current = SCENES[scene] ?? SCENES[0];
   return (
     <>
+      <div className="studio-bar">
+        <div className="chips" role="group" aria-label="Presets">
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              className="chip"
+              title={preset.note}
+              onClick={() => {
+                apply(presetConfig(preset, config), true);
+              }}
+            >
+              {preset.name}
+            </button>
+          ))}
+        </div>
+        <div className="studio-actions">
+          <button
+            type="button"
+            className="button ghost"
+            onClick={() => {
+              apply(randomConfig(config), true);
+            }}
+          >
+            Randomise
+          </button>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={undo}
+            disabled={undoCount === 0}
+            aria-keyshortcuts="Control+Z Meta+Z"
+          >
+            Undo{undoCount > 0 ? ` (${String(undoCount)})` : ''}
+          </button>
+        </div>
+      </div>
       <div className="playground">
         <button
           type="button"
@@ -282,10 +394,33 @@ export function Playground(): ReactNode {
         <p role="status" className="copy-status">
           {copied}
         </p>
-        <pre tabIndex={0} data-testid="config-code">
-          <code>{code}</code>
-        </pre>
+        <FrameworkTabs
+          label="Framework"
+          panels={{
+            next: <ConfigCode config={config} framework="next" />,
+            'react-router': <ConfigCode config={config} framework="react-router" />,
+            react: <ConfigCode config={config} framework="react" />,
+            vanilla: <ConfigCode config={config} framework="vanilla" />,
+          }}
+        />
       </section>
     </>
+  );
+}
+
+function ConfigCode({
+  config,
+  framework,
+}: {
+  config: PlaygroundConfig;
+  framework: Framework;
+}): ReactNode {
+  return (
+    <pre
+      tabIndex={0}
+      data-testid={framework === 'vanilla' ? 'config-code' : `config-code-${framework}`}
+    >
+      <code>{configCode(config, framework)}</code>
+    </pre>
   );
 }
