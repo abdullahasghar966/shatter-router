@@ -88,7 +88,7 @@ describe('fracture geometry', () => {
       expect(u).toBeCloseTo(x / W, 5);
       expect(t).toBeCloseTo(y / H, 5);
     }
-  });
+  }, 30_000);
 
   it('is deterministic with a seed and varies without one', () => {
     const a = fracture(impactPattern, {

@@ -704,3 +704,11 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
   9. **Tests.** E2E on the vanilla example: first-frame seam at `p = 0`; the live element is still in the accessibility tree at `p = 1`; scrolling back to `p = 0` restores the seam (the page is reassembled); progress is monotonic in time; a navigation during scrubbing ends the scrub; reduced motion path; 60 fps is measured on the GPU (`SHATTER_PERF`), not enforced in CI.
 - **Consequences:** A new public call (`scrollBreak`) and a documented sticky-box contract. The docs site's home page can host a real scroll-driven section (its "Specimen" strip). Scroll breaks cost one capture at approach time; a page whose section content changes while approaching shows the content from the capture (documented).
 - **Compare mode (open, ask the user):** ADR-061's compare mode needs two regions to break on one click in the same frame. The engine draws one mesh per transition and one transition at a time (ADR-022). Options: (a) multi-region in one frame: one mesh per region in the same canvas, one draw call per region (the one-draw-call rule becomes "one per region"), a larger change to the engine and the budget; (b) two stages break in sequence on one click (honest but not a comparison); (c) defer compare mode to M18.1. Recommended: (c), with a note on the library's roadmap; the stage pair stays as two independent breaks.
+
+## ADR-065 — Compare mode moves to M18.1; M18 build order
+
+- **Date:** 2026-11-28
+- **Status:** accepted (the user left the call to the agent)
+- **Context:** ADR-064 left compare mode (two regions breaking in one frame) as the open question.
+- **Decision:** Compare mode is M18.1: it needs one mesh per region in one frame and a budget review. M18 ships the stage pair as two independent breaks. M18 order: (1) region API in the core, engine and capture, with the vanilla example and seam tests; (2) scroll-driven breaking (ADR-064); (3) docs: live card stages on hover-hold, the home specimen strip. Each step lands with tests on Chromium and WebKit before the next.
+- **Consequences:** The milestone is delivered in commits per step; the PR is opened when step 3 is green.

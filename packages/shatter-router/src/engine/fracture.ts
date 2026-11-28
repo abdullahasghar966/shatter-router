@@ -56,6 +56,13 @@ export interface FractureOptions extends SeedOptions {
   readonly thickness?: number;
   /** Custom seed layout `[x0, y0, x1, y1, …]` (ShatterEffect.seedPoints); skips sampling. */
   readonly seedPoints?: Float32Array;
+  /**
+   * Where the `width × height` area sits on the page, in CSS pixels (ADR-063):
+   * a region's pieces are built in region-local coordinates, then moved here,
+   * so the UVs stay local to the cropped capture and every position, origin
+   * and tear path is in page coordinates. Default: the page's origin.
+   */
+  readonly offset?: Point;
 }
 
 /** One shard: a convex Voronoi cell. */
@@ -351,16 +358,50 @@ export function fracture(pattern: FracturePattern, options: FractureOptions): Fr
       }))
     : cells;
   const mesh = buildMesh(shards, width, height, thickness);
+  const dx = options.offset?.x ?? 0;
+  const dy = options.offset?.y ?? 0;
+  const moved = dx !== 0 || dy !== 0;
   return {
     width,
     height,
-    origin: clampedOrigin,
+    origin: moved ? { x: clampedOrigin.x + dx, y: clampedOrigin.y + dy } : clampedOrigin,
     maxRadius: path
       ? farthestCornerFromPath(path, width, height)
       : farthestCorner(clampedOrigin, width, height),
-    path: path ? Float32Array.from(path.flatMap((point) => [point.x, point.y])) : null,
+    path: path ? Float32Array.from(path.flatMap((point) => [point.x + dx, point.y + dy])) : null,
     thickness,
-    shards,
-    ...mesh,
+    shards: moved ? shards.map((shard) => moveShard(shard, dx, dy)) : shards,
+    vertices: moved ? moveVertices(mesh.vertices, dx, dy) : mesh.vertices,
+    vertexCount: mesh.vertexCount,
+    frontVertexCount: mesh.frontVertexCount,
   };
+}
+
+/** A shard moved by (dx, dy): its polygon and centroid, nothing else changes. */
+function moveShard(shard: Shard, dx: number, dy: number): Shard {
+  const polygon = new Float64Array(shard.polygon.length);
+  for (let i = 0; i < shard.polygon.length; i += 2) {
+    polygon[i] = (shard.polygon[i] ?? 0) + dx;
+    polygon[i + 1] = (shard.polygon[i + 1] ?? 0) + dy;
+  }
+  return {
+    ...shard,
+    polygon,
+    centroid: { x: shard.centroid.x + dx, y: shard.centroid.y + dy },
+  };
+}
+
+/**
+ * The interleaved mesh moved by (dx, dy): positions (floats 0–1) and the
+ * centroid (floats 6–7). UVs (3–4) are local to the crop and stay as they are.
+ */
+function moveVertices(vertices: Float32Array, dx: number, dy: number): Float32Array {
+  const moved = new Float32Array(vertices);
+  for (let o = 0; o < moved.length; o += FLOATS_PER_VERTEX) {
+    moved[o] = (moved[o] ?? 0) + dx;
+    moved[o + 1] = (moved[o + 1] ?? 0) + dy;
+    moved[o + 6] = (moved[o + 6] ?? 0) + dx;
+    moved[o + 7] = (moved[o + 7] ?? 0) + dy;
+  }
+  return moved;
 }
