@@ -7,6 +7,7 @@ import { Header } from './header';
 import { Lab } from './lab';
 import { Providers } from './providers';
 import './globals.css';
+import { siteUrl } from '../lib/site';
 
 // "Material lab" type (ADR-050): a grotesk for display and text, a technical
 // mono for labels and readouts, self-hosted by next/font with the weight axis
@@ -38,6 +39,7 @@ const mono = Martian_Mono({
 const THEME_SCRIPT = `(function(){try{var r=document.documentElement,t=localStorage.getItem('lab-theme'),m=localStorage.getItem('lab-material'),f=localStorage.getItem('docs-framework');if(t==='light'||t==='dark')r.setAttribute('data-theme',t);if(m==='glass'||m==='ice'||m==='obsidian'||m==='paper')r.setAttribute('data-material',m);if(f==='next'||f==='react-router'||f==='react'||f==='vanilla')r.setAttribute('data-framework',f);}catch(e){}})();`;
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: { default: 'Shatter Router — break the page', template: '%s — Shatter Router' },
   description:
     'WebGL2 glass-shatter page transitions for single-page apps: vanilla, React, React Router and Next.js.',
