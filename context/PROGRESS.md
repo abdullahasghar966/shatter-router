@@ -27,7 +27,7 @@ Status: ☐ todo · ◐ in progress · ☑ done
 | 15  | Fracture patterns             | ☑      | `milestone/15-patterns`        | [#18](https://github.com/abdullahasghar966/shatter-router/pull/18) | `fad5e63` | `m15-patterns` |
 | 16  | Motions and materials         | ☑      | `milestone/16-motions`, `milestone/16-motions-2`, `milestone/16-materials` | [#19](https://github.com/abdullahasghar966/shatter-router/pull/19), [#20](https://github.com/abdullahasghar966/shatter-router/pull/20), [#21](https://github.com/abdullahasghar966/shatter-router/pull/21) | `91b83d4`, `44a7544`, `3382b96` | `m16-motions` |
 | 17  | Interaction, cursor, sound    | ☑      | `milestone/17-interaction`     | [#23](https://github.com/abdullahasghar966/shatter-router/pull/23) | `1e7c826` | `m17-interaction` |
-| 18  | Region transitions            | ◐      | `milestone/18-regions`         |     |           |             |
+| 18  | Region transitions            | ☑      | `milestone/18-regions`         | [#25](https://github.com/abdullahasghar966/shatter-router/pull/25) | `adfa948` | `m18-regions` |
 | 19  | Site redesign (Material lab)  | ☑      | `milestone/19-redesign`        | [#17](https://github.com/abdullahasghar966/shatter-router/pull/17) | `0091427` | `m19-redesign` |
 | 20  | Site features                 | ☑      | `milestone/20-site-features`   | [#24](https://github.com/abdullahasghar966/shatter-router/pull/24) | `08c8254` | `m20-site-features` |
 | 21  | Production foundations, 1.0   | ☐      | `milestone/21-production`      |     |           |             |
