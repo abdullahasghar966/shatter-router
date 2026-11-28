@@ -25,6 +25,8 @@ const display = Bricolage_Grotesque({
 const mono = Martian_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
+  // Kept at `swap`: `optional` left the live page in the fallback while the
+  // capture copied the late font, a 1.4 % landing seam (PROGRESS M20).
   display: 'swap',
   preload: false,
 });
