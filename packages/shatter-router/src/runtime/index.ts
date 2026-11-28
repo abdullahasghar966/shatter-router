@@ -16,6 +16,8 @@ import { type ScrollTarget, waitUntilReady } from '../core/ready';
 import { createScrollLock, type ScrollLock } from '../core/scroll-lock';
 import { ShatterFacade, type RuntimeHost, type ShatterRuntime } from '../core/shatter';
 import type { Snapshot } from '../core/snapshot';
+import { type Box, clipBox, type Region, snapRegion } from '../core/region';
+import type { PageFrame } from '../engine/crop';
 import type {
   FallbackReason,
   PausePoint,
@@ -147,6 +149,8 @@ interface Plan {
   readonly path: readonly Point[] | undefined;
   /** `uDirection`: a reversed effect runs forward in reverse time. */
   readonly direction: 'forward' | 'back';
+  /** Breaks only this element (ADR-063). */
+  readonly target?: Element;
 }
 
 interface Settings {
@@ -526,14 +530,33 @@ class Runtime implements ShatterRuntime {
         this.hook.lastPrecaptured = precaptured;
       }
       machine.enter('covering');
-      await engine.cover(snapshot);
+      // A region (ADR-063): the element's box, as device pixels of this capture.
+      const target = run.plan.target;
+      let frame: PageFrame | undefined;
+      if (target) {
+        const region = regionOf(target, snapshot);
+        if (!region) {
+          snapshot.dispose();
+          throw new Fallback('region-empty');
+        }
+        frame = {
+          viewport: {
+            width: snapshot.width,
+            height: snapshot.height,
+            deviceWidth: snapshot.deviceWidth,
+            deviceHeight: snapshot.deviceHeight,
+          },
+          region,
+        };
+      }
+      await engine.cover(snapshot, frame);
       this.throwIfCancelled(run);
       this.emit('covered', { captureMs: snapshot.duration, precaptured });
       await this.pause('covered', run);
 
       // Fracture before the router runs so the geometry work overlaps the
       // time the new route needs to render.
-      const origin = run.plan.origin ?? { x: viewport.width / 2, y: viewport.height / 2 };
+      const origin = run.plan.origin ?? defaultOrigin(frame, viewport);
       const { count, tier } = engine.resolveShardCount(settings.shards, snapshot.duration);
       const seed = settings.seed;
       const stats = engine.fracture({
@@ -560,7 +583,9 @@ class Runtime implements ShatterRuntime {
       machine.enter('waiting');
       removeSkipListeners = this.listenForSkip(run, engine);
       const direction = request.direction ?? 'forward';
-      const scroll: ScrollTarget = request.scroll ?? (direction === 'back' ? 'none' : 'top');
+      // A region has no new page to scroll to: the page stays where it is.
+      const scroll: ScrollTarget =
+        request.scroll ?? (target || direction === 'back' ? 'none' : 'top');
       await waitUntilReady(document, scroll, settings.readyTimeout, run.skip.signal);
 
       // Effects that end on the new page need a picture of it (master prompt 4.7):
@@ -746,6 +771,7 @@ class Runtime implements ShatterRuntime {
         effect: chosen,
         origin: gesture?.origin ?? request.origin,
         direction: 'forward',
+        ...(request.target ? { target: request.target } : {}),
         ...force,
       };
     }
@@ -1179,4 +1205,40 @@ export function createShatterWith(options: ShatterOptions, deps: ShatterDeps): S
   return new ShatterFacade(options, () =>
     Promise.resolve({ createRuntime: (host: RuntimeHost) => createRuntime(host, deps) }),
   );
+}
+
+/**
+ * The region an element covers in the capture (ADR-063): its box, cut down by
+ * every ancestor that clips (`overflow` other than `visible`), snapped to the
+ * capture's device pixels. Null when nothing of it is visible.
+ */
+function regionOf(target: Element, snapshot: Snapshot): Region | null {
+  let box: Box | null = boxOf(target.getBoundingClientRect());
+  for (let el = target.parentElement; el && box; el = el.parentElement) {
+    if (el === document.documentElement) break;
+    const style = window.getComputedStyle(el);
+    if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+      box = clipBox(box, boxOf(el.getBoundingClientRect()));
+    }
+  }
+  if (!box || snapshot.width <= 0) return null;
+  // The capture's own scale, so the crop lands on its pixels.
+  const scale = snapshot.deviceWidth / snapshot.width;
+  return snapRegion(box, { width: snapshot.width, height: snapshot.height }, scale);
+}
+
+function boxOf(rect: DOMRect): Box {
+  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+}
+
+/** A region's centre, or the viewport's (ADR-063: a region breaks from its middle). */
+function defaultOrigin(
+  frame: PageFrame | undefined,
+  viewport: { readonly width: number; readonly height: number },
+): Point {
+  if (!frame) return { x: viewport.width / 2, y: viewport.height / 2 };
+  return {
+    x: frame.region.x + frame.region.width / 2,
+    y: frame.region.y + frame.region.height / 2,
+  };
 }

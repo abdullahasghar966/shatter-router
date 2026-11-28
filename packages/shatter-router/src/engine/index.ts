@@ -19,6 +19,8 @@ import {
 import { createRandom } from '../core/random';
 import { lightFade, type Rgb } from '../core/shading';
 import type { Snapshot } from '../core/snapshot';
+import type { Region } from '../core/region';
+import { cropCapture, isWholeCapture, type PageFrame } from './crop';
 import { createPixelCamera, type PixelCamera } from './camera';
 import { CRACK_DURATION_MS, CRACK_HOLD_MS, crackAt } from './crack';
 import {
@@ -149,6 +151,12 @@ export class Engine {
   /** The incoming page, for effects that end on it. */
   private incomingTexture: WebGLTexture | null = null;
   private incoming: Snapshot | null = null;
+  /** The whole viewport the overlay covers, and the region the page texture holds (ADR-063). */
+  private viewport: { width: number; height: number } | null = null;
+  private region: Region | null = null;
+  /** Crops made for regions: the pixels stay referenced until the textures are uploaded. */
+  private croppedPage: HTMLCanvasElement | null = null;
+  private croppedIncoming: HTMLCanvasElement | null = null;
   /** Physics mode: the simulation, its transforms (one mat4 per shard) and their texture. */
   private simulation: PhysicsSimulation | null = null;
   private transforms: Float32Array | null = null;
@@ -342,22 +350,38 @@ export class Engine {
    * Resolves once that frame has actually been presented, so the caller may
    * change the DOM underneath without the user seeing it.
    */
-  async cover(snapshot: Snapshot): Promise<void> {
+  async cover(snapshot: Snapshot, frame?: PageFrame): Promise<void> {
     if (this.isContextLost()) throw new GLError('WebGL context is lost');
     this.release();
     this.snapshot = snapshot;
     this.scene = 'page';
+    // A region: the overlay still covers the whole viewport, and the page texture
+    // is the region's crop of the capture (ADR-063). Without a frame, the whole page.
+    const viewport = frame?.viewport ?? {
+      width: snapshot.width,
+      height: snapshot.height,
+      deviceWidth: snapshot.deviceWidth,
+      deviceHeight: snapshot.deviceHeight,
+    };
+    const region = frame?.region ?? wholeRegion(snapshot);
+    this.viewport = { width: viewport.width, height: viewport.height };
+    this.region = region;
 
-    this.device.resize(snapshot.deviceWidth, snapshot.deviceHeight);
-    this.overlay.setSize(snapshot.width, snapshot.height);
+    this.device.resize(viewport.deviceWidth, viewport.deviceHeight);
+    this.overlay.setSize(viewport.width, viewport.height);
     this.camera = createPixelCamera(
-      snapshot.width,
-      snapshot.height,
+      viewport.width,
+      viewport.height,
       undefined,
       this.viewProjection,
     );
-    this.texture = this.device.createTexture(snapshot.source);
-    this.setQuad(snapshot.width, snapshot.height);
+    let source: HTMLCanvasElement | ImageBitmap = snapshot.source;
+    if (!isWholeCapture(region, snapshot)) {
+      this.croppedPage = cropCapture(this.win.document, snapshot.source, region);
+      source = this.croppedPage;
+    }
+    this.texture = this.device.createTexture(source);
+    this.setQuad(region);
 
     // Showing a still-transparent overlay is harmless: the DOM beneath is the
     // very page the snapshot shows. Draw, then wait until that frame is on screen.
@@ -399,24 +423,29 @@ export class Engine {
    * exactly, so the picture does not change.
    */
   fracture(request: FractureRequest): FractureStats {
-    const snapshot = this.snapshot;
-    if (!snapshot) throw new GLError('fracture() needs a covered page');
+    const region = this.region;
+    if (!this.snapshot || !region) throw new GLError('fracture() needs a covered page');
     const { effect, origin, thickness, seed, path } = request;
     const count = clampShardCount(request.count);
     const started = performance.now();
+    // Built in the region's own pixels, then moved onto the page (ADR-063):
+    // the origin and the tear path are page points, so they are localised here.
+    const local = { x: origin.x - region.x, y: origin.y - region.y };
+    const localPath = path?.map((point) => ({ x: point.x - region.x, y: point.y - region.y }));
     const options: FractureOptions = {
-      width: snapshot.width,
-      height: snapshot.height,
-      origin,
+      width: region.width,
+      height: region.height,
+      origin: local,
       count,
       thickness,
+      offset: { x: region.x, y: region.y },
       ...(seed === undefined ? {} : { seed }),
-      ...(path ? { path } : {}),
+      ...(localPath ? { path: localPath } : {}),
     };
     const seedPoints = effect.seedPoints?.({
-      width: snapshot.width,
-      height: snapshot.height,
-      origin,
+      width: region.width,
+      height: region.height,
+      origin: local,
       count,
       random: createRandom(seed),
     });
@@ -468,9 +497,10 @@ export class Engine {
       distance: shard.distance,
       polygon: shard.polygon,
     }));
+    const screen = this.viewport ?? { width: geometry.width, height: geometry.height };
     const context: EffectContext = {
-      width: geometry.width,
-      height: geometry.height,
+      width: screen.width,
+      height: screen.height,
       origin: geometry.origin,
       maxRadius: geometry.maxRadius,
       shards,
@@ -514,7 +544,13 @@ export class Engine {
     this.device.deleteTexture(this.incomingTexture);
     this.incoming?.dispose();
     this.incoming = snapshot;
-    this.incomingTexture = this.device.createTexture(snapshot.source);
+    const region = this.region;
+    let source: HTMLCanvasElement | ImageBitmap = snapshot.source;
+    if (region && !isWholeCapture(region, snapshot)) {
+      this.croppedIncoming = cropCapture(this.win.document, snapshot.source, region);
+      source = this.croppedIncoming;
+    }
+    this.incomingTexture = this.device.createTexture(source);
   }
 
   /**
@@ -544,8 +580,8 @@ export class Engine {
       };
     });
     this.simulation = backend.createSimulation({
-      width: geometry.width,
-      height: geometry.height,
+      width: screen.width,
+      height: screen.height,
       thickness: geometry.thickness,
       gravity: state.gravity,
       linearDamping: damping,
@@ -724,7 +760,8 @@ export class Engine {
       gl.uniform1f(program.uniform('uPhysics'), this.simulation ? 1 : 0);
       gl.activeTexture(gl.TEXTURE0);
       gl.uniform1f(program.uniform('uMaxZ'), camera ? camera.maxZ : 0);
-      gl.uniform2f(program.uniform('uViewport'), geometry.width, geometry.height);
+      const screen = this.viewport ?? { width: geometry.width, height: geometry.height };
+      gl.uniform2f(program.uniform('uViewport'), screen.width, screen.height);
       gl.uniform2f(program.uniform('uOrigin'), geometry.origin.x, geometry.origin.y);
       gl.uniform1f(program.uniform('uMaxRadius'), geometry.maxRadius);
       const state = this.state;
@@ -838,6 +875,10 @@ export class Engine {
     this.incomingTexture = null;
     this.incoming?.dispose();
     this.incoming = null;
+    this.croppedPage = null;
+    this.croppedIncoming = null;
+    this.viewport = null;
+    this.region = null;
     this.simulation?.free();
     this.simulation = null;
     this.transforms = null;
@@ -892,9 +933,32 @@ export class Engine {
     this.shardData = this.device.createDataTexture(SHARD_TEXELS, Math.max(1, rows), texels);
   }
 
-  private setQuad(width: number, height: number): void {
-    // Triangle strip: top-left, top-right, bottom-left, bottom-right.
-    this.quad.set([0, 0, 0, 0, 0, width, 0, 0, 1, 0, 0, height, 0, 0, 1, width, height, 0, 1, 1]);
+  /** The cover quad: the region's rectangle on the page, UVs over the crop (ADR-063). */
+  private setQuad(region: Region): void {
+    const { x, y, width, height } = region;
+    // Triangle strip: top-left, top-right, bottom-left, bottom-right; x, y, z, u, v.
+    this.quad.set([
+      x,
+      y,
+      0,
+      0,
+      0,
+      x + width,
+      y,
+      0,
+      1,
+      0,
+      x,
+      y + height,
+      0,
+      0,
+      1,
+      x + width,
+      y + height,
+      0,
+      1,
+      1,
+    ]);
     const { gl } = this.device;
     const { quadBuffer } = this.ensurePageResources();
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
@@ -976,4 +1040,18 @@ export class Engine {
 /** Entry point of the lazily loaded engine chunk. */
 export function createEngine(doc: Document): Engine {
   return new Engine(doc);
+}
+
+/** The whole capture as a region (no crop). */
+function wholeRegion(capture: Snapshot): Region {
+  return {
+    x: 0,
+    y: 0,
+    width: capture.width,
+    height: capture.height,
+    deviceX: 0,
+    deviceY: 0,
+    deviceWidth: capture.deviceWidth,
+    deviceHeight: capture.deviceHeight,
+  };
 }

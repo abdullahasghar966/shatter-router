@@ -134,6 +134,13 @@ export interface TransitionRequest {
   path?: readonly Point[];
   /** Replace the current history entry instead of adding one (navigation memory, ADR-047). */
   replace?: boolean;
+  /**
+   * Breaks only this element (a region, ADR-063): the rest of the page stays
+   * live. The region is the element's box, clipped by its scrolling ancestors.
+   * The origin defaults to the region's centre, and the page does not scroll.
+   * An element with no visible box falls back to a plain commit (`region-empty`).
+   */
+  target?: Element;
   /** Navigation direction. Default `'forward'`. */
   direction?: 'forward' | 'back';
   /**
@@ -153,6 +160,7 @@ export type FallbackReason =
   | 'capture-failed'
   | 'context-lost'
   | 'disabled'
+  | 'region-empty'
   | 'error';
 
 export interface ShatterEventMap {
