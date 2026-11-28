@@ -690,7 +690,7 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 ## ADR-064 — Milestone 18 scope: scroll-driven breaking, and what compare mode needs
 
 - **Date:** 2026-11-28
-- **Status:** proposed (extends ADR-063; the user asked for scroll-driven breaking in M18)
+- **Status:** accepted, amended by ADR-066 (extends ADR-063; the user asked for scroll-driven breaking in M18)
 - **Context:** Plan 3.5 asks for "scroll-driven: scrub a fracture with scroll position (sections that break as you scroll past them)". The engine renders a transition as one timed motion (`uTime` from `requestAnimationFrame`). A scroll-driven break is that same motion with its time taken from scroll progress, plus two problems: keeping the broken element where it is while the page scrolls, and not paying a capture or fracture cost in the middle of scrolling.
 - **Decision:**
   1. **Pinned section, not a moving overlay.** The app wraps the element in a tall section with a sticky inner box (`position: sticky; top: 0; height: 100svh`, the target inside). The sticky box stays in place on screen while the section scrolls, so the region's rect is fixed for the whole break and the compositor does the pinning. A per-frame rect update would lag the native scroll by a frame, which is visible as jitter. The library provides the sticky-box contract as documentation and a `shatter.scrollBreak(target, { section?, ... })` call that returns a disposer.
@@ -712,3 +712,18 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
 - **Context:** ADR-064 left compare mode (two regions breaking in one frame) as the open question.
 - **Decision:** Compare mode is M18.1: it needs one mesh per region in one frame and a budget review. M18 ships the stage pair as two independent breaks. M18 order: (1) region API in the core, engine and capture, with the vanilla example and seam tests; (2) scroll-driven breaking (ADR-064); (3) docs: live card stages on hover-hold, the home specimen strip. Each step lands with tests on Chromium and WebKit before the next.
 - **Consequences:** The milestone is delivered in commits per step; the PR is opened when step 3 is green.
+
+## ADR-066 — Scroll-driven breaking as built, and the runtime budget
+
+- **Date:** 2026-11-28
+- **Status:** accepted (records the changes to ADR-064 found while building step 2, and the budget change they need)
+- **Context:** ADR-064 set the design. Building it showed three points the design could not keep as written.
+- **Decision:**
+  1. **Capture when the section pins, not early.** A capture is of the viewport, so an element that is off screen cannot be captured at an approach margin (ADR-064 item 3 assumed it could). The break is prepared the first time the scroll reaches the section's pinned range (`scrollY` at the section's top). The first scroll into the range shows the live page until the capture is ready (tens of ms); a break that is already past 0 then starts at its current progress.
+  2. **Whole-pixel range.** The section's top and the pinned range are rounded to whole pixels, because the browser scrolls in whole pixels. Progress 0 is then the exact scroll position where the section pins (a fractional top gave progress 0.016 at the first scroll, which hid the element).
+  3. **Returns a promise.** `shatter.scrollBreak(target, options)` resolves with the stop function (the module loads on first use). Markup errors reject with a `RangeError` (no sticky box, the section does not contain it, or the section is not taller than the box).
+  4. **Analytic motion only.** The scrub draws the effect's own timed motion. A physics backend is not stepped backwards, so physics does not apply to scroll breaks.
+  5. **The end state.** Past the pinned range the overlay goes (its pieces are at their end pose and the sticky box has left the screen), and the element stays hidden. Scrolling back shows the overlay again. Above the section the element is whole and any prepared engine is released.
+  6. **Event-driven.** No continuous loop: each scroll event schedules one animation frame that draws once. Zero allocation per frame is kept (the crack and motion state are reused).
+  7. **Budgets.** The runtime chunk measures 10.21 kB gzip after the region and scroll entry points (9.93 kB at the start of M18). Region geometry and scroll breaking now live in their own lazy chunks (`dist/geometry.js`, `dist/scroll.js`, 2.16 kB, budget 4 kB). The runtime budget goes from 10 kB to 10.5 kB for the two entry points that stay in the runtime (the region branch of a transition and the scroll stub); the chunk stays lazy and loads at idle with the rest of the runtime. The engine core measures 14.7 kB (budget 15).
+- **Consequences:** `scrollBreak` is an async call. The docs site can host a real scroll section (its Specimen strip) with this contract. A page whose section content changes after the capture shows the old content until the section is re-pinned (documented). E2E on the vanilla example: first-frame seam 0.0378 % (Chromium), 0.0000 % (WebKit); the card is in the accessibility tree at the end of the range; scrolling back reassembles; a link click goes through the scrubbed overlay; navigation ends a scrub; reduced motion sets nothing up.
