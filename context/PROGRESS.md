@@ -389,6 +389,11 @@ Chromium and WebKit report whole-pixel scroll offsets (`scrollTo(0, 240.5)` give
 - **Seams:** first frame with the cursor kit on Chromium 0.0991 % / WebKit 0.0021 %; torn page at rest 0.1003 % (worst block 4.0 %, was 10.2 % while a tear reused its press-time pre-capture) / 0.0021 %; docs landing with the site's new cursor 0.0076 % light, 0.0063 % dark (Chromium), 0.0024 / 0.0023 % (WebKit).
 - **Performance with interaction and sound on** (RTX 4050, installed Chrome 157, 1440×900, 160 pieces): 143.4 fps, no long tasks outside capture; 0 B beyond boxed numbers in the frame loop (headless Chromium). Captures with and without them, interleaved: 69 / 112 / 59 ms against 47 / 93 / 97 ms (no measurable cost; the machine drifts).
 
+### Region transitions (Milestone 18, in progress, ADR-063 to ADR-065)
+
+- **Step 1, `transition({ target })` (2026-11-28):** unit tests `test/region.test.ts` (11: snapping to device pixels, clipping, the fracture offset: area, bounds, UVs, tear path); e2e `e2e/vanilla/regions.spec.ts` (6 per engine): first-frame seam inside the region Chromium 0.0000 %, WebKit 0.0000 % (raw 0.0420 %); no page scroll; the live page's boxes outside the card do not move during the break; the card is the page again after the break (seam within the limit); a hidden card falls back (`region-empty`) and navigation completes; textures 0 after each break and after three in a row. Full-page seams and effects unchanged: 35 passed on Chromium.
+- **Still to do in M18:** step 2 scroll-driven breaking (ADR-064), step 3 docs features deferred from M20 (hover-hold card stages, the home specimen strip); then the M18 PR, CI, merge and tag.
+
 ### Site features (Milestone 20, merged 2026-11-28 as PR #24, merge `08c8254`, tag `m20-site-features`, ADR-061, ADR-062)
 
 Known at merge: Lighthouse performance is 91–96 on four pages and 78–90 on `/playground` across two Chrome-closed runs (accessibility 100, CLS 0–0.005). The 95 target is not met on every page; the merge was the user's decision, since the gap is within run-to-run variance. Re-measure in M21's Lighthouse CI.
