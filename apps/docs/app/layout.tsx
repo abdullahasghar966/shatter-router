@@ -17,7 +17,10 @@ import './globals.css';
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-display',
-  display: 'swap',
+  // `optional`: a late swap moved the hero's text column on phones (layout
+  // shift 0.10 under Lighthouse's throttling). On a slow first visit the
+  // fallback face stays for that visit; the next one has the font cached.
+  display: 'optional',
 });
 const mono = Martian_Mono({
   subsets: ['latin'],
