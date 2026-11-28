@@ -738,3 +738,12 @@ Append only. Never edit an old ADR's decision; supersede it with a new ADR.
   2. **Home specimen strip.** A pinned section (200svh, sticky box 100svh) with four specimens. The featured one (`shatter`) breaks as the section scrolls, through `shatter.scrollBreak`. Three others (`melt`, `ripple`, `glitch`) break in place on press (click, Enter or Space). They are click-only: a resting pointer would also break them, and a click during the hold would break them twice.
   3. **Not in M18:** compare mode (ADR-065, M18.1) and the timeline scrubber (ADR-061 leaves it for a later stage API).
 - **Consequences:** a break blocks the pointer for its length (ADR-063 item 4), so a click on a card while its stage runs is taken by the overlay. Accepted for previews, which last about a second. Measured on Chromium and WebKit with pointer input; Firefox runs in CI. Under reduced motion the break is a plain commit with no visible change, as the runtime defines.
+
+## ADR-068 — Region breaks can let pointer input through
+
+- **Date:** 2026-11-28
+- **Status:** accepted
+- **Context:** ADR-063 blocks pointer input for the whole viewport during a transition, as the spec says. For a hover preview (ADR-067) that rule costs a click: a visitor who clicks a card while its preview runs hits the overlay, not the card link. Measured on the docs site: the click is lost for the length of the preview (about a second).
+- **Decision:** `TransitionRequest.passthrough?: boolean` (with `target`). When true, the overlay gets `pointer-events: none` once the region is covered, so input reaches the page under the preview. A click that reaches the page navigates through the normal path, which ends the preview (an interruption, as for any transition). The default is unchanged: the overlay blocks input. The engine resets the overlay's pointer events in `cover()`, so a later blocking transition is never affected.
+- **Alternatives considered:** an overlay that is always pointer-transparent (it would change every full-page transition's input rule, ADR-022); a second overlay element for previews (one more canvas and context state, for one flag).
+- **Consequences:** the docs' hover previews use it (ADR-067). Tests: `e2e/docs/live-stages.spec.ts` (a click during a preview reaches the card). Scroll breaks (ADR-064) already let input through while scrubbing; this is the same rule for timed region breaks, opted in per call.
