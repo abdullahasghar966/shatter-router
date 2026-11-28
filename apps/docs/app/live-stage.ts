@@ -45,6 +45,17 @@ export function useHoverHoldBreak(
     const cancel = (): void => {
       window.clearTimeout(timer);
     };
+    // Inside the element's box: pointerleave is not reliable on every engine
+    // (Firefox kept the hold running after the pointer had left).
+    const inside = (event: PointerEvent): boolean => {
+      const box = el.getBoundingClientRect();
+      return (
+        event.clientX >= box.left &&
+        event.clientX <= box.right &&
+        event.clientY >= box.top &&
+        event.clientY <= box.bottom
+      );
+    };
     const enter = (): void => {
       cancel();
       if (spent) return;
@@ -55,20 +66,20 @@ export function useHoverHoldBreak(
     };
     const leave = (event: PointerEvent): void => {
       cancel();
-      const box = el.getBoundingClientRect();
-      const inside =
-        event.clientX >= box.left &&
-        event.clientX <= box.right &&
-        event.clientY >= box.top &&
-        event.clientY <= box.bottom;
-      if (!inside) spent = false;
+      if (!inside(event)) spent = false;
+    };
+    // Any move that takes the pointer off the element ends the hold.
+    const move = (event: PointerEvent): void => {
+      if (timer !== 0 && !inside(event)) cancel();
     };
     el.addEventListener('pointerenter', enter);
     el.addEventListener('pointerleave', leave);
+    document.addEventListener('pointermove', move);
     return () => {
       cancel();
       el.removeEventListener('pointerenter', enter);
       el.removeEventListener('pointerleave', leave);
+      document.removeEventListener('pointermove', move);
     };
   }, [ref, shatter, holdMs]);
 }

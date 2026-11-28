@@ -50,6 +50,14 @@ async function openRegions(page: Page): Promise<void> {
  */
 async function revealCard(page: Page, index: number): Promise<void> {
   await page.locator('.region-card').nth(index).scrollIntoViewIfNeeded();
+  await wholePixelScroll(page);
+}
+
+/** Firefox can leave a fractional scroll offset; the comparisons need whole pixels. */
+async function wholePixelScroll(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    window.scrollTo(0, Math.round(window.scrollY));
+  });
 }
 
 /** Clicks a card by its centre, the way a visitor would. */
@@ -95,6 +103,7 @@ test.describe('regions (ADR-063)', () => {
     await openRegions(page);
     // The wide card is near the bottom: the page is scrolled to it first.
     await page.locator('.region-card.wide').scrollIntoViewIfNeeded();
+    await wholePixelScroll(page);
     const before = await page.evaluate(() => window.scrollY);
     expect(before).toBeGreaterThan(0);
     await clearLifecycleEvents(page);
