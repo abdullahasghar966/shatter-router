@@ -531,7 +531,9 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--bg-raised);
-  white-space: nowrap;
+  /* Wraps on a phone: a long unbroken run of code widened the whole page
+     (412 px wide, 496 px of scroll, PROGRESS M20). */
+  overflow-wrap: anywhere;
 }
 
 pre {
@@ -554,6 +556,8 @@ pre code {
 .code-block {
   position: relative;
   margin: 1.5rem 0;
+  /* A grid or flex item must be allowed to shrink: its pre scrolls. */
+  min-width: 0;
 }
 
 .code-block pre {
@@ -1173,6 +1177,7 @@ pre code {
 /* The effect page's replay bench (ADR-061). */
 .stage-controls {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   padding: 2rem var(--gutter) 0;
 }
@@ -1643,8 +1648,19 @@ pre code {
 @media (max-width: 40rem) {
   .site-header {
     display: grid;
-    grid-template-columns: 1fr auto;
+    /* minmax(0, …): a track may shrink below its content, or the nav's
+       content (its own scroller) widens the whole page (412 px phone: 496). */
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.6rem 1rem;
+  }
+
+  .site-header > * {
+    min-width: 0;
+  }
+
+  /* The search button keeps its icon and shortcut on a phone. */
+  .search-button span {
+    display: none;
   }
 
   .site-header nav {
@@ -1715,6 +1731,7 @@ pre code {
 /* Benchmark (ADR-061) */
 .bench {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
   max-width: 52rem;
   padding: 0 var(--gutter) 6rem;
@@ -1749,6 +1766,7 @@ pre code {
 
 .bench-table th,
 .bench-table td {
+  overflow-wrap: anywhere;
   padding: 0.6rem 1rem 0.6rem 0;
   border-bottom: 1px solid var(--line);
   text-align: left;

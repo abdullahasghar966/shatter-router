@@ -112,6 +112,7 @@ export function Search(): ReactNode {
         type="button"
         className="search-button"
         onClick={open}
+        aria-label="Search"
         aria-keyshortcuts="Control+K Meta+K /"
       >
         <svg viewBox="0 0 16 16" aria-hidden="true">
