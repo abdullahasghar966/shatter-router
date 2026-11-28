@@ -23,9 +23,8 @@
 
 ## Next steps
 
-1. **M18 step 3, docs features** (deferred from M20, ADR-061): live card mini stages that break on a press-and-hold (region transitions, `apps/docs`), and the home-page specimen strip (a scroll-driven section with `shatter.scrollBreak`, ADR-066 contract). Test on Chromium and WebKit; docs e2e under `e2e/docs`.
-2. **M18 PR:** update PROGRESS (M18 row, test counts), `gh pr create --base main --head milestone/18-regions`, watch three-engine CI, merge with `--merge` only when the user says so, tag `m18-regions` on `main`.
-3. Later (project complete, per the user): Lighthouse on all pages (playground TBT, shared chunk), then M21 Lighthouse CI.
+1. **M18 PR:** update PROGRESS (M18 row, test counts), `gh pr create --base main --head milestone/18-regions`, watch three-engine CI, merge with `--merge` only when the user says so, tag `m18-regions` on `main`.
+2. Later (project complete, per the user): Lighthouse on all pages (playground TBT, shared chunk), then M21 Lighthouse CI.
 
 ## Open problems / blockers
 
