@@ -30,7 +30,12 @@ test.describe('benchmark', () => {
   });
 
   test.describe('reduced motion', () => {
-    test.use({ reducedMotion: 'reduce' });
+    test.use({
+      reducedMotion: 'reduce',
+      // Running again destroys the first instance, which loses its WebGL
+      // context on purpose (`destroy()`); Firefox logs that as a warning.
+      expectedConsole: /WebGL context was lost/,
+    });
     test('says the effect did not play unless the visitor asks for it', async ({ page }) => {
       await page.goto(`${BASE}/benchmark?budget=5000`);
       const consent = page.getByRole('checkbox', { name: /reduced motion/ });
