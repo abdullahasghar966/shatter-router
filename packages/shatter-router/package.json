@@ -160,10 +160,25 @@
         "./interaction.js",
         "./sound.js",
         "./capture.js",
+        "./debug.js",
+        "./scroll.js",
+        "./geometry.js"
+      ],
+      "gzip": true,
+      "limit": "10.5 KB"
+    },
+    {
+      "name": "scroll chunk (lazy: scroll-driven breaks and region geometry, ADR-064)",
+      "path": "dist/scroll.js",
+      "import": "*",
+      "ignore": [
+        "./runtime.js",
+        "./engine.js",
+        "./capture.js",
         "./debug.js"
       ],
       "gzip": true,
-      "limit": "10 KB"
+      "limit": "4 KB"
     },
     {
       "name": "debug chunk (lazy: debug panel and seam check, debug mode only)",

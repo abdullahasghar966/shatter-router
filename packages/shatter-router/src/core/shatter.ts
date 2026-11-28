@@ -9,6 +9,7 @@ import type {
   ShatterEventHandler,
   ShatterEventMap,
   ShatterEventName,
+  ScrollBreakOptions,
   ShatterOptions,
   TransitionRequest,
 } from './types';
@@ -32,6 +33,8 @@ export interface RuntimeHost {
 export interface ShatterRuntime {
   readonly state: TransitionState;
   transition(request: TransitionRequest): Promise<void>;
+  /** A scroll-driven break (ADR-064); resolves with its stop function. */
+  scrollBreak(target: Element, options: ScrollBreakOptions): Promise<() => void>;
   /** Starts loading the engine and capture chunks. */
   warmUp(): void;
   /** The pointer is about to activate a link: start capturing now. */
@@ -125,6 +128,12 @@ export class ShatterFacade implements Shatter {
     this.soundOn = enabled;
     // Turned on by a click after earlier activity: the page has user activation.
     if (enabled && this.activated) void this.load().then((runtime) => runtime?.soundGesture());
+  }
+
+  async scrollBreak(target: Element, options: ScrollBreakOptions = {}): Promise<() => void> {
+    if (this.destroyed || !isBrowser()) return () => undefined;
+    const runtime = await this.load();
+    return runtime ? runtime.scrollBreak(target, options) : () => undefined;
   }
 
   async transition(request: TransitionRequest): Promise<void> {

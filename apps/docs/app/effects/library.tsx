@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { ShatterLink } from 'shatter-router/next';
 import {
   type BreakWith,
@@ -13,9 +13,20 @@ import {
   replaceSearch,
 } from '../../lib/break-with';
 import { EFFECTS, FAMILIES, type Family } from '../../lib/effects';
+import { useHoverHoldBreak, type StageEffect } from '../live-stage';
 import { SelectField } from '../select-field';
 
 type FamilyChoice = Family | 'all';
+
+/**
+ * The card's art is a live stage (ADR-067): resting the pointer on it breaks
+ * it in place with the card's effect, with the pattern and material chosen.
+ */
+function StageArt({ effect }: { readonly effect: StageEffect }): ReactNode {
+  const ref = useRef<HTMLSpanElement>(null);
+  useHoverHoldBreak(ref, effect);
+  return <span ref={ref} className="card-art" aria-hidden="true" />;
+}
 
 function familyFrom(search: string): FamilyChoice {
   const value = new URLSearchParams(search).get('family');
@@ -108,27 +119,30 @@ export function Library(): ReactNode {
             <p>{group.summary}</p>
           </header>
           <ul className="gallery">
-            {EFFECTS.filter((effect) => effect.family === group.id).map((effect) => (
-              <li key={effect.name}>
-                <ShatterLink
-                  className="card"
-                  href={`/effects/${effect.name}${query}`}
-                  effect={effectFor(effect.name, effect.durationMs, { ...settings, slow: false })}
-                  style={{ '--c1': effect.colors[0], '--c2': effect.colors[1] } as CSSProperties}
-                >
-                  <span className="card-art" aria-hidden="true" />
-                  <p className="tag">
-                    {effect.custom ? 'Custom effect' : `effect: '${effect.name}'`}
-                  </p>
-                  <h3>{effect.title}</h3>
-                  <p>{effect.summary}</p>
-                  <p className="card-meta">
-                    {settings.pattern === 'own' ? effect.pattern : settings.pattern} ·{' '}
-                    {(effect.durationMs / 1000).toFixed(1)} s
-                  </p>
-                </ShatterLink>
-              </li>
-            ))}
+            {EFFECTS.filter((effect) => effect.family === group.id).map((effect) => {
+              const stage = effectFor(effect.name, effect.durationMs, { ...settings, slow: false });
+              return (
+                <li key={effect.name}>
+                  <ShatterLink
+                    className="card"
+                    href={`/effects/${effect.name}${query}`}
+                    effect={stage}
+                    style={{ '--c1': effect.colors[0], '--c2': effect.colors[1] } as CSSProperties}
+                  >
+                    <StageArt effect={stage} />
+                    <p className="tag">
+                      {effect.custom ? 'Custom effect' : `effect: '${effect.name}'`}
+                    </p>
+                    <h3>{effect.title}</h3>
+                    <p>{effect.summary}</p>
+                    <p className="card-meta">
+                      {settings.pattern === 'own' ? effect.pattern : settings.pattern} ·{' '}
+                      {(effect.durationMs / 1000).toFixed(1)} s
+                    </p>
+                  </ShatterLink>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ))}

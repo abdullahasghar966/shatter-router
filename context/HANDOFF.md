@@ -7,8 +7,8 @@
 
 ## Where we are
 
-- **Current milestone:** 20 — Site features (`context/PLAN-PRODUCTION.md` section 5, scope in ADR-061).
-- **Current branch:** `milestone/20-site-features` (from `main` at `1e7c826`). Latest tag `m17-interaction`. Order after this: M18 (regions), then M21 (production, 1.0).
+- **Current milestone:** 18 (planning, ADR-063) — Site features (`context/PLAN-PRODUCTION.md` section 5, scope in ADR-061).
+- **Current branch:** `milestone/18-regions` (from `main` at `08c8254`, the M20 merge). Latest tag `m20-site-features`. Order after this: M18 (regions), then M21 (production, 1.0).
 
 ## Done in M20 (all on the branch, pushed)
 
@@ -23,14 +23,13 @@
 
 ## Next steps
 
-1. Read the full local run (`coverage/m20/full-run.log`, Chromium + WebKit) and fix anything red. Then Lighthouse 12.6.0 mobile on a local production build for `/effects`, `/effects/shatter`, `/playground`, `/docs/getting-started`, `/docs/changelog`, `/benchmark` (target ≥ 95 / 100); record in PROGRESS.
-2. A.5 ritual: update PROGRESS (M20 row, test counts), open the PR (`gh pr create --base main --head milestone/20-site-features --title "Milestone 20: Site features"`), watch three-engine CI, merge with `--merge`, tag `m20-site-features` on `main`, production Lighthouse after the Vercel deploy.
-3. **M18 region transitions** (`transition({ target })`, plan 3.7): plan the bytes first (engine core 13.95 of 15 kB, runtime 9.93 of 10 kB): move data to a lazy chunk or write a budget ADR. M18 also unlocks the ADR-061 deferrals.
+1. **M18 PR:** update PROGRESS (M18 row, test counts), `gh pr create --base main --head milestone/18-regions`, watch three-engine CI, merge with `--merge` only when the user says so, tag `m18-regions` on `main`.
+2. Later (project complete, per the user): Lighthouse on all pages (playground TBT, shared chunk), then M21 Lighthouse CI.
 
 ## Open problems / blockers
 
 - **Firefox CI white frame (unexplained):** `flip`'s fractured first frame was fully white in 2 of 5 Firefox CI runs before; failed seams log `describeOverlay`. Read the `[overlay]` line in the CI log first if it recurs.
-- Budgets close to their limits: runtime 9.93 / 10 kB, engine core 13.95 / 15 kB.
+- Budgets: runtime 10.21 / 10.5 kB (raised by ADR-066), scroll chunk 2.16 / 4 kB, engine core 14.7 / 15 kB.
 - Local Firefox only through WSL (`coverage/wsl/run-repro.sh`); real-GPU runs use installed Chrome 157 with `--force_high_performance_gpu`.
 - Windows WebKit crashes on a View Transition right after a CSP-blocked image: that test is `fixme` on win32 only.
 - The Claude desktop browser pane throttles frames (captures there exceed the budget): use headless Playwright for checks and numbers.

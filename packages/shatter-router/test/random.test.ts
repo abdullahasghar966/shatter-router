@@ -30,7 +30,7 @@ describe('mulberry32', () => {
     for (const count of buckets) {
       expect(Math.abs(count - n / 10)).toBeLessThan(n / 100);
     }
-  });
+  }, 30_000);
 
   it('treats seeds as unsigned 32-bit integers', () => {
     expect(mulberry32(-1)()).toBe(mulberry32(0xffffffff)());

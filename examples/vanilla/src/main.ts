@@ -1,7 +1,7 @@
 import { classifyLinkClick, createShatter, findAnchor, getLinkEffect } from 'shatter-router';
 import { rapier } from 'shatter-router/rapier';
 import { lab } from './lab';
-import { effectsPage, notFound, pages } from './pages';
+import { effectsPage, notFound, pages, regionsPage, scrollPage } from './pages';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app is missing from index.html');
@@ -84,6 +84,18 @@ interface HistoryState {
 }
 
 let renderedRoute = '';
+/** The scroll-driven break of the scroll page (ADR-064), stopped when the route changes. */
+let stopScrollBreak: (() => void) | null = null;
+
+function startScrollBreak(route: string): void {
+  const target = outlet.querySelector<HTMLElement>('.scroll-break-target');
+  if (!target) return;
+  void shatter.scrollBreak(target, { effect: 'shatter' }).then((stop) => {
+    // The route changed while it was being set up: it stops at once.
+    if (renderedRoute !== route) stop();
+    else stopScrollBreak = stop;
+  });
+}
 
 function render(url: URL): void {
   renderedRoute = url.pathname;
@@ -92,9 +104,16 @@ function render(url: URL): void {
       ? lab
       : url.pathname === '/effects'
         ? effectsPage
-        : pages[url.pathname]) ?? notFound;
+        : url.pathname === '/regions'
+          ? regionsPage
+          : url.pathname === '/scroll'
+            ? scrollPage
+            : pages[url.pathname]) ?? notFound;
+  stopScrollBreak?.();
+  stopScrollBreak = null;
   outlet.innerHTML = page.render();
   page.mount?.(outlet);
+  if (url.pathname === '/scroll') startScrollBreak(url.pathname);
   document.title = `${page.title} — Shatter Router vanilla example`;
   for (const link of document.querySelectorAll<HTMLAnchorElement>('.site-header nav a')) {
     const active = new URL(link.href).pathname === url.pathname;
@@ -125,7 +144,23 @@ function navigate(url: URL, origin: { x: number; y: number }, effect?: string): 
   });
 }
 
+// A region (ADR-063): a card breaks in place; nothing navigates, nothing scrolls.
+function breakRegion(card: HTMLElement, origin: { x: number; y: number } | undefined): void {
+  const effect = card.dataset.regionEffect ?? 'shatter';
+  void shatter.transition({
+    target: card,
+    effect,
+    ...(origin ? { origin } : {}),
+    commit: () => undefined,
+  });
+}
+
 document.addEventListener('click', (event) => {
+  const card = (event.target as Element | null)?.closest<HTMLElement>('[data-region]');
+  if (card) {
+    breakRegion(card, event.detail > 0 ? { x: event.clientX, y: event.clientY } : undefined);
+    return;
+  }
   const anchor = findAnchor(event);
   if (!anchor) return;
   const decision = classifyLinkClick(event, anchor);
@@ -138,6 +173,14 @@ document.addEventListener('click', (event) => {
     ? { x: event.clientX, y: event.clientY }
     : { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   void navigate(decision.url, origin, getLinkEffect(anchor));
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const card = (event.target as Element | null)?.closest<HTMLElement>('[data-region]');
+  if (!card) return;
+  event.preventDefault();
+  breakRegion(card, undefined);
 });
 
 window.addEventListener('popstate', (event) => {

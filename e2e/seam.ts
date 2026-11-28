@@ -243,7 +243,7 @@ export async function waitForShatterReady(page: Page): Promise<void> {
 }
 
 /** Pipeline phases the debug hook can stop at. */
-export type PausePoint = 'covered' | 'fractured' | 'cracked' | 'animating' | 'settled';
+export type PausePoint = 'covered' | 'fractured' | 'cracked' | 'animating' | 'settled' | 'scrubbed';
 
 /** Arms the debug hook so the next transition stops when it reaches `point`. */
 export async function pauseAt(page: Page, point: PausePoint): Promise<void> {

@@ -240,3 +240,56 @@ h1 {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+.regions .region-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1rem;
+  margin: 3rem 0;
+}
+.regions .region-card {
+  min-height: 12rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line, #d6cfbf);
+  border-radius: 6px;
+  background: var(--bg-raised, #fbf9f4);
+  cursor: pointer;
+}
+.regions .region-card.wide {
+  grid-column: 1 / -1;
+  min-height: 16rem;
+  background: linear-gradient(135deg, #2cb5a0, #a6f0e1);
+}
+.regions .region-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+}
+.regions .region-filler {
+  min-height: 60vh;
+  color: var(--muted, #5a554b);
+}
+
+/* Scroll-driven breaking (ADR-064): a tall section with a sticky box inside. */
+.scroll-break-section {
+  position: relative;
+  height: 200vh;
+}
+.scroll-break-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scroll-break-target {
+  width: min(30rem, 90%);
+  padding: 2rem;
+  border: 1px solid var(--line, #d6cfbf);
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ffb199, #ff5a36);
+}
+.scroll-break-target h2 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+}

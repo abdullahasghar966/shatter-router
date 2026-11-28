@@ -36,6 +36,9 @@ export default defineConfig({
     // stable (the core loads them with dynamic import, size-limit budgets
     // them separately); they are not part of the package's public exports.
     runtime: 'src/runtime/index.ts',
+    // Scroll-driven breaks (ADR-064) and region geometry (ADR-063): loaded on use.
+    scroll: 'src/runtime/scroll.ts',
+    geometry: 'src/runtime/geometry.ts',
     engine: 'src/engine/index.ts',
     capture: 'src/capture/index.ts',
     'rapier-backend': 'src/rapier/backend.ts',

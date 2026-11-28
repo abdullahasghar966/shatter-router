@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ShatterLink } from 'shatter-router/next';
 import { Code } from './code';
 import { Hero } from './hero';
+import { Specimens } from './specimens';
 
 export const metadata: Metadata = {
   title: { absolute: 'Shatter Router — break the page' },
@@ -39,6 +40,7 @@ export default function Home(): ReactNode {
   return (
     <>
       <Hero />
+      <Specimens />
       <section className="section" aria-labelledby="why">
         <p className="kicker">What it does</p>
         <h2 id="why">Every route change, through glass.</h2>

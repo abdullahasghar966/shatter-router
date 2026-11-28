@@ -1,4 +1,5 @@
 export { createShatter } from './core/shatter';
+export type { ScrollBreakOptions } from './core/types';
 export type {
   FallbackReason,
   PausePoint,

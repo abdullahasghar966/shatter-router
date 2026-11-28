@@ -127,3 +127,56 @@ export const notFound: Page = {
       <p class="lede"><a href="/">Back home</a></p>
     </section>`,
 };
+
+/** Regions (ADR-063): cards that break in place while the rest of the page stays live. */
+export const regionsPage: Page = {
+  title: 'Regions',
+  render: () => `
+    <section class="hero compact">
+      <p class="eyebrow">Regions</p>
+      <h1>Break one card.</h1>
+      <p class="lede">Click a card: only that card breaks; the page around it stays where it is and live.</p>
+    </section>
+    <section class="prose regions" aria-label="Region cards">
+      <div class="region-row">
+        <div class="region-card" data-region data-region-effect="shatter" tabindex="0" role="button" aria-label="Shatter this card">
+          <h2>Shatter</h2><p>Falls, from the middle of this card.</p>
+        </div>
+        <div class="region-card" data-region data-region-effect="explode" tabindex="0" role="button" aria-label="Explode this card">
+          <h2>Explode</h2><p>Blasts toward you.</p>
+        </div>
+        <div class="region-card" data-region data-region-effect="flip" tabindex="0" role="button" aria-label="Flip this card">
+          <h2>Flip</h2><p>Turns over in place.</p>
+        </div>
+      </div>
+      <p class="region-filler">Text above and below keeps the page scrollable, so a region must not scroll it.</p>
+      <div class="region-row">
+        <div class="region-card wide" data-region data-region-effect="glitch" tabindex="0" role="button" aria-label="Glitch this card">
+          <h2>Glitch</h2><p>A wide card near the bottom of the page.</p>
+        </div>
+      </div>
+      <p class="region-filler">More content below the wide card, so the page is long enough to scroll.</p>
+    </section>
+  `,
+};
+
+/** Scroll-driven breaking (ADR-064): the card breaks while its section scrolls past. */
+export const scrollPage: Page = {
+  title: 'Scroll',
+  render: () => `
+    <section class="hero compact">
+      <p class="eyebrow">Scroll</p>
+      <h1>Break as you scroll.</h1>
+      <p class="lede">Scroll down: the card breaks while its section scrolls past. Scroll back up and it is whole again.</p>
+    </section>
+    <section class="scroll-break-section" aria-label="Scroll-driven break">
+      <div class="scroll-break-pin">
+        <div class="scroll-break-target">
+          <h2>Scroll</h2>
+          <p>Breaks while this section scrolls.</p>
+        </div>
+      </div>
+    </section>
+    <p class="region-filler">Content after the section stays where it is.</p>
+  `,
+};

@@ -214,6 +214,9 @@ export class FakeWorld {
       },
       setCrack: () => undefined,
       setMotionTime: () => undefined,
+      scrub: () => undefined,
+      scrubLength: 0,
+      setOverlayShown: () => undefined,
       draw: () => undefined,
       release() {
         world.calls.push('release');

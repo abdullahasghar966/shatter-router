@@ -3,6 +3,8 @@ import type { DebugPanel } from '../debug/index';
 import type { SoundCue } from '../sound/index';
 import { DEFAULT_INTENSITY } from '../core/interaction';
 import type { Engine } from '../engine/index';
+import type { ScrollBreaks } from './scroll';
+import type { PageFrame } from '../engine/crop';
 import { announceTitle, focusNewPage } from '../core/a11y';
 import { crossfade } from '../core/crossfade';
 import { type EffectSource, effectName, isComposition } from '../core/compose';
@@ -20,6 +22,7 @@ import type {
   FallbackReason,
   PausePoint,
   Point,
+  ScrollBreakOptions,
   Shatter,
   ShatterEventMap,
   ShatterEventName,
@@ -54,6 +57,9 @@ export type EngineLike = Pick<
   | 'animate'
   | 'setCrack'
   | 'setMotionTime'
+  | 'scrub'
+  | 'scrubLength'
+  | 'setOverlayShown'
   | 'draw'
   | 'release'
   | 'destroy'
@@ -147,9 +153,11 @@ interface Plan {
   readonly path: readonly Point[] | undefined;
   /** `uDirection`: a reversed effect runs forward in reverse time. */
   readonly direction: 'forward' | 'back';
+  /** Breaks only this element (ADR-063). */
+  readonly target?: Element;
 }
 
-interface Settings {
+export interface Settings {
   readonly effect: EffectSource;
   readonly duration: number | undefined;
   readonly shards: 'auto' | number;
@@ -255,6 +263,8 @@ class Runtime implements ShatterRuntime {
   private pending: Precapture | null = null;
   private precaptureExpiry = 0;
   private resumePaused: (() => void) | null = null;
+  /** Scroll-driven breaks (ADR-064), loaded on first use. */
+  private scroll: ScrollBreaks | null = null;
   private wireframe = false;
   private destroyed = false;
   private panel: DebugPanel | null = null;
@@ -418,6 +428,8 @@ class Runtime implements ShatterRuntime {
       await request.commit();
       return;
     }
+    // A navigation ends every scrub first: the page is whole again before it is captured.
+    this.scroll?.interrupt();
     if (this.busy) await this.busy;
     const ticket = ++this.ticket;
     const previous = this.current;
@@ -466,6 +478,8 @@ class Runtime implements ShatterRuntime {
       run.cancel.abort();
       run.skip.abort();
     }
+    this.scroll?.destroy();
+    this.scroll = null;
     this.dropPrecapture();
     this.disarmPrime();
     this.resumePaused?.();
@@ -526,14 +540,31 @@ class Runtime implements ShatterRuntime {
         this.hook.lastPrecaptured = precaptured;
       }
       machine.enter('covering');
-      await engine.cover(snapshot);
+      // A region (ADR-063): the element's box, as device pixels of this capture.
+      const target = run.plan.target;
+      let frame: PageFrame | undefined;
+      if (target) {
+        frame = (await import('./geometry')).frameOf(target, snapshot) ?? undefined;
+        if (!frame) {
+          snapshot.dispose();
+          throw new Fallback('region-empty');
+        }
+      }
+      await engine.cover(snapshot, frame);
       this.throwIfCancelled(run);
       this.emit('covered', { captureMs: snapshot.duration, precaptured });
       await this.pause('covered', run);
 
       // Fracture before the router runs so the geometry work overlaps the
       // time the new route needs to render.
-      const origin = run.plan.origin ?? { x: viewport.width / 2, y: viewport.height / 2 };
+      const origin =
+        run.plan.origin ??
+        (frame
+          ? {
+              x: frame.region.x + frame.region.width / 2,
+              y: frame.region.y + frame.region.height / 2,
+            }
+          : { x: viewport.width / 2, y: viewport.height / 2 });
       const { count, tier } = engine.resolveShardCount(settings.shards, snapshot.duration);
       const seed = settings.seed;
       const stats = engine.fracture({
@@ -560,7 +591,9 @@ class Runtime implements ShatterRuntime {
       machine.enter('waiting');
       removeSkipListeners = this.listenForSkip(run, engine);
       const direction = request.direction ?? 'forward';
-      const scroll: ScrollTarget = request.scroll ?? (direction === 'back' ? 'none' : 'top');
+      // A region has no new page to scroll to: the page stays where it is.
+      const scroll: ScrollTarget =
+        request.scroll ?? (target || direction === 'back' ? 'none' : 'top');
       await waitUntilReady(document, scroll, settings.readyTimeout, run.skip.signal);
 
       // Effects that end on the new page need a picture of it (master prompt 4.7):
@@ -746,6 +779,7 @@ class Runtime implements ShatterRuntime {
         effect: chosen,
         origin: gesture?.origin ?? request.origin,
         direction: 'forward',
+        ...(request.target ? { target: request.target } : {}),
         ...force,
       };
     }
@@ -1050,7 +1084,34 @@ class Runtime implements ShatterRuntime {
   }
 
   /** Debug pause point; a cancel or skip also releases it. */
-  private pause(point: PausePoint, run: Run): Promise<void> {
+  /**
+   * A scroll-driven break (ADR-064): the element breaks as its sticky section
+   * scrolls. Resolves with a function that stops it. The scroll code loads on
+   * first use; under reduced motion nothing is set up.
+   */
+  async scrollBreak(target: Element, options: ScrollBreakOptions): Promise<() => void> {
+    if (this.destroyed) return () => undefined;
+    if (this.settings.reducedMotion !== 'ignore' && prefersReducedMotion()) return () => undefined;
+    const { createScrollBreaks } = await import('./scroll');
+    if (this.isDestroyed()) return () => undefined;
+    this.scroll ??= createScrollBreaks({
+      load: () => this.load(),
+      idle: () => this.idle(),
+      settings: this.settings,
+      registry: () => this.registry(),
+      material: () => this.host.material(),
+      pause: (point) =>
+        this.pause(point, { cancel: new AbortController(), skip: new AbortController() }),
+    });
+    return this.scroll.add(target, options);
+  }
+
+  /** No timed transition is running or about to take the engine. */
+  private idle(): boolean {
+    return !this.current && !this.busy && this.machine.state === 'idle';
+  }
+
+  private pause(point: PausePoint, run: Pick<Run, 'cancel' | 'skip'>): Promise<void> {
     const hook = this.hook;
     if (hook?.pauseAt !== point) return Promise.resolve();
     hook.pauseAt = null;
