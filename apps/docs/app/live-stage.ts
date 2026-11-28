@@ -48,6 +48,8 @@ export function useHoverHoldBreak(
     if (!el || !shatter || !window.matchMedia('(hover: hover)').matches) return undefined;
     let timer = 0;
     let spent = false;
+    // Set while the pointer is over the element; the hold only fires while it is.
+    let hovering = false;
     const cancel = (): void => {
       window.clearTimeout(timer);
     };
@@ -64,8 +66,10 @@ export function useHoverHoldBreak(
     };
     const enter = (): void => {
       cancel();
+      hovering = true;
       if (spent) return;
       timer = window.setTimeout(() => {
+        if (!hovering) return;
         spent = true;
         // Clicks pass through the preview: a click on the card follows its link (ADR-068).
         void breakInPlace(shatter, el, effectRef.current, true);
@@ -73,11 +77,16 @@ export function useHoverHoldBreak(
     };
     const leave = (event: PointerEvent): void => {
       cancel();
-      if (!inside(event)) spent = false;
+      if (!inside(event)) {
+        hovering = false;
+        spent = false;
+      }
     };
     // Any move that takes the pointer off the element ends the hold.
     const move = (event: PointerEvent): void => {
-      if (timer !== 0 && !inside(event)) cancel();
+      if (inside(event)) return;
+      hovering = false;
+      cancel();
     };
     el.addEventListener('pointerenter', enter);
     el.addEventListener('pointerleave', leave);
